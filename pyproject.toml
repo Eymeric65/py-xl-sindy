@@ -27,6 +27,5 @@ dev = [
     "matplotlib"           # Optional plotting for examples
 ]
 
-
-[tool.setuptools.packages]
-find = { where = ["xlsindy"] }
+[tool.setuptools.packages.find]
+include = ["xlsindy"]

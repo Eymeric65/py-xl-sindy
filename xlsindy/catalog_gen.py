@@ -1,140 +1,194 @@
 import numpy as np
-import sympy as sp
+import sympy
+from typing import List, Callable, Union
+from numpy.typing import NDArray
 
+"""  """
 
-def Catalog_gen_p(f_cat,qk,prof,im,jm,puissance,puissance_init): # Not everything lol
+def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
+    """
+    Creates a symbolic matrix representing external forces and state variables for a number of coordinates.
 
-    if prof==0 :
-        return [1] #,f_cat[f].format(v_cat[v])
-    else:
-        ret = []
-        for i in range(im,len(f_cat)):
-            for j in range(jm,qk):
-
-                if i == im and j == jm:
-                    if puissance > 0:
-                        res = Catalog_gen_p(f_cat,qk,prof-1,i,j,puissance-1,puissance_init)
-                    else:
-                        res = []
-
-                    fun_p = f_cat[i]
-                    res_add = [res[l]*fun_p(j) for l in range(len(res))]
-
-                else:
-
-                    res = Catalog_gen_p(f_cat,qk,prof-1,i,j,puissance_init-1,puissance_init)
-
-                    fun_p = f_cat[i]
-                    res_add = [res[l]*fun_p(j) for l in range(len(res))]
-
-                ret += res_add
-
-
-        return ret
-
-def Concat_Func_var(f_cat,qk):
-
-    ret = []
-
-    for i in range(len(f_cat)):
-
-        for j in range(qk):
-
-            fun_p = f_cat[i]
-            ret += [fun_p(j)]
-
-    return ret
-
-def Catalog_gen_c(cat,prof,im,puissance,puissance_init):
-
-    if prof==0 :
-        return [1] #,f_cat[f].format(v_cat[v])
-    else:
-        ret = []
-        for i in range(im+1, len(cat)):
-
-            res = Catalog_gen_c(cat,prof - 1, i, puissance_init - 1, puissance_init)
-
-            ret += [res[l] * cat[i] for l in range(len(res))]
-
-        if puissance > 0:
-
-            res = Catalog_gen_c(cat, prof - 1, im, puissance - 1, puissance_init)
-            ret += [res[l] * cat[im] for l in range(len(res))]
-
-        return ret
-
-def Catalog_gen(f_cat,qk,degre,puissance=None):
-    """Create a catalog of linear combinaison of an array of function
+    This function create the matrix containing all the state variable with following derivatives and external forces.
     
+    +-------------+-------------+-------------+-------------+
+    | Fext0(t)    | Fext2(t)    | ...         | Fextn(t)    |
+    +-------------+-------------+-------------+-------------+
+    | q0(t)       | q2(t)       | ...         | qn(t)       |
+    +-------------+-------------+-------------+-------------+
+    | q0_d(t)     | q2_d(t)     | ...         | qn_d(t)     |
+    +-------------+-------------+-------------+-------------+
+    | q0_dd(t)    | q2_dd(t)    | ...         | qn_dd(t)    |
+    +-------------+-------------+-------------+-------------+
+
+    Args:
+        coord_count (int): Number of coordinates.
+        t (sympy.Symbol): Symbol representing time.
+
+    Returns:
+        np.ndarray: matrix of shape (4, n) containing symbolic expression.
+    """
+    symbolic_matrix = np.zeros((4, coord_count), dtype=object)
+    symbolic_matrix[0, :] = [sympy.Function(f"Fext{i}")(t) for i in range(coord_count)]
+    symbolic_matrix[1, :] = [sympy.Function(f"q{i}")(t) for i in range(coord_count)]
+    symbolic_matrix[2, :] = [sympy.Function(f"q{i}_d")(t) for i in range(coord_count)]
+    symbolic_matrix[3, :] = [sympy.Function(f"q{i}_dd")(t) for i in range(coord_count)]
+    return symbolic_matrix
+
+def calculate_forces_vector(force_function: Callable[[float], np.ndarray], time_values: np.ndarray) -> np.ndarray:
+    """
+    Calculates a vector of forces at given time values.
+
+    Args:
+        force_function (Callable[[float], np.ndarray]): Function that returns forces for given time values.
+        time_values (np.ndarray): Time values to evaluate.
+
+    Returns:
+        np.ndarray: Reshaped force vector.
+    """
+    force_vector = force_function(time_values) 
+    force_vector[:-1, :] -= force_vector[1:, :] # Offset forces in order to get local joint forces
+    return np.transpose(np.reshape(force_vector, (1, -1))) # Makes everything flat for rendering afterwards
+
+def _concatenate_function_symvar(
+    function_catalog: List[Callable[[int], sympy.Expr]], 
+    q_terms: int
+) -> List[sympy.Expr]:
+    """
+    Concatenates function with symbolic value.
+
+    This function is made to convert the first function catalog into a total list of function.
+
+    it aims to convert this :
+        'function_catalog_1 = [lambda x: Symb[2,x]]' (which means : "the catalog of the derived of the general coordinate" )
+    into :
+        '[Symb[2,0],Symb[2,1],...,Symb[2,n]]' equivalent of [q0_d(t),q1_d(t),...,qn_d(t)]
+
+    Args:
+        function_catalog (List[Callable[[int], sympy.Expr]]): List of functions.
+        q_terms (int): Number of terms.
+
+    Returns:
+        List[sympy.Expr]: List of function values.
+    """
+    result = []
+    for func in function_catalog:
+        for j in range(q_terms):
+            result.append(func(j))
+    return result
+
+def generate_combination_catalog(
+    catalog: List[sympy.Expr], 
+    depth: int, 
+    func_idx: int, 
+    power: int, 
+    initial_power: int
+) -> List[sympy.Expr]:
+    """
+    Recursively generates combinations from a catalog of constants or functions.
+
+    The goal is to generate every combinaison of function at a certain power.
+    Depth should always been greater or equal to the power (otherwise we won't be able to obtain component at the right power)
+
+
+    Args:
+        catalog (List[sympy.Expr]): List of constants or functions.
+        depth (int): Recursion depth. >=power
+        func_idx (int): Current function index.
+        power (int): Current power level.
+        initial_power (int): Initial power level.
+
+    Returns:
+        List[sympy.Expr]: List of combinations.
+    """
+    if depth == 0: # Return Identity if depth is nul
+        return [1] 
+    else:
+        result = [] # Initialize result
+        for i in range(func_idx + 1, len(catalog)): # for every next function in the catalog (this triangular approch account for multiplication permutation ability)
+            res = generate_combination_catalog(catalog, depth - 1, i, initial_power - 1, initial_power) # get the combinaison at a depth after ( power is equal initial_power -1 because the function is used the line after)
+            result += [res_elem * catalog[i] for res_elem in res] # append result with each of the succeding combination multiplied by the function
+        if power > 0: # if the actual function has still power left we can decrease power by 1 and concatenate with the combinaison at one depth and one power less
+            res = generate_combination_catalog(catalog, depth - 1, func_idx, power - 1, initial_power)
+            result += [res_elem * catalog[func_idx] for res_elem in res]
+        return result
+
+def generate_full_catalog(
+    function_catalog: List[sympy.Expr], 
+    q_terms: int, 
+    degree: int, 
+    power: int = None
+) -> List[sympy.Expr]:
+    """
+    Generates a catalog of linear combinations from a function array until a certain degree/power.
+
+    Args:
+        function_catalog (List[sympy.Expr]): List of functions to use.
+        q_terms (int): Number of general coordinate.
+        degree (int): Maximum degree of combinations. 
+        power (int, optional): Maximum power level. Defaults to None, in which case it uses `degree`. Need to be inferior or equal to depth in order to generate at least function_i^power in the catalog
+
+    Returns:
+        List[sympy.Expr]: List of combined functions.
     """
     catalog = []
+    if power is None: # If no power is specified we assume that user want to generate singleton function^degree
+        power = degree
+    
+    base_catalog = _concatenate_function_symvar(function_catalog, q_terms)
 
-    if puissance==None:
-
-        puissance = degre
-
-    sub_cat = Concat_Func_var(f_cat,qk)
-
-    for i in range(degre):
-        catalog += Catalog_gen_c(sub_cat, i + 1, 0,puissance,puissance)
-
+    for i in range(degree): # generate for each depth
+        catalog += generate_combination_catalog(base_catalog, i + 1, 0, power, power)
     return catalog
 
-
-def Symbol_Matrix_g(Coord_number,t):
+def create_solution_vector(
+    expression: sympy.Expr, 
+    catalog: List[Union[int, float]], 
+    friction_terms: List[Union[int, float]] = []
+) -> np.ndarray:
     """
+    Creates a solution vector by matching expression terms to a catalog.
 
+    Args:
+        expression (sympy.Expr): The equation to match.
+        catalog (List[sympy.Expr]): List of functions or constants to match against.
+        friction_terms (List[sympy.Expr], optional): List of friction terms to include. Defaults to an empty list.
+
+    Returns:
+        np.ndarray: Solution vector containg the coefficient in order that return*catalog=expression.
     """
+    expanded_expression_terms = sympy.expand(sympy.expand_trig(expression)).args # Expand the expression in order to get base function (ex: x, x^2, sin(s), ...)
+    solution_vector = np.zeros((len(catalog) + len(friction_terms), 1))
+    for term in expanded_expression_terms:
+        for idx, catalog_term in enumerate(catalog):
+            test = term / catalog_term
+            if len(test.args) == 0:  # if test is a constant it means that catalog_term is inside equation
+                solution_vector[idx, 0] = test
 
-    ret = np.zeros((4,Coord_number),dtype='object')
-    ret[0,:]= [sp.Function("Fext{}".format(i))(t) for i in range(Coord_number)]
-    ret[1, :] = [sp.Function("q{}".format(i))(t) for i in range(Coord_number)]
-    ret[2, :] = [sp.Function("q{}_d".format(i))(t) for i in range(Coord_number)]
-    ret[3, :] = [sp.Function("q{}_dd".format(i))(t) for i in range(Coord_number)]
-    return ret
+    for i, friction_value in enumerate(friction_terms):
+        solution_vector[len(catalog) + i] = friction_value
+    return solution_vector
 
-def Forces_vector(F_fun,t_v):
+def create_solution_expression(
+    solution_vector: np.ndarray, 
+    catalog: List[sympy.Expr], 
+    friction_count: int = 0
+) -> sympy.Expr:
+    """
+    Constructs an expression from a solution vector and a catalog.
 
-    F_vec = F_fun(t_v)
+    Args:
+        solution_vector (np.ndarray): Solution values.
+        catalog (List[Union[int, float]]): List of functions or constants.
+        friction_count (int): Number of friction terms. at the end of solution_vector
 
-    F_vec[0:-1,:] -= F_vec[1:,:]
-
-    return np.transpose(np.reshape(F_vec,(1,-1)))
-
-def Make_Solution_vec(exp,Catalog,Frottement=[]):
-
-    exp_arg = sp.expand(sp.expand_trig(exp)).args
-    #print("Expression ",exp_arg)
-    #print("Reduction ",sp.expand(sp.expand_trig(exp)))
-    Solution = np.zeros((len(Catalog)+len(Frottement),1))
-
-    for i in range(len(exp_arg)):
-
-        for v in range(len(Catalog)):
-
-            test = exp_arg[i]/Catalog[v]
-
-            if(len(test.args)==0):
-
-                Solution[v,0] = test
-
-    for i in range(len(Frottement)):
-        Solution[len(Catalog)+i] = Frottement[i]
-
-    return Solution
-
-def Make_Solution_exp(Solution,Catalog,Frottement=0):
-
-    Modele = 0
-
-    for i in range(len(Solution)-Frottement):
-
-        Modele += Solution[i]*Catalog[i]
-
-    return Modele
-
-
+    Returns:
+        sympy.Expr: Constructed solution expression, litteraly construct solution_vector*catalog.T .
+    """
+    model_expression = 0
+    for i in range(len(solution_vector) - friction_count):
+        model_expression += solution_vector[i] * catalog[i]
+    return model_expression
 
 
 
