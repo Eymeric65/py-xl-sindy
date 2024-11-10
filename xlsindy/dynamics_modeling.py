@@ -1,3 +1,4 @@
+import numpy as np
 from .render import printProgress
 from scipy import interpolate
 from scipy.integrate import RK45
@@ -5,7 +6,9 @@ from scipy.integrate import RK45
 
 def dynamics_function(acceleration_function, external_forces):
     """
-    Transforms an array of acceleration functions into a dynamics function for integration.
+    Transforms an array of acceleration functions into a dynamics function suitable for integration method.
+
+    
 
     Args:
         acceleration_function (function): Array of functions representing accelerations.

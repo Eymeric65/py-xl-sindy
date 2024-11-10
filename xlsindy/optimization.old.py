@@ -35,6 +35,7 @@ def Optimal_sampling(ThetaV,dist_s):
             q+=1
 
     return ind[:q]
+
 def Optimal_sampling_2(ThetaV,dist_s): # Moins performant
 
     Nb_v = ThetaV.shape[0]
