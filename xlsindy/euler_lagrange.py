@@ -1,19 +1,25 @@
 import numpy as np
 import sympy
 import time
+from typing import List, Callable, Dict, Tuple
 
-def compute_euler_lagrange_equation(lagrangian_expr, symbol_matrix, time_symbol, coordinate_index):
+def compute_euler_lagrange_equation(
+    lagrangian_expr:sympy.Expr,
+    symbol_matrix:np.ndarray, 
+    time_symbol:sympy.Symbol, 
+    coordinate_index:int
+    ) -> sympy.Expr:
     """
     Compute the Euler-Lagrange equation for a given generalized coordinate.
 
     Parameters:
     - lagrangian_expr (sp.Expr): The symbolic expression of the Lagrangian.
-    - symbol_matrix (sp.Matrix): The matrix of symbolic variables (external forces, positions, velocities, and accelerations).
+    - symbol_matrix (np.ndarray): The matrix of symbolic variables (external forces, positions, velocities, and accelerations).
     - time_symbol (sp.Symbol): The symbolic variable representing time.
     - coordinate_index (int): The index of the generalized coordinate for differentiation.
 
     Returns:
-    - sp.Expr: The Euler-Lagrange equation for the specified generalized coordinate.
+    - sympy.Expr: The Euler-Lagrange equation for the specified generalized coordinate.
     """
     dL_dq = sympy.diff(lagrangian_expr, symbol_matrix[1, coordinate_index])
     dL_dq_dot = sympy.diff(lagrangian_expr, symbol_matrix[2, coordinate_index])
@@ -25,7 +31,15 @@ def compute_euler_lagrange_equation(lagrangian_expr, symbol_matrix, time_symbol,
 
     return dL_dq - time_derivative
 
-def generate_acceleration_function(lagrangian, symbol_matrix, time_symbol, substitution_dict, fluid_forces=[], verbose=False, use_clever_solve=True):
+def generate_acceleration_function(
+    lagrangian:sympy.Expr,
+    symbol_matrix:np.ndarray, 
+    time_symbol:sympy.Symbol, 
+    substitution_dict:Dict[str,float], 
+    fluid_forces:List[int]=[], 
+    verbose:bool=False, 
+    use_clever_solve:bool=True
+    )->Tuple[Callable[[np.ndarray],np.ndarray],bool]:
     """
     Generate a function for computing accelerations based on the Lagrangian.
 
@@ -36,9 +50,12 @@ def generate_acceleration_function(lagrangian, symbol_matrix, time_symbol, subst
     The main drawback of this is that when system is not perfectly retrieved it is theorically extremely hard to get a simple equation giving acceleration from the other variable.
     This usually lead to code running forever trying to solve this symbolic issue.
 
+    The other way is to create a linear system of b=Ax where x are the acceleration coordinate and b is the force vector.
+    At runtime one's need to replace every term in b and A and solve the linear equation (of dimension n so really fast)
+
     Parameters:
-    - lagrangian (sp.Expr): The symbolic Lagrangian of the system.
-    - symbol_matrix (sp.Matrix): Matrix containing symbolic variables (external forces, positions, velocities, accelerations).
+    - lagrangian (sympy.Expr): The symbolic Lagrangian of the system.
+    - symbol_matrix (np.ndarray): Matrix containing symbolic variables (external forces, positions, velocities, accelerations).
     - time_symbol (sp.Symbol): The time symbol in the Lagrangian.
     - substitution_dict (dict): Dictionary of substitutions for simplifying expressions. Used in case where lagrangian is handmade with variable (like lenght of pendulum etc...)
     - fluid_forces (list): List of external fluid dissipation coefficient affecting the system (default is None).
@@ -46,11 +63,12 @@ def generate_acceleration_function(lagrangian, symbol_matrix, time_symbol, subst
     - use_clever_solve (bool): If True, use matrix-based solution for acceleration (default is True).
 
     Returns:
-    - function: A function that computes the accelerations given system state.
+    - function: A function that computes the accelerations given system state. takes as input a numerical symbol matrix
     - bool: Whether the acceleration function generation was successful.
     """
     num_coords = symbol_matrix.shape[1]
-    fluid_forces = fluid_forces or [0] * num_coords
+    if len(fluid_forces) ==0 :
+        fluid_forces = [0 for i in range(num_coords)]
 
     accelerations = np.zeros((num_coords, 1), dtype="object") # Initialisation of return acceleration array
     dynamic_equations = np.zeros((num_coords,), dtype="object")
@@ -60,14 +78,15 @@ def generate_acceleration_function(lagrangian, symbol_matrix, time_symbol, subst
         if verbose:
             start_time = time.time()
 
-        dynamic_eq = compute_euler_lagrange_equation(lagrangian, symbol_matrix, time_symbol, i)
+        dynamic_eq = compute_euler_lagrange_equation(lagrangian, symbol_matrix, time_symbol, i) # Get every Euler_lagrange equation
 
         if verbose:
             print("Time to derive {}: {}".format(i, time.time() - start_time))
 
-        dynamic_eq -= symbol_matrix[0, i]
-        dynamic_eq += fluid_forces[i] * symbol_matrix[2, i]
+        dynamic_eq -= symbol_matrix[0, i] # Add external forces
+        dynamic_eq += fluid_forces[i] * symbol_matrix[2, i] # add visquous forces
 
+        # Hardcoded dissipation matrix for chained system
         if i < (num_coords - 1):
             dynamic_eq += fluid_forces[i + 1] * symbol_matrix[2, i]
             dynamic_eq += - fluid_forces[i + 1] * symbol_matrix[2, i + 1]
@@ -76,7 +95,7 @@ def generate_acceleration_function(lagrangian, symbol_matrix, time_symbol, subst
         if i > 0:
             dynamic_eq += -fluid_forces[i] * symbol_matrix[2, i - 1]
 
-        if str(symbol_matrix[3, i]) in str(dynamic_eq):
+        if str(symbol_matrix[3, i]) in str(dynamic_eq): # If we have acceleration term (we should if we somewhat analyse a real system)
             dynamic_equations[i] = dynamic_eq.subs(substitution_dict)
         else:
             valid = False
@@ -100,8 +119,8 @@ def generate_acceleration_function(lagrangian, symbol_matrix, time_symbol, subst
 
                 force_vector[i, 0] = equation
 
-            system_func = sp.lambdify([symbol_matrix], system_matrix)
-            force_func = sp.lambdify([symbol_matrix], force_vector)
+            system_func = sympy.lambdify([symbol_matrix], system_matrix)
+            force_func = sympy.lambdify([symbol_matrix], force_vector)
 
             def acceleration_solver(input_values):
                 system_eval = system_func(input_values)
@@ -110,45 +129,35 @@ def generate_acceleration_function(lagrangian, symbol_matrix, time_symbol, subst
 
             acc_func = acceleration_solver
         else:
-            solution = sp.solve(dynamic_equations, symbol_matrix[3, :])
+            solution = sympy.solve(dynamic_equations, symbol_matrix[3, :])
             accelerations[:, 0] = list(solution.values()) if isinstance(solution, dict) else list(solution[0])
-            acc_func = sp.lambdify([symbol_matrix], accelerations)
+            acc_func = sympy.lambdify([symbol_matrix], accelerations)
 
         if verbose:
             print("Time to Lambdify: {}".format(time.time() - start_time))
 
     return acc_func, valid
 
-def solve_linear_system(dynamics, acceleration_symbols):
+def create_experiment_matrix( 
+    num_coords:int, 
+    catalog:List[sympy.Expr], 
+    symbol_matrix:np.ndarray, 
+    time_symbol:sympy.Symbol, 
+    position_values:np.ndarray, 
+    time_values:np.ndarray, 
+    subsample:int=1, 
+    friction:bool=False, 
+    truncation:int=0, 
+    velocity_values:np.ndarray=[], 
+    acceleration_values:np.ndarray=[]
+    )->List[np.ndarray]:
     """
-    Solve a linear system for accelerations given dynamics equations.
+    Create the SINDy experiment matrix.
+
+    For each function in the catalog (plus the friction term) create the times series of the euler-lagranged function for each coordinate. 
+    This matrix will afterward undergo the regression in order to retrieve the parse expression. 
 
     Parameters:
-    - dynamics (list): List of dynamic equations.
-    - acceleration_symbols (list): List of symbols for acceleration variables.
-
-    Returns:
-    - sp.FiniteSet: Solution set for the linear system of equations.
-    """
-    matrix_a = np.zeros((len(acceleration_symbols), len(acceleration_symbols)), dtype="object")
-    vector_b = np.zeros((1, len(acceleration_symbols)), dtype="object")
-
-    for i, equation in enumerate(dynamics):
-        for j, acc_symbol in enumerate(acceleration_symbols):
-            equation = sp.collect(equation, acc_symbol)
-            matrix_a[i, j] = equation.coeff(acc_symbol)
-            equation -= matrix_a[i, j] * acc_symbol
-
-        vector_b[0, i] = equation
-
-    return sp.linsolve((sp.Matrix(matrix_a), sp.Matrix(vector_b)), *acceleration_symbols)
-
-def create_experiment_matrix(num_time_steps, num_coords, catalog, symbol_matrix, time_values, position_values, time_step, subsample=1, noise=0, friction=False, truncation=0, velocity_values=[], acceleration_values=[]):
-    """
-    Create an experiment matrix for system analysis based on Lagrangian catalog.
-
-    Parameters:
-    - num_time_steps (int): Total number of time steps in the data.
     - num_coords (int): Number of generalized coordinates.
     - catalog (list): List of Lagrangian expressions to evaluate.
     - symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
@@ -156,7 +165,6 @@ def create_experiment_matrix(num_time_steps, num_coords, catalog, symbol_matrix,
     - position_values (np.array): Array of positions at each time step.
     - time_step (float): Time interval between steps.
     - subsample (int): Rate of subsampling the data (default is 1, no subsampling).
-    - noise (float): Standard deviation of noise to add (default is 0).
     - friction (bool): Whether to add frictional forces (default is False).
     - truncation (int): Number of initial time steps to truncate (default is 0).
     - velocity_values (np.array): Array of velocities (default is empty).
@@ -183,8 +191,8 @@ def create_experiment_matrix(num_time_steps, num_coords, catalog, symbol_matrix,
     q_matrix[3, :, :] = np.transpose(acceleration_values[truncation::subsample])
 
     for i in range(num_coords):
-        catalog_lagrange = list(map(lambda x: compute_euler_lagrange_equation(x, symbol_matrix, time_step, i), catalog))
-        catalog_lambda = list(map(lambda x: sp.lambdify([symbol_matrix], x, modules="numpy"), catalog_lagrange))
+        catalog_lagrange = list(map(lambda x: compute_euler_lagrange_equation(x, symbol_matrix, time_symbol, i), catalog))
+        catalog_lambda = list(map(lambda x: sympy.lambdify([symbol_matrix], x, modules="numpy"), catalog_lagrange))
 
         for j, func in enumerate(catalog_lambda):
             experiment_matrix[i * sampled_steps:(i + 1) * sampled_steps, j] = func(q_matrix)
@@ -199,25 +207,3 @@ def create_experiment_matrix(num_time_steps, num_coords, catalog, symbol_matrix,
                 experiment_matrix[i * sampled_steps:(i + 1) * sampled_steps, len(catalog_lambda) + i] -= velocity_values[truncation::subsample, i - 1]
 
     return experiment_matrix, time_values[truncation::subsample]
-
-def compute_covariance_matrix(exp_matrix, solution, num_coords):
-    """
-    Calculate the covariance matrix based on experimental data.
-
-    Parameters:
-    - exp_matrix (np.array): Experiment matrix.
-    - solution (np.array): Solution array.
-    - num_coords (int): Number of generalized coordinates.
-
-    Returns:
-    - np.array: Variance of each element in the experiment matrix.
-    """
-    cov_matrix = np.linalg.inv(exp_matrix.T @ exp_matrix)
-    sampled_steps = int(exp_matrix.shape[0] / num_coords)
-    variance = np.zeros((sampled_steps,))
-
-    for i in range(num_coords):
-        app = exp_matrix[i * sampled_steps:(i + 1) * sampled_steps, :]
-        variance += (app @ cov_matrix @ app.T).diagonal()
-
-    return variance

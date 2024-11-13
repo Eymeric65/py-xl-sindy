@@ -1,9 +1,10 @@
 import numpy as np
 import sympy
 from typing import List, Callable, Union
-from numpy.typing import NDArray
 
-"""  """
+"""
+This file is mainly to create and manage catalog of function that will be use in the xl-sindy algorithm afterward.
+"""
 
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     """
@@ -77,7 +78,7 @@ def _concatenate_function_symvar(
             result.append(func(j))
     return result
 
-def generate_combination_catalog(
+def _generate_combination_catalog(
     catalog: List[sympy.Expr], 
     depth: int, 
     func_idx: int, 
@@ -106,10 +107,10 @@ def generate_combination_catalog(
     else:
         result = [] # Initialize result
         for i in range(func_idx + 1, len(catalog)): # for every next function in the catalog (this triangular approch account for multiplication permutation ability)
-            res = generate_combination_catalog(catalog, depth - 1, i, initial_power - 1, initial_power) # get the combinaison at a depth after ( power is equal initial_power -1 because the function is used the line after)
+            res = _generate_combination_catalog(catalog, depth - 1, i, initial_power - 1, initial_power) # get the combinaison at a depth after ( power is equal initial_power -1 because the function is used the line after)
             result += [res_elem * catalog[i] for res_elem in res] # append result with each of the succeding combination multiplied by the function
         if power > 0: # if the actual function has still power left we can decrease power by 1 and concatenate with the combinaison at one depth and one power less
-            res = generate_combination_catalog(catalog, depth - 1, func_idx, power - 1, initial_power)
+            res = _generate_combination_catalog(catalog, depth - 1, func_idx, power - 1, initial_power)
             result += [res_elem * catalog[func_idx] for res_elem in res]
         return result
 
@@ -138,7 +139,7 @@ def generate_full_catalog(
     base_catalog = _concatenate_function_symvar(function_catalog, q_terms)
 
     for i in range(degree): # generate for each depth
-        catalog += generate_combination_catalog(base_catalog, i + 1, 0, power, power)
+        catalog += _generate_combination_catalog(base_catalog, i + 1, 0, power, power)
     return catalog
 
 def create_solution_vector(

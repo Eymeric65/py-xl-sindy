@@ -1,7 +1,8 @@
 import numpy as np
 
-from function.Simulation import *
+from xlsindy.simulation import *
 import matplotlib.pyplot as plt
+import sympy as sp
 # Setup problem
 
 regression = True
@@ -35,7 +36,7 @@ N_periode = 5# In one periode they will be Surfacteur*N_Periode/Cat_len time tic
 t = sp.symbols("t")
 
 Coord_number = 2
-Symb = Symbol_Matrix_g(Coord_number,t)
+Symb = generate_symbolic_matrix(Coord_number,t)
 
 # Ideal model creation
 
@@ -75,15 +76,15 @@ function_catalog_2 = [
      lambda x : sp.cos(Symb[1,x])
 ]
 
-Catalog_sub_1 = np.array(Catalog_gen(function_catalog_1,Coord_number,2))
+Catalog_sub_1 = np.array(generate_full_catalog(function_catalog_1,Coord_number,2))
 
-Catalog_sub_2 = np.array(Catalog_gen(function_catalog_2,Coord_number,2))
+Catalog_sub_2 = np.array(generate_full_catalog(function_catalog_2,Coord_number,2))
 
 Catalog_crossed = np.outer(Catalog_sub_2,Catalog_sub_1)
 
 Catalog = np.concatenate((Catalog_crossed.flatten(),Catalog_sub_1,Catalog_sub_2))
 
-Solution_ideal = Make_Solution_vec(sp.expand_trig(L.subs(Substitution)),Catalog,Frottement=Frotement)#,Frottement=Frotement)
+Solution_ideal = create_solution_vector(sp.expand_trig(L.subs(Substitution)),Catalog,friction_terms=Frotement)#,Frottement=Frotement)
 
 Cat_len = len(Catalog)
 
@@ -99,18 +100,18 @@ print("Temps de l'experience {} et longueur du Catalogue {} ".format(Time_end,Ca
 
 #----------------External Forces--------------------
 
-F_ext_func = F_gen_opt(Coord_number,M_span,Time_end,periode,periode_shift,aug=15)
+F_ext_func = optimized_force_generator(Coord_number,M_span,Time_end,periode,periode_shift,augmentations=15)
 #F_ext_func = F_gen_c(M_span,periode_shift,Time_end,periode,Coord_number,aug=14)
 
 # ---------------------------
 troncature = 5
 # Creation des schema de simulation
 
-Acc_func,_ = Lagrangian_to_Acc_func(L, Symb, t, Substitution, fluid_f=Frotement)
+Acc_func,_ = generate_acceleration_function(L, Symb, t, Substitution, fluid_forces=Frotement)
 
-Dynamics_system = Dynamics_f(Acc_func,F_ext_func)
+Dynamics_system = dynamics_function(Acc_func,F_ext_func)
 
-t_values_w, phase = Run_RK45(Dynamics_system, Y0, Time_end,max_step=0.01)
+t_values_w, phase = run_rk45_integration(Dynamics_system, Y0, Time_end,max_step=0.01)
 
 
 thetas_values_w = phase[:,::2]
@@ -138,10 +139,21 @@ Subsample = Nb_t//(Surfacteur*Cat_len)
 #Subsample = Nb_t//len(Indices_sub)
 #Subsample = 1
 
-Modele_ideal = Make_Solution_exp(Solution_ideal[:,0],Catalog,Frottement=len(Frotement))
+Modele_ideal = create_solution_expression(Solution_ideal[:,0],Catalog,friction_count=len(Frotement))
 print("Modele ideal",Modele_ideal)
 
-Solution,Exp_matrix,t_values_s = Execute_Regression(t_values_w,thetas_values_w,t,Symb,Catalog,F_ext_func,Subsample=Subsample,q_d_v=q_d_v,q_dd_v=phase_acc,reg=regression,Hard_tr=3*10**-3)
+Solution,Exp_matrix,t_values_s,_ = execute_regression(
+                                    t_values_w,
+                                    thetas_values_w,
+                                    t,
+                                    Symb,
+                                    Catalog,
+                                    F_ext_func,
+                                    subsample_rate=Subsample,
+                                    velocity_values=q_d_v,
+                                    acceleration_values=phase_acc,
+                                    use_regression=regression,
+                                    hard_threshold=3*10**-3)
 
 if regression:
 
@@ -150,11 +162,11 @@ if regression:
     print("sparsity : ",np.sum(np.where(np.abs(Solution) > 0,1,0)))
 
 
-Modele_fit = Make_Solution_exp(Solution[:,0],Catalog,Frottement=len(Frotement))
+Modele_fit = create_solution_expression(Solution[:,0],Catalog,friction_count=len(Frotement))
 
 
-Acc_func2 , Model_Valid = Lagrangian_to_Acc_func(Modele_fit, Symb, t, Substitution,
-                                                 fluid_f=Solution[-len(Frotement):, 0])
+Acc_func2 , Model_Valid = generate_acceleration_function(Modele_fit, Symb, t, Substitution,
+                                                 fluid_forces=Solution[-len(Frotement):, 0])
 
 
 
@@ -172,8 +184,8 @@ axs[0,0].plot(t_values_w,thetas_values_w[:,0])
 axs[1,0].plot(t_values_w,thetas_values_w[:,1])
 
 if (Model_Valid):
-    Dynamics_system_2 = Dynamics_f(Acc_func2, F_ext_func)
-    t_values_v, thetas_values_v = Run_RK45(Dynamics_system_2, Y0, Time_end, max_step=0.05)
+    Dynamics_system_2 = dynamics_function(Acc_func2, F_ext_func)
+    t_values_v, thetas_values_v = run_rk45_integration(Dynamics_system_2, Y0, Time_end, max_step=0.05)
 
     axs[0, 0].plot(t_values_v, thetas_values_v[:, 0], "--", label="found model Reg classic")
 
@@ -217,7 +229,7 @@ axs[1,2].legend()
 axs[0,2].legend()
 # Regression error
 
-F_vec = Forces_vector(F_ext_func,t_values_s)
+F_vec = calculate_forces_vector(F_ext_func,t_values_s)
 
 axs[2, 0].set_title("Regression error")
 axs[2, 0].plot(np.repeat(t_values_s,Coord_number)*2,(Exp_matrix@Solution_ideal-F_vec),label="ideal solution")
