@@ -1,3 +1,11 @@
+"""
+
+This module enable user to launch nearly complete workflow in order to run Xl-Sindy simulation
+
+"""
+
+
+
 import numpy as np
 from .dynamics_modeling import *
 from .catalog_gen import *

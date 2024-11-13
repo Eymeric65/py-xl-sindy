@@ -1,3 +1,10 @@
+"""
+
+This module include every function in order to run the optimisation step for getting the sparse solution
+
+"""
+
+
 import numpy as np
 from sklearn.linear_model import Lasso, LassoCV
 from typing import Callable, Tuple, List

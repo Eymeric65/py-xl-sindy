@@ -1,3 +1,9 @@
+"""
+This module contain every function in order to integrate and generate the dynamic function.
+
+"""
+
+
 import numpy as np
 from .render import print_progress
 from scipy import interpolate

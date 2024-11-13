@@ -1,3 +1,10 @@
+"""
+
+This module contain some render function for the basics experiment
+
+"""
+
+
 import sys
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt

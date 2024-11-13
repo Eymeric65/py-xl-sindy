@@ -1,3 +1,8 @@
+"""
+
+This module primarly focus on symbolic variable and enable to do the different manipulation in order to get the experiment matrix
+
+"""
 import numpy as np
 import sympy
 import time
