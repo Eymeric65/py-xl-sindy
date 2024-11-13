@@ -22,8 +22,10 @@ dependencies = [
 dev = [
     "pytest",              # For running tests
     "sphinx",              # For documentation
+    "sphinx-rtd-theme",    # Theme for Sphinx
     "black",               # Code formatting
     "flake8",              # Linting
+    "mypy",                # Type checking
     "matplotlib"           # Optional plotting for examples
 ]
 

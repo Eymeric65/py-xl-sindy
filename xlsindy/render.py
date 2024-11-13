@@ -3,11 +3,10 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 def animate_single_pendulum(
-    length:float, 
-    angle_array:np.ndarray, 
-    time_array:np.ndarray
-    ):
+    length: float, angle_array: np.ndarray, time_array: np.ndarray
+):
     """
     Animates a single pendulum based on its length, angle data, and time steps.
 
@@ -20,14 +19,16 @@ def animate_single_pendulum(
     y_coords = -length * np.cos(angle_array[:, 0])
 
     fig = plt.figure(figsize=(5, 4))
-    ax = fig.add_subplot(autoscale_on=False, xlim=(-length, length), ylim=(-length, length))
-    ax.set_aspect('equal')
+    ax = fig.add_subplot(
+        autoscale_on=False, xlim=(-length, length), ylim=(-length, length)
+    )
+    ax.set_aspect("equal")
     ax.grid()
 
-    trace_line, = ax.plot([], [], '.-', lw=1, ms=2)
-    pendulum_line, = ax.plot([], [], 'o-', lw=2)
-    time_template = 'time = %.1fs'
-    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+    (trace_line,) = ax.plot([], [], ".-", lw=1, ms=2)
+    (pendulum_line,) = ax.plot([], [], "o-", lw=2)
+    time_template = "time = %.1fs"
+    time_text = ax.text(0.05, 0.9, "", transform=ax.transAxes)
 
     def update_frame(i):
         current_x = [0, x_coords[i]]
@@ -41,15 +42,15 @@ def animate_single_pendulum(
         time_text.set_text(time_template % time_array[i])
         return pendulum_line, trace_line, time_text
 
-    ani = animation.FuncAnimation(fig, update_frame, len(angle_array), interval=40, blit=True)
+    ani = animation.FuncAnimation(
+        fig, update_frame, len(angle_array), interval=40, blit=True
+    )
     plt.show()
 
+
 def animate_double_pendulum(
-    length1:float, 
-    length2:float, 
-    angle_array:np.ndarray, 
-    time_array:np.ndarray
-    ):
+    length1: float, length2: float, angle_array: np.ndarray, time_array: np.ndarray
+):
     """
     Animates a double pendulum based on its segment lengths, angles, and time steps.
 
@@ -68,14 +69,18 @@ def animate_double_pendulum(
     y2 = -length2 * np.cos(angle_array[:, 2]) + y1
 
     fig = plt.figure(figsize=(5, 4))
-    ax = fig.add_subplot(autoscale_on=False, xlim=(-total_length, total_length), ylim=(-total_length, total_length))
-    ax.set_aspect('equal')
+    ax = fig.add_subplot(
+        autoscale_on=False,
+        xlim=(-total_length, total_length),
+        ylim=(-total_length, total_length),
+    )
+    ax.set_aspect("equal")
     ax.grid()
 
-    trace_line, = ax.plot([], [], '.-', lw=1, ms=2)
-    pendulum_line, = ax.plot([], [], 'o-', lw=2)
-    time_template = 'time = %.1fs'
-    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+    (trace_line,) = ax.plot([], [], ".-", lw=1, ms=2)
+    (pendulum_line,) = ax.plot([], [], "o-", lw=2)
+    time_template = "time = %.1fs"
+    time_text = ax.text(0.05, 0.9, "", transform=ax.transAxes)
 
     def update_frame(i):
         current_x = [0, x1[i], x2[i]]
@@ -89,16 +94,20 @@ def animate_double_pendulum(
         time_text.set_text(time_template % time_array[i])
         return pendulum_line, trace_line, time_text
 
-    ani = animation.FuncAnimation(fig, update_frame, len(angle_array), interval=40, blit=True)
+    ani = animation.FuncAnimation(
+        fig, update_frame, len(angle_array), interval=40, blit=True
+    )
     plt.show()
 
+
 def print_progress(
-    iteration:int, 
-    total:int, 
-    prefix:str='', 
-    suffix:str='', 
-    decimals:int=1, 
-    bar_length:int=100):
+    iteration: int,
+    total: int,
+    prefix: str = "",
+    suffix: str = "",
+    decimals: int = 1,
+    bar_length: int = 100,
+):
     """
     Displays a progress bar in the terminal.
 
@@ -113,9 +122,11 @@ def print_progress(
     format_str = "{0:." + str(decimals) + "f}"
     percentage_complete = format_str.format(100 * (iteration / float(total)))
     filled_length = int(round(bar_length * iteration / float(total)))
-    bar = '*' * filled_length + '-' * (bar_length - filled_length)
-    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percentage_complete, '%', suffix)),
+    bar = "*" * filled_length + "-" * (bar_length - filled_length)
+    sys.stdout.write(
+        "\r%s |%s| %s%s %s" % (prefix, bar, percentage_complete, "%", suffix)
+    ),
     sys.stdout.flush()
     if iteration == total:
-        sys.stdout.write('\n')
+        sys.stdout.write("\n")
         sys.stdout.flush()

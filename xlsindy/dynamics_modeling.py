@@ -6,14 +6,14 @@ from typing import List, Callable, Dict
 
 
 def dynamics_function(
-    acceleration_function:Callable[[np.ndarray],np.ndarray], 
-    external_forces:Callable[[np.ndarray],np.ndarray]
-    )->Callable[[float,np.ndarray],np.ndarray]:
+    acceleration_function: Callable[[np.ndarray], np.ndarray],
+    external_forces: Callable[[np.ndarray], np.ndarray],
+) -> Callable[[float, np.ndarray], np.ndarray]:
     """
     Transforms the acceleration function into something understandable by usual integration method.
 
     The acceleration function ( output of euler_lagrange.generate_acceleration_function() ) takes as input a numerical symbol matrix.
-    It is not suitable for the majority of the integration function that need to take as input (t,[q0,q0_d,...,qn,qn_d]) and output (q0_d,q0_dd,...,qn_d,qn_dd). 
+    It is not suitable for the majority of the integration function that need to take as input (t,[q0,q0_d,...,qn,qn_d]) and output (q0_d,q0_dd,...,qn_d,qn_dd).
 
     Args:
         acceleration_function (function): Array of functions representing accelerations.
@@ -22,12 +22,15 @@ def dynamics_function(
     Returns:
         function: Dynamics function compatible with classical integration solver.
     """
+
     def func(t, state):
         state = np.reshape(state, (-1, 2))
         state_transposed = np.transpose(state)
 
         # Prepare input matrix for dynamics calculations as a numerical symbol matrix
-        input_matrix = np.zeros((state_transposed.shape[0] + 2, state_transposed.shape[1]))
+        input_matrix = np.zeros(
+            (state_transposed.shape[0] + 2, state_transposed.shape[1])
+        )
         input_matrix[1:3, :] = state_transposed
         input_matrix[0, :] = external_forces(t)
 
@@ -39,12 +42,13 @@ def dynamics_function(
 
     return func
 
+
 def run_rk45_integration(
-    dynamics:Callable[[float,np.ndarray],np.ndarray], 
-    initial_state:np.ndarray, 
-    time_end:float, 
-    max_step:float=0.05
-    )->List[np.ndarray]:
+    dynamics: Callable[[float, np.ndarray], np.ndarray],
+    initial_state: np.ndarray,
+    time_end: float,
+    max_step: float = 0.05,
+) -> List[np.ndarray]:
     """
     Runs an RK45 integration on a dynamics model.
 
@@ -58,7 +62,7 @@ def run_rk45_integration(
         tuple: Arrays of time values and states.
     """
     initial_state_flat = np.reshape(initial_state, (-1,))
-    model = RK45(dynamics, 0, initial_state_flat, time_end, max_step, 0.001, np.e ** -6)
+    model = RK45(dynamics, 0, initial_state_flat, time_end, max_step, 0.001, np.e**-6)
 
     time_values = []
     state_values = []
@@ -77,14 +81,15 @@ def run_rk45_integration(
 
     return np.array(time_values), np.array(state_values)
 
+
 def generate_random_force(
-        time_end: float,
-        current_augmentation: int,
-        target_augmentation: int,
-        period_initial: float,
-        period_shift_initial: float,
-        component_count: int
-    ) -> Callable[[float], np.ndarray]:
+    time_end: float,
+    current_augmentation: int,
+    target_augmentation: int,
+    period_initial: float,
+    period_shift_initial: float,
+    component_count: int,
+) -> Callable[[float], np.ndarray]:
     """
     Recursively generates a random external force function with specified augmentations.
 
@@ -109,7 +114,7 @@ def generate_random_force(
         target_augmentation,
         period_initial,
         period_shift_initial,
-        component_count
+        component_count,
     )
 
     # Calculate period, shift, and variance for the current augmentation level
@@ -123,21 +128,24 @@ def generate_random_force(
     time_points += (np.random.random(len(time_points)) - 0.5) * 2 * period_shift
 
     # Generate random force values with variance
-    force_values = (np.random.random_sample((component_count, len(time_points))) * 2 - 1) * variance
+    force_values = (
+        np.random.random_sample((component_count, len(time_points))) * 2 - 1
+    ) * variance
     force_values += baseline_force_function(time_points)
     force_values /= np.std(force_values)  # Normalize to standard deviation of 1
 
     # Create an interpolating function to return force values over time
     return interpolate.CubicSpline(time_points, force_values, axis=1)
 
+
 def optimized_force_generator(
-        component_count: int,
-        scale_vector: np.ndarray,
-        time_end: float,
-        period: float,
-        period_shift: float,
-        augmentations: int = 50
-    ) -> Callable[[float], np.ndarray]:
+    component_count: int,
+    scale_vector: np.ndarray,
+    time_end: float,
+    period: float,
+    period_shift: float,
+    augmentations: int = 50,
+) -> Callable[[float], np.ndarray]:
     """
     Generates an optimized force function, applying a scale vector to the generated force.
 
@@ -156,12 +164,7 @@ def optimized_force_generator(
 
     # Generate the recursive force function
     base_force_function = generate_random_force(
-        time_end,
-        0,
-        augmentations,
-        period,
-        period_shift,
-        component_count
+        time_end, 0, augmentations, period, period_shift, component_count
     )
 
     def force_function(t: float) -> np.ndarray:
