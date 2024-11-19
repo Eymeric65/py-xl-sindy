@@ -1,120 +1,139 @@
-import sys
+"""
 
+This module contain some render function for the basics experiment
+
+"""
+
+
+import sys
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-def Animate_Single_pendulum(L, q_v, t_v):
+def animate_single_pendulum(
+    length: float, angle_array: np.ndarray, time_array: np.ndarray
+):
+    """
+    Animates a single pendulum based on its length, angle data, and time steps.
 
-    x = L* np.sin(q_v[:, 0])
-    y = -L * np.cos(q_v[:, 0])
-
+    Parameters:
+        length (float): Length of the pendulum.
+        angle_array (ndarray): Array of angular positions over time.
+        time_array (ndarray): Array of time steps corresponding to angles.
+    """
+    x_coords = length * np.sin(angle_array[:, 0])
+    y_coords = -length * np.cos(angle_array[:, 0])
 
     fig = plt.figure(figsize=(5, 4))
-    ax = fig.add_subplot(autoscale_on=False, xlim=(-L, L), ylim=(-L, L))
-    ax.set_aspect('equal')
+    ax = fig.add_subplot(
+        autoscale_on=False, xlim=(-length, length), ylim=(-length, length)
+    )
+    ax.set_aspect("equal")
     ax.grid()
 
-    trace, = ax.plot([], [], '.-', lw=1, ms=2)
-    line, = ax.plot([], [], 'o-', lw=2)
-    time_template = 'time = %.1fs'
-    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+    (trace_line,) = ax.plot([], [], ".-", lw=1, ms=2)
+    (pendulum_line,) = ax.plot([], [], "o-", lw=2)
+    time_template = "time = %.1fs"
+    time_text = ax.text(0.05, 0.9, "", transform=ax.transAxes)
 
-    def animate(i):
-        thisx = [0, x[i]]
-        thisy = [0, y[i]]
+    def update_frame(i):
+        current_x = [0, x_coords[i]]
+        current_y = [0, y_coords[i]]
 
-        history_x = x[:i]
-        history_y = y[:i]
+        trace_x = x_coords[:i]
+        trace_y = y_coords[:i]
 
-        line.set_data(thisx, thisy)
-        trace.set_data(history_x, history_y)
-        time_text.set_text(time_template % (t_v[i]))
-        return line, trace, time_text
+        pendulum_line.set_data(current_x, current_y)
+        trace_line.set_data(trace_x, trace_y)
+        time_text.set_text(time_template % time_array[i])
+        return pendulum_line, trace_line, time_text
 
     ani = animation.FuncAnimation(
-        fig, animate, len(q_v), interval=40, blit=True)
+        fig, update_frame, len(angle_array), interval=40, blit=True
+    )
     plt.show()
 
-# Bricolage sans class
-def Single_pendulum_one_state(figure,L,q,t):
 
-    x = L* np.sin(q[0])
-    y = -L * np.cos(q[0])
+def animate_double_pendulum(
+    length1: float, length2: float, angle_array: np.ndarray, time_array: np.ndarray
+):
+    """
+    Animates a double pendulum based on its segment lengths, angles, and time steps.
 
-    ax = figure.add_subplot(autoscale_on=False, xlim=(-L, L), ylim=(-L, L))
-    ax.set_aspect('equal')
-    ax.grid()
+    Parameters:
+        length1 (float): Length of the first segment.
+        length2 (float): Length of the second segment.
+        angle_array (ndarray): Array of angular positions of both segments over time.
+        time_array (ndarray): Array of time steps corresponding to angles.
+    """
+    total_length = length1 + length2
 
-    line, = ax.plot([0,x], [0,y], 'o-', lw=2)
-    time_template = 'time = %.1fs'
-    time_text = ax.text(0.05, 0.9, time_template % t, transform=ax.transAxes)
+    x1 = length1 * np.sin(angle_array[:, 0])
+    y1 = -length1 * np.cos(angle_array[:, 0])
 
-    return ax,line,time_text
-
-def Single_pendulum_update(line,time_text,L,q,t):
-
-    x = L* np.sin(q[0])
-    y = -L * np.cos(q[0])
-
-    line.set_data([0,x], [0,y])
-    time_template = 'time = %.1fs'
-    time_text.set_text(time_template % (t))
-#------------------------
-
-def Animate_double_pendulum(L1, L2, q_v, t_v):
-    Lt = L1 + L2
-
-    x1 = L1 * np.sin(q_v[:, 0])
-    y1 = -L1 * np.cos(q_v[:, 0])
-
-    x2 = L2 * np.sin(q_v[:, 2]) + x1
-    y2 = -L2 * np.cos(q_v[:, 2]) + y1
+    x2 = length2 * np.sin(angle_array[:, 2]) + x1
+    y2 = -length2 * np.cos(angle_array[:, 2]) + y1
 
     fig = plt.figure(figsize=(5, 4))
-    ax = fig.add_subplot(autoscale_on=False, xlim=(-Lt, Lt), ylim=(-Lt, Lt))
-    ax.set_aspect('equal')
+    ax = fig.add_subplot(
+        autoscale_on=False,
+        xlim=(-total_length, total_length),
+        ylim=(-total_length, total_length),
+    )
+    ax.set_aspect("equal")
     ax.grid()
 
-    trace, = ax.plot([], [], '.-', lw=1, ms=2)
-    line, = ax.plot([], [], 'o-', lw=2)
-    time_template = 'time = %.1fs'
-    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+    (trace_line,) = ax.plot([], [], ".-", lw=1, ms=2)
+    (pendulum_line,) = ax.plot([], [], "o-", lw=2)
+    time_template = "time = %.1fs"
+    time_text = ax.text(0.05, 0.9, "", transform=ax.transAxes)
 
-    def animate(i):
-        thisx = [0, x1[i], x2[i]]
-        thisy = [0, y1[i], y2[i]]
+    def update_frame(i):
+        current_x = [0, x1[i], x2[i]]
+        current_y = [0, y1[i], y2[i]]
 
-        history_x = x2[:i]
-        history_y = y2[:i]
+        trace_x = x2[:i]
+        trace_y = y2[:i]
 
-        line.set_data(thisx, thisy)
-        trace.set_data(history_x, history_y)
-        time_text.set_text(time_template % (t_v[i]))
-        return line, trace, time_text
+        pendulum_line.set_data(current_x, current_y)
+        trace_line.set_data(trace_x, trace_y)
+        time_text.set_text(time_template % time_array[i])
+        return pendulum_line, trace_line, time_text
 
     ani = animation.FuncAnimation(
-        fig, animate, len(q_v), interval=40, blit=True)
+        fig, update_frame, len(angle_array), interval=40, blit=True
+    )
     plt.show()
 
-def printProgress(iteration, total, prefix='', suffix='', decimals=1, barLength=100):
+
+def print_progress(
+    iteration: int,
+    total: int,
+    prefix: str = "",
+    suffix: str = "",
+    decimals: int = 1,
+    bar_length: int = 100,
+):
     """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        barLength   - Optional  : character length of bar (Int)
+    Displays a progress bar in the terminal.
+
+    Parameters:
+        iteration (int): Current iteration.
+        total (int): Total number of iterations.
+        prefix (str, optional): Prefix for the progress bar.
+        suffix (str, optional): Suffix for the progress bar.
+        decimals (int, optional): Number of decimal places to show in the percentage.
+        bar_length (int, optional): Length of the progress bar in characters.
     """
-    formatStr = "{0:." + str(decimals) + "f}"
-    percents = formatStr.format(100 * (iteration / float(total)))
-    filledLength = int(round(barLength * iteration / float(total)))
-    bar = '*' * filledLength + '-' * (barLength - filledLength)
-    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix)),
+    format_str = "{0:." + str(decimals) + "f}"
+    percentage_complete = format_str.format(100 * (iteration / float(total)))
+    filled_length = int(round(bar_length * iteration / float(total)))
+    bar = "*" * filled_length + "-" * (bar_length - filled_length)
+    sys.stdout.write(
+        "\r%s |%s| %s%s %s" % (prefix, bar, percentage_complete, "%", suffix)
+    ),
     sys.stdout.flush()
     if iteration == total:
-        sys.stdout.write('\n')
+        sys.stdout.write("\n")
         sys.stdout.flush()

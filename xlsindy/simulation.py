@@ -1,3 +1,11 @@
+"""
+
+This module enable user to launch nearly complete workflow in order to run Xl-Sindy simulation
+
+"""
+
+
+
 import numpy as np
 from .dynamics_modeling import *
 from .catalog_gen import *
@@ -5,53 +13,108 @@ from .euler_lagrange import *
 from .optimization import *
 
 
-def Execute_Regression(t_values,thetas_values,t,Symb,Catalog,F_ext_func,Noise=0,troncature=5,Subsample=1,Hard_tr=10**-3,q_d_v=[],q_dd_v=[],reg=True,norm=True):
+def execute_regression(
+    time_values: np.ndarray,
+    theta_values: np.ndarray,
+    time_symbol: sympy.Symbol,
+    symbol_matrix: np.ndarray,
+    catalog: np.ndarray,
+    external_force_function: Callable,
+    noise_level: float = 0,
+    truncation_level: int = 5,
+    subsample_rate: int = 1,
+    hard_threshold: float = 1e-3,
+    velocity_values: np.ndarray = [],
+    acceleration_values: np.ndarray = [],
+    use_regression: bool = True,
+    apply_normalization: bool = True,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Executes regression for a dynamic system to estimate the system’s parameters.
 
-    if Subsample == 0:
-        Subsample =1
+    Parameters:
+        time_values (np.ndarray): Array of time values.
+        theta_values (np.ndarray): Array of angular positions over time.
+        symbol_list (np.ndarray): Symbolic variables for model construction.
+        catalog (np.ndarray): Catalog of features for regression.
+        external_force_function (Callable): Function for external forces.
+        time_step (float): Time step value.
+        noise_level (float): Level of noise to be added to data.
+        truncation_level (int): Truncation level for matrix.
+        subsample_rate (int): Rate at which data is subsampled.
+        hard_threshold (float): Threshold below which coefficients are zeroed.
+        velocity_values (np.ndarray): Array of velocities (optional).
+        acceleration_values (np.ndarray): Array of accelerations (optional).
+        use_regression (bool): Whether to apply regularization.
+        apply_normalization (bool): Whether to normalize data.
 
-    Nb_t = len(t_values)
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+            Solution vector, experimental matrix, sampled time values, covariance matrix.
+    """
+    if subsample_rate == 0:
+        subsample_rate = 1
 
-    Coord_number = thetas_values.shape[1]
+    num_coordinates = theta_values.shape[1]
 
-    Exp_matrix,t_values_s = Catalog_to_experience_matrix(Nb_t,Coord_number,Catalog,Symb,t,thetas_values,t_values,subsample=Subsample,Frottement=True,troncature=troncature,noise=Noise,q_d_v=q_d_v,q_dd_v=q_dd_v)
+    # Generate the experimental matrix from the catalog
+    experimental_matrix, sampled_time_values = create_experiment_matrix(
+        num_coordinates,
+        catalog,
+        symbol_matrix,
+        time_symbol,
+        theta_values,
+        time_values,
+        subsample=subsample_rate,
+        friction=True,
+        truncation=truncation_level,
+        velocity_values=velocity_values,
+        acceleration_values=acceleration_values,
+    )
 
-    Forces_vec = Forces_vector(F_ext_func, t_values_s)
+    # Create forces vector based on external force function and sampled times
+    forces_vector = calculate_forces_vector(
+        external_force_function, sampled_time_values
+    )
 
-    Cov_all = None
-    Solution = None
+    covariance_matrix = None
+    solution = None
 
-    if reg:
+    if use_regression:
+        # Normalize experimental matrix if required
+        normalized_matrix, reduction_indices, variance_vector = (
+            normalize_experiment_matrix(
+                experimental_matrix, null_effect=apply_normalization
+            )
+        )
 
-        Exp_norm,reduction,Variance = Normalize_exp(Exp_matrix,null_effect=norm)
+        # Perform Lasso regression to obtain coefficients
+        coefficients = lasso_regression(forces_vector, normalized_matrix)
 
-        coeff = Lasso_reg(Forces_vec,Exp_norm)
+        # Revert normalization to obtain solution in original scale
+        solution = unnormalize_experiment(
+            coefficients, variance_vector, reduction_indices, experimental_matrix
+        )
+        solution[np.abs(solution) < np.max(np.abs(solution)) * hard_threshold] = 0
 
-        Solution = Un_normalize_exp(coeff,Variance,reduction,Exp_matrix)
+        # Estimate covariance matrix based on Ordinary Least Squares (OLS)
+        solution_flat = solution.flatten()
+        nonzero_indices = np.nonzero(np.abs(solution_flat) > 0)[0]
+        reduced_experimental_matrix = experimental_matrix[:, nonzero_indices]
+        covariance_reduced = np.cov(reduced_experimental_matrix.T)
 
-        Solution[np.abs(Solution)< np.max(np.abs(Solution))*Hard_tr] = 0
+        covariance_matrix = np.zeros((solution.shape[0], solution.shape[0]))
+        covariance_matrix[nonzero_indices[:, np.newaxis], nonzero_indices] = (
+            covariance_reduced
+        )
 
-        #Covariance estimation through the OLS theory
-        Solution_f = Solution.flatten()
+        residuals = forces_vector - experimental_matrix @ solution
+        sigma_squared = (
+            1
+            / (experimental_matrix.shape[0] - experimental_matrix.shape[1])
+            * residuals.T
+            @ residuals
+        )
+        covariance_matrix *= sigma_squared
 
-        Nz_ind = np.nonzero(np.abs(Solution_f)>0)[0]
-
-        Exp_matrix_red = Exp_matrix[:,Nz_ind]
-
-        Covariance = np.cov(Exp_matrix_red.T)
-
-        Cov_all=np.zeros((Solution.shape[0],Solution.shape[0]))
-
-        Cov_all[Nz_ind[:,np.newaxis],Nz_ind]=Covariance
-
-        residuals = Forces_vec - Exp_matrix@Solution
-
-        sigma2 =  1/(Exp_matrix.shape[0]-Exp_matrix.shape[1])*residuals.T@residuals
-
-        Cov_all = sigma2*Cov_all
-
-        # ----------------
-
-
-
-    return Solution,Exp_matrix,t_values_s ,Cov_all
+    return solution, experimental_matrix, sampled_time_values, covariance_matrix

@@ -1,183 +1,220 @@
+"""
+
+This module include every function in order to run the optimisation step for getting the sparse solution
+
+"""
+
+
 import numpy as np
-
-from sklearn.linear_model import Lasso
-from sklearn.linear_model import LassoCV
-# def Condition_val(Exp,solution):
-#
-#     return np.abs((np.linalg.norm(Exp, axis=0)**2 * solution[:, 0]))
-
-def Condition_val(Exp,solution):
-
-    return np.abs((np.var(Exp, axis=0) * solution[:, 0]))
-
-
-def Optimal_sampling(ThetaV,dist_s):
-
-    Nb_v = ThetaV.shape[0]
-
-    res = np.empty(ThetaV.shape)
-    ind = np.zeros((Nb_v,),dtype=int)
-
-    res[0,:]=ThetaV[0,:]
-
-    q=1
-
-    for i in range(1,Nb_v):
-
-
-        point = ThetaV[i,:]
-        dist = np.sqrt(np.min(np.sum(np.power(res[:q,:]-point,2),axis=1)))
-
-        if dist>dist_s:
-
-            res[q,:]=point
-            ind[q] = i
-            q+=1
-
-    return ind[:q]
-def Optimal_sampling_2(ThetaV,dist_s): # Moins performant
-
-    Nb_v = ThetaV.shape[0]
-
-    res = np.empty(ThetaV.shape)
-    ind = np.zeros((Nb_v,),dtype=int)
-
-    res[0,:]=ThetaV[0,:]
-
-    q=1
-
-    for i in range(1,Nb_v):
-
-
-        point = ThetaV[i,:]
-        dist = np.sqrt(np.min(np.sum(np.power(res[:q,:]-point,2),axis=1)))
-
-        if dist>dist_s:
-
-            res[q,:]=point
-            ind[q] = i
-            q+=1
-
-    return ind[:q]
-
-
-
-def Hard_treshold_sparse_regression(Exp_matrix,Forces_vec_s,Catalog,cond=Condition_val,Recup_Threshold = 0.03):
-
-    Solution_r, residual, rank, _ = np.linalg.lstsq(Exp_matrix, Forces_vec_s, rcond=None)
-
-    Solution = Solution_r
-
-    ret_sol = np.zeros(Solution.shape)
-
-    Sol_ind = np.arange(len(Solution))
-
-    Nbind = len(Solution)
-    Nbind_prec = Nbind + 1
-
-    step = []
-
-    #print("Recup treshold",Recup_Threshold)
-
-    while Nbind < Nbind_prec:
-        Nbind_prec = Nbind
-        # print("weight",poid)
-
-        Condition_value = cond(Exp_matrix,Solution)
-
-
-        # Condition_value = np.abs(Solution[:, 0])
-        # print("cond",Condition_value)
-
-        step += [(Solution, Condition_value, Sol_ind)]
-
-        indices = np.argwhere(Condition_value/np.max(Condition_value) > Recup_Threshold)
-        indices = indices[:, 0]
-        Sol_ind = Sol_ind[indices]
-        Exp_matrix = Exp_matrix[:, indices]
-
-        Solution, residual, rank, _ = np.linalg.lstsq(Exp_matrix, Forces_vec_s, rcond=None)
-
-        #print("sol_len",Condition_value/np.max(Condition_value))
-        #print("indices",indices)
-
-        Nbind = len(Sol_ind)
-
-    Modele_fit = 0
-
-    for i in range(len(Sol_ind)):
-        Modele_fit = Modele_fit + Catalog[Sol_ind[i]] * Solution[i]
-        ret_sol[Sol_ind[i]] = Solution[i]
-
-        #print("Model fitting : ", Modele_fit[0])
-
-    reduction = len(Solution_r)-Nbind
-
-    return Modele_fit,ret_sol,reduction,step
-
-# Reglage intermediaire : m_iter=10**5,tol=10**-5,eps=10**-3
-# Reglage parfait :  m_iter=10**6,tol=10**-6,eps=5*10**-6
-
-def Lasso_reg(F_vec,Exp_norm,m_iter=10**4,tol=10**-5,eps=5*10**-4): # Perfect m_iter=10**6,tol=10**-6,eps=5*10**-6
-
-    Y = F_vec[:, 0]
-
-    model = LassoCV(cv=5, random_state=0, max_iter=m_iter,eps=eps,tol=tol)
-
-    # Fit model
-    model.fit(Exp_norm, Y)
-
-    alpha = model.alpha_
-
-    #print("Lasso alpha : ", alpha)
-
-    # Set best alpha
-    lasso_best = Lasso(alpha=model.alpha_,max_iter=m_iter,tol=tol)
-    lasso_best.fit(Exp_norm, Y)
-
-    coeff = lasso_best.coef_
-
-    return coeff
-
-def Normalize_exp(Exp_matrix,null_effect=False):
-
-    Variance = np.var(Exp_matrix, axis=0) * int(not null_effect) + int(null_effect)
-    Mean = np.mean(Exp_matrix, axis=0) * int(not null_effect)
-
-    reduction = np.argwhere(Variance != 0)
-
-    #print("Reduction shape : ",Variance.shape,reduction.shape)
-
-    Exp_matrix_r = Exp_matrix[:, reduction[:, 0]]
-    Exp_norm = (Exp_matrix_r - Mean[reduction[:, 0]]) / Variance[reduction[:, 0]]
-
-    return Exp_norm,reduction,Variance
-
-def Un_normalize_exp(coeff,Variance,reduction,Exp_mat):
-
-    Solution_r = coeff[:] / Variance[reduction[:, 0]]
-
-    Frottement_coeff = -Solution_r[-1]
-
-    Solution = np.zeros((Exp_mat.shape[1], 1)) # No generalise
-
-    Solution[reduction[:, 0], 0] = Solution_r
-
-    return Solution
-
-def Covariance_vector(Exp_matrix,Cov,Qt):
-
-    print("Covariance shape : ",Cov.shape)
-
-    print("Exp shape : ", Exp_matrix.shape)
-
-    Res = Exp_matrix@Cov@Exp_matrix.T
-
-    Res = np.reshape(np.diagonal(Res),(-1,Qt))
-
-    Res = np.sum(Res,axis=1)
-
-    return Res
-    print("Res shape : ",Res.shape)
-
-
+from sklearn.linear_model import Lasso, LassoCV
+from typing import Callable, Tuple, List
+
+
+def condition_value(exp_matrix: np.ndarray, solution: np.ndarray) -> np.ndarray:
+    """
+    Calculate condition values based on the variance of the experimental matrix.
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix.
+        solution (np.ndarray): Solution vector.
+
+    Returns:
+        np.ndarray: Array of condition values.
+    """
+    return np.abs(np.var(exp_matrix, axis=0) * solution[:, 0])
+
+
+def optimal_sampling(theta_values: np.ndarray, distance_threshold: float) -> np.ndarray:
+    """
+    Selects optimal samples from a set of points based on a distance threshold.
+
+    Parameters:
+        theta_values (np.ndarray): Array of points.
+        distance_threshold (float): Minimum distance to include a point.
+
+    Returns:
+        np.ndarray: Indices of selected points.
+    """
+    num_values = theta_values.shape[0]
+    result_points = np.empty(theta_values.shape)
+    selected_indices = np.zeros((num_values,), dtype=int)
+
+    result_points[0, :] = theta_values[0, :]
+    count = 1
+
+    for i in range(1, num_values):
+        point = theta_values[i, :]
+        distance = np.sqrt(
+            np.min(np.sum(np.power(result_points[:count, :] - point, 2), axis=1))
+        )
+        if distance > distance_threshold:
+            result_points[count, :] = point
+            selected_indices[count] = i
+            count += 1
+
+    return selected_indices[:count]
+
+
+def hard_threshold_sparse_regression(
+    exp_matrix: np.ndarray,
+    forces_vector: np.ndarray,
+    catalog: np.ndarray,
+    condition_func: Callable = condition_value,
+    threshold: float = 0.03,
+) -> Tuple[
+    np.ndarray, np.ndarray, int, List[Tuple[np.ndarray, np.ndarray, np.ndarray]]
+]:
+    """
+    Performs sparse regression with a hard threshold to select significant features.
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix.
+        forces_vector (np.ndarray): Forces vector.
+        catalog (np.ndarray): Catalog of features.
+        condition_func (Callable): Function to calculate condition values.
+        threshold (float): Threshold for feature selection.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, int, List]: Model fit, solution vector, reduction count, and regression steps.
+    """
+    solution, residuals, rank, _ = np.linalg.lstsq(
+        exp_matrix, forces_vector, rcond=None
+    )
+    retained_solution = solution.copy()
+    result_solution = np.zeros(solution.shape)
+    active_indices = np.arange(len(solution))
+    steps = []
+
+    prev_num_indices = len(solution) + 1
+    current_num_indices = len(solution)
+
+    while current_num_indices < prev_num_indices:
+        prev_num_indices = current_num_indices
+        condition_values = condition_func(exp_matrix, retained_solution)
+        steps.append((retained_solution, condition_values, active_indices))
+
+        significant_indices = np.argwhere(
+            condition_values / np.max(condition_values) > threshold
+        ).flatten()
+        active_indices = active_indices[significant_indices]
+        exp_matrix = exp_matrix[:, significant_indices]
+
+        retained_solution, residuals, rank, _ = np.linalg.lstsq(
+            exp_matrix, forces_vector, rcond=None
+        )
+        current_num_indices = len(active_indices)
+
+    model_fit = np.sum(
+        [catalog[idx] * retained_solution[i] for i, idx in enumerate(active_indices)],
+        axis=0,
+    )
+    result_solution[active_indices] = retained_solution
+    reduction_count = len(solution) - current_num_indices
+
+    return model_fit, result_solution, reduction_count, steps
+
+
+def lasso_regression(
+    forces_vector: np.ndarray,
+    normalized_exp_matrix: np.ndarray,
+    max_iterations: int = 10**4,
+    tolerance: float = 1e-5,
+    eps: float = 5e-4,
+) -> np.ndarray:
+    """
+    Performs Lasso regression to select sparse features.
+
+    Parameters:
+        forces_vector (np.ndarray): Dependent variable vector.
+        normalized_exp_matrix (np.ndarray): Normalized experimental matrix.
+        max_iterations (int): Maximum number of iterations.
+        tolerance (float): Convergence tolerance.
+        eps (float): Regularization parameter.
+
+    Returns:
+        np.ndarray: Coefficients of the fitted model.
+    """
+    y = forces_vector[:, 0]
+    model_cv = LassoCV(
+        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance
+    )
+    model_cv.fit(normalized_exp_matrix, y)
+    best_alpha = model_cv.alpha_
+
+    lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance)
+    lasso_model.fit(normalized_exp_matrix, y)
+
+    return lasso_model.coef_
+
+
+def normalize_experiment_matrix(
+    exp_matrix: np.ndarray, null_effect: bool = False
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Normalizes an experimental matrix by its variance and mean.
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix to normalize.
+        null_effect (bool): Whether to consider null effect in normalization.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: Normalized matrix, reduction indices, and variance.
+    """
+    variance = np.var(exp_matrix, axis=0) * int(not null_effect) + int(null_effect)
+    mean = np.mean(exp_matrix, axis=0) * int(not null_effect)
+
+    reduction_indices = np.argwhere(variance != 0).flatten()
+    reduced_matrix = exp_matrix[:, reduction_indices]
+    normalized_matrix = (reduced_matrix - mean[reduction_indices]) / variance[
+        reduction_indices
+    ]
+
+    return normalized_matrix, reduction_indices, variance
+
+
+def unnormalize_experiment(
+    coefficients: np.ndarray,
+    variance: np.ndarray,
+    reduction_indices: np.ndarray,
+    exp_matrix: np.ndarray,
+) -> np.ndarray:
+    """
+    Reverts normalization of a solution vector.
+
+    Parameters:
+        coefficients (np.ndarray): Normalized coefficients.
+        variance (np.ndarray): Variance used for normalization.
+        reduction_indices (np.ndarray): Indices used for dimensionality reduction.
+        exp_matrix (np.ndarray): Original experimental matrix.
+
+    Returns:
+        np.ndarray: Unnormalized solution vector.
+    """
+    solution_unscaled = coefficients / variance[reduction_indices]
+    friction_coefficient = -solution_unscaled[-1]
+
+    solution = np.zeros((exp_matrix.shape[1], 1))
+    solution[reduction_indices, 0] = solution_unscaled
+
+    return solution
+
+
+def covariance_vector(
+    exp_matrix: np.ndarray, covariance_matrix: np.ndarray, num_time_steps: int
+) -> np.ndarray:
+    """
+    Calculates the covariance vector across time steps for an experimental matrix.
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix.
+        covariance_matrix (np.ndarray): Covariance matrix.
+        num_time_steps (int): Number of time steps.
+
+    Returns:
+        np.ndarray: Covariance vector summed across time steps.
+    """
+    result_matrix = exp_matrix @ covariance_matrix @ exp_matrix.T
+    diagonal_covariance = np.diagonal(result_matrix).reshape(-1, num_time_steps)
+    summed_covariance = np.sum(diagonal_covariance, axis=1)
+
+    return summed_covariance
