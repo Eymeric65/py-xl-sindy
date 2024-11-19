@@ -147,7 +147,7 @@ jobs:
         python-version: "3.x"
     - name: Install the compiled library
       run: |
-        pip install --no-index --find-links dist/ xlsindy
+        pip install --no-index --find-links dist/ py-xl-sindy
     - name: Install dependencies
       run: |
         pip install sphinx sphinx_rtd_theme myst_parser
