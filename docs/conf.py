@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'Python xL-Sindy'
 copyright = '2024, Eymeric Chauchat'
 author = 'Eymeric Chauchat'
-release = 'V1.0.0'
+release = 'V0.0.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
