@@ -37,15 +37,17 @@ jobs:
           pip install sphinx sphinx_rtd_theme myst_parser
       - name: Sphinx build
         run: |
-          sphinx-build doc _build
+          sphinx-build docs docs/_build
       - name: Store the docs packages
         uses: actions/upload-artifact@v4
         with:
-          name: python-package-distributions
-          path: dist/
+          name: python-doc-distribution
+          path: docs/_build
 
   # Single deploy job since we're just deploying
   deploy:
+    needs:
+    - build
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
