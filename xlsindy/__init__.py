@@ -1,6 +1,6 @@
-__version__ = "0.1.2"
-#Fallback for creating the docs.
+import importlib.metadata
 
+__version__ = importlib.metadata.version("xlsindy")
 
 from . import catalog_gen
 from . import dynamics_modeling

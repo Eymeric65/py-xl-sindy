@@ -1,6 +1,5 @@
 import os
 import sys
-from importlib.metadata import version as get_version
 sys.path.insert(0, os.path.abspath('..'))
 
 # Configuration file for the Sphinx documentation builder.
@@ -16,12 +15,9 @@ copyright = '2024, Eymeric Chauchat'
 author = 'Eymeric Chauchat'
 
 
-# Dynamically load version from library or pyproject.toml
-try:
-    release = get_version("xlsindy")  # from installed package
-except:
-    from xlsindy import __version__  # fallback for local builds
-    release = __version__
+# Dynamically load version from library
+from xlsindy import __version__ 
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
