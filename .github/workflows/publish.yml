@@ -124,7 +124,7 @@ jobs:
       - name: Extract version from pyproject.toml
         id: extract_version
         run: |
-          VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+          VERSION=$(python -c "import toml; print(toml.load('$GITHUB_WORKSPACE/pyproject.toml')['project']['version'])")
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPU"
       - name: Check version on PyPI
         id: check_pypi
