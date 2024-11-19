@@ -3,3 +3,4 @@ py_xl_sindy.egg-info/
 __pycache__
 temp/
 .dep/
+_build/
