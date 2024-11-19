@@ -124,6 +124,7 @@ jobs:
       - name: Extract version from pyproject.toml
         id: extract_version
         run: |
+          ls
           VERSION=$(python -c "import toml; print(toml.load('$GITHUB_WORKSPACE/pyproject.toml')['project']['version'])")
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPU"
       - name: Check version on PyPI
@@ -144,7 +145,6 @@ jobs:
   publish-to-testpypi:
     name: Publish Python 🐍 distribution 📦 to TestPyPI (detect if no new version are insued)
     needs:
-    - build
     - change-in-testpypi-version
     runs-on: ubuntu-latest
     if: ${{ needs.change-in-testpypi-version.outputs.new_version == 'true' }}
