@@ -1,9 +1,6 @@
 xlsindy package
 ===============
 
-Submodules
-----------
-
 .. toctree::
    :maxdepth: 4
 
@@ -13,11 +10,3 @@ Submodules
    xlsindy.optimization
    xlsindy.render
    xlsindy.simulation
-
-Module contents
----------------
-
-.. automodule:: xlsindy
-   :members:
-   :undoc-members:
-   :show-inheritance:
