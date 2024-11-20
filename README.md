@@ -8,21 +8,21 @@ The documentation of every function of the library can be found on the [py-xl-si
 ## Usage
 
 py-xl-sindy is distributed on PyPi under the same name :
-'''python
-pip install py-xl-sindy
-'''
+```sh
+python -m pip install py-xl-sindy
+```
 
 However this library needs to be imported using a slightly different name :
-'''python
+```python
 import xlsindy
-'''
+```
 
 For extensive usage, it is strongly recommended to read the doc and the exemple file provided in this repository.
 
 ## Citing this library
 
 The following bibtex can be used to cite the library :
-'''bibtex
+```bibtex
 @misc{py-xl-sindy,
   author       = {Eymeric Chauchat},
   title        = {py-xl-sindy: A Python library implementing Lagrangian Sparse Identification of Non linear DYnamics},
@@ -30,7 +30,7 @@ The following bibtex can be used to cite the library :
   url          = {https://github.com/Eymeric65/py-xl-sindy},
   note         = {Version 1.0.0, released on 2024-11-19},
 }
-'''
+```
 
 ## Theorical background and DevBlog
 

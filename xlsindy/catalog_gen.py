@@ -1,7 +1,4 @@
 """
-Catalog generation modules
-==========================
-catalog_gen.py
 
 
 This file is mainly to create and manage catalog of function that will be use in the xl-sindy algorithm afterward.
