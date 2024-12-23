@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "py-xl-sindy"
 requires-python = ">= 3.0"
-version =  "v1.0.1"
+version =  "v1.0.2"
 description = "Library Xl-Sindy simulations"
 authors = [{ name = "Eymeric Chauchat", email = "eymeric.chauchat@gmail.com" }]
 license = { text = "MIT" }
