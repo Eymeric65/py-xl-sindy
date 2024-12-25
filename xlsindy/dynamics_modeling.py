@@ -48,6 +48,46 @@ def dynamics_function(
 
     return func
 
+def dynamics_function_fixed_external(
+    acceleration_function: Callable[[np.ndarray], np.ndarray],
+) -> Callable[[np.ndarray], Callable[[float, np.ndarray], np.ndarray]]:
+    """
+    Transforms the acceleration function into something understandable by usual integration method.
+
+    The acceleration function ( output of euler_lagrange.generate_acceleration_function() ) takes as input a numerical symbol matrix.
+    It is not suitable for the majority of the integration function that need to take as input (t,[q0,q0_d,...,qn,qn_d]) and output (q0_d,q0_dd,...,qn_d,qn_dd).
+    Due to the fact that it has been modified to perform one time step RK4, it introduces slight overhead
+
+    Args:
+        acceleration_function (function): Array of functions representing accelerations.
+
+    Returns:
+        function: return a function that take in input fixed force vector and return a Dynamics function compatible with classical integration solver.
+    """
+
+    def ret_func(forces):
+
+        def func(t, state):
+            state = np.reshape(state, (-1, 2))
+            state_transposed = np.transpose(state)
+
+            # Prepare input matrix for dynamics calculations as a numerical symbol matrix
+            input_matrix = np.zeros(
+                (state_transposed.shape[0] + 2, state_transposed.shape[1])
+            )
+            input_matrix[1:3, :] = state_transposed
+            input_matrix[0, :] = forces
+
+            # Create the result use the same size as before
+            result = np.zeros(state.shape)
+            result[:, 0] = state[:, 1]
+            result[:, 1] = acceleration_function(input_matrix)[:, 0]
+            return np.reshape(result, (-1,))
+        
+        return func
+
+    return ret_func
+
 
 def run_rk45_integration(
     dynamics: Callable[[float, np.ndarray], np.ndarray],

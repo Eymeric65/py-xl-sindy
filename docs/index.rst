@@ -3,12 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-xlsindy documentation
+py-xl-sindy documentation
 =====================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+The python Xl-sindy library provides function in order to run Sparse Identification of Non linear DYnamics through lagrangian dynamics.
+
+This documentation goes through each module and function of library.
+
+For a better understanding of the whole framework it is recommanded to read the exemple file provided with the library
 
 
 .. toctree::

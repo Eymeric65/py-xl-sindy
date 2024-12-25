@@ -48,7 +48,7 @@ def generate_acceleration_function(
     lagrangian: sympy.Expr,
     symbol_matrix: np.ndarray,
     time_symbol: sympy.Symbol,
-    substitution_dict: Dict[str, float],
+    substitution_dict: Dict[str, float] = {},
     fluid_forces: List[int] = [],
     verbose: bool = False,
     use_clever_solve: bool = True,

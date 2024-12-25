@@ -67,7 +67,7 @@ external_force_func = optimized_force_generator(num_coordinates, max_force_span,
 
 # Simulation setup
 cutoff = 5
-acceleration_func, _ = generate_acceleration_function(L, symbols_matrix, time_sym, substitutions, fluid_forces=friction_forces)
+acceleration_func, _ = generate_acceleration_function(L, symbols_matrix, time_sym, substitution_dict=substitutions, fluid_forces=friction_forces)
 dynamics_system = dynamics_function(acceleration_func, external_force_func)
 
 # Integration and simulation
