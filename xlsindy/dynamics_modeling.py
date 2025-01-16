@@ -10,6 +10,8 @@ from scipy import interpolate
 from scipy.integrate import RK45
 from typing import List, Callable, Dict
 
+import jax.numpy as jnp
+
 
 def dynamics_function(
     acceleration_function: Callable[[np.ndarray], np.ndarray],
@@ -52,7 +54,7 @@ def dynamics_function_fixed_external(
     acceleration_function: Callable[[np.ndarray], np.ndarray],
 ) -> Callable[[np.ndarray], Callable[[float, np.ndarray], np.ndarray]]:
     """
-    Transforms the acceleration function into something understandable by usual integration method.
+    Transforms the acceleration function into something understandable by usual integration method. (will be deprecated in v2.0)
 
     The acceleration function ( output of euler_lagrange.generate_acceleration_function() ) takes as input a numerical symbol matrix.
     It is not suitable for the majority of the integration function that need to take as input (t,[q0,q0_d,...,qn,qn_d]) and output (q0_d,q0_dd,...,qn_d,qn_dd).
@@ -86,6 +88,54 @@ def dynamics_function_fixed_external(
         
         return func
 
+    return ret_func
+
+def dynamics_function_RK4_env(
+    acceleration_function: Callable[[np.ndarray], np.ndarray],
+) -> Callable[[np.ndarray], Callable[[float, np.ndarray], np.ndarray]]:
+    """
+    Transforms the acceleration function into something compatible for the RK4 integration method. (into reinforcement-learning-sindy )
+
+    The acceleration function ( output of euler_lagrange.generate_acceleration_function() ) takes as input a numerical symbol matrix.
+    It is not suitable for the integration function of RK4 environment that need to take as input ([q0,q0_d,...,qn,qn_d],[f0,...,fn]) and output (q0_d,q0_dd,...,qn_d,qn_dd).
+    Use jax jnp instead of numpy for better performance. need to be use in accordance with euler_lagrange.generate_acceleration_function(lambdify_module="jax")
+
+    Args:
+        acceleration_function (function): Array of functions representing accelerations.
+
+    Returns:
+        function: return a function that take in input fixed force vector and forces and return a Dynamics function compatible with classical integration solver.
+    """
+
+    def ret_func(state,forces):
+
+        #print("state shape ",state.shape)
+        #print("forces shape ",forces.shape)
+
+        state = jnp.reshape(state,(-1, 2))
+
+        state_transposed = jnp.transpose(state)
+
+        # Prepare input matrix for dynamics calculations as a numerical symbol matrix
+        #input_matrix = jnp.zeros(
+        #   (state_transposed.shape[0] + 2, state_transposed.shape[1])
+        #)
+        #input_matrix[1:3, :] = state_transposed
+        #input_matrix[0, :] = forces
+
+        input_matrix = jnp.concatenate([jnp.reshape(forces,(1,-1)),state_transposed,jnp.zeros((1,forces.shape[0]))],axis=0)
+
+        #print("input_matrix shape ",input_matrix.shape)
+
+        # Create the result use the same size as before
+        #result = jnp.zeros(state.shape)
+        #result[:, 0] = state[:, 1]
+        #result[:, 1] = acceleration_function(input_matrix)[:, 0]
+
+        result = jnp.concatenate([jnp.reshape(state[:, 1],(-1,1)),jnp.reshape(acceleration_function(input_matrix)[:, 0],(-1,1))],axis=1)
+        #print("result shape ",result.shape)
+        return jnp.reshape(result, (-1,))       
+    
     return ret_func
 
 

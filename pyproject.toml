@@ -15,7 +15,8 @@ dependencies = [
 "scipy>=1.14.1",
 "sympy>=1.13.1",
 "scikit-learn>=1.5.2",
-"matplotlib"
+"matplotlib",
+"jax[cuda12]==0.4.35" # because my server is trash
 ]
 
 [project.optional-dependencies]

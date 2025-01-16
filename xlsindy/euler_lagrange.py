@@ -7,6 +7,8 @@ import numpy as np
 import sympy
 import time
 from typing import List, Callable, Dict, Tuple
+import jax.numpy as jnp
+
 
 
 def compute_euler_lagrange_equation(
@@ -52,6 +54,7 @@ def generate_acceleration_function(
     fluid_forces: List[int] = [],
     verbose: bool = False,
     use_clever_solve: bool = True,
+    lambdify_module: str = "numpy",
 ) -> Tuple[Callable[[np.ndarray], np.ndarray], bool]:
     """
     Generate a function for computing accelerations based on the Lagrangian.
@@ -140,13 +143,24 @@ def generate_acceleration_function(
 
                 force_vector[i, 0] = equation
 
-            system_func = sympy.lambdify([symbol_matrix], system_matrix)
-            force_func = sympy.lambdify([symbol_matrix], force_vector)
+            system_func = sympy.lambdify([symbol_matrix], system_matrix,lambdify_module)
+            force_func = sympy.lambdify([symbol_matrix], force_vector,lambdify_module)
 
-            def acceleration_solver(input_values):
-                system_eval = system_func(input_values)
-                force_eval = force_func(input_values)
-                return np.linalg.solve(system_eval, force_eval)
+            if lambdify_module == "jax":
+
+                def acceleration_solver(input_values):
+                    system_eval = system_func(input_values)
+                    force_eval = force_func(input_values)
+                    return jnp.linalg.solve(system_eval, force_eval)
+
+            else:
+
+                def acceleration_solver(input_values):
+                    system_eval = system_func(input_values)
+                    force_eval = force_func(input_values)
+                    return np.linalg.solve(system_eval, force_eval)
+            
+
 
             acc_func = acceleration_solver
         else:
