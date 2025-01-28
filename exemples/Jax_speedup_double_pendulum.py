@@ -87,7 +87,7 @@ ts = np.array(ts)
 print(f"Execution time cpu accel: {ts.mean()*1000:.6f} ms")
 
 ## Jax acceleration function, high parallel
-parralel_batch=10000000 # seems to be capped at 10 000
+parralel_batch=100 # seems to be capped at 10 000
 
 # Result 
 # 10 000 : 0.000026 ms
