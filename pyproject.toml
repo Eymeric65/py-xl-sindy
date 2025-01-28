@@ -25,6 +25,7 @@ matplotlib = "^3.10.0"
 jax = "^0.5.0"
 tyro = "^0.9.13"
 mujoco = "^3.2.7"
+pyqt5 = "^5.15.11" # For rendering purpose on matplotlib, can be broken
 
 
 [tool.poetry.group.dev.dependencies]

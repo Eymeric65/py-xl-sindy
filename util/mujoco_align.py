@@ -21,6 +21,8 @@ import time
 import numpy as np 
 import xlsindy
 
+import matplotlib.pyplot as plt
+
 
 
 @dataclass
@@ -33,14 +35,14 @@ class Args:
     """the maximum time for the simulation"""
     real_mujoco_time: bool = True
     """if True, the simulation will be done in real time, otherwise, the simulation will be done as fast as possible"""
-    num_coordinates: int = None
-    """the number of coordinates in the mujoco environment"""
     forces_scale_vector: List[float] = field(default_factory=lambda: None)
     """the different scale for the forces vector to be applied, this can mimic an action mask over the system if some entry are 0"""
     forces_period: float = 3.0
     """the period for the forces function"""
     forces_period_shift: float = 0.5
     """the shift for the period of the forces function"""
+    generate_ideal_path: bool = False
+    """if True, the ideal simulation from the lagrangian provided will be generated"""
 
 
 if __name__ == "__main__":
@@ -49,8 +51,6 @@ if __name__ == "__main__":
     #print(args)
 
     # CLI validation
-    if args.num_coordinates is None:
-        raise ValueError("num_coordinates should be provided, don't hesitate to invoke --help")
     if args.forces_scale_vector is None:
         raise ValueError("forces_scale_vector should be provided, don't hesitate to invoke --help")
     if args.experiment_folder is None:
@@ -66,6 +66,8 @@ if __name__ == "__main__":
             xlsindy_component = xlsindy_gen.xlsindy_component
         except AttributeError:
             raise AttributeError("xlsindy_gen.py should contain a function named xlsindy_component")
+        
+        num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = xlsindy_component()
 
         # Mujoco environment path
         mujoco_xml = os.path.join(folder_path, "environment.xml")
@@ -74,7 +76,7 @@ if __name__ == "__main__":
     # Random controller initialisation
 
     forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
-        component_count=args.num_coordinates,
+        component_count=num_coordinates,
         scale_vector=args.forces_scale_vector,
         time_end=args.max_time,
         period=args.forces_period,
@@ -101,9 +103,9 @@ if __name__ == "__main__":
             data.qfrc_applied = forces
 
             mujoco_time.append(data.time)
-            mujoco_qpos.append(data.qpos)
-            mujoco_qvel.append(data.qvel)
-            mujoco_qacc.append(data.qacc)
+            mujoco_qpos.append(data.qpos.copy())
+            mujoco_qvel.append(data.qvel.copy())
+            mujoco_qacc.append(data.qacc.copy())
 
         return ret
     
@@ -114,6 +116,7 @@ if __name__ == "__main__":
 
         time_start_simulation = time.time()
         while viewer.is_running() and mujoco_data.time < args.max_time:
+      
 
             mujoco.mj_step(mujoco_model, mujoco_data)
             viewer.sync()
@@ -132,4 +135,62 @@ if __name__ == "__main__":
     mujoco_qacc = np.array(mujoco_qacc)
 
 
+
+    # from mujoco paradigm to xlsindy paradigm, TODO : maybe this should be coded in xlsindy_gen.py script inside another function
+    mujoco_qpos = np.cumsum(mujoco_qpos, axis=1) + args.mujoco_angle_offset
+    mujoco_qvel = np.cumsum(mujoco_qvel, axis=1)
+    mujoco_qacc = np.cumsum(mujoco_qacc, axis=1)
+
+    # Goes into the xlsindy regression
+
+    nb_t = len(mujoco_time)
+
+    surfacteur = len(full_catalog) * 10
+    subsample = nb_t // surfacteur
     
+    solution, exp_matrix, t_values_s,_ = xlsindy.simulation.execute_regression(
+    time_values=mujoco_time,
+    theta_values=mujoco_qpos,
+    time_symbol=time_sym,
+    symbol_matrix=symbols_matrix,
+    catalog=full_catalog,
+    external_force_function= forces_function, # super strange need to be reworked at least should propose an alternative with the vector of forces over time
+    noise_level = 0,
+    truncation_level = 5,
+    subsample_rate = subsample,
+    hard_threshold = 1e-3,
+    velocity_values = mujoco_qvel,
+    acceleration_values = mujoco_qacc,
+    use_regression = True,
+    apply_normalization = True,
+    )
+
+    modele_fit = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog, friction_count=num_coordinates)
+
+    print("Regression finished plotting in progress ... ")
+    # Matplot plotting for the results
+
+    ##DEBUG
+    print("shape of qpos :",mujoco_qpos.shape)
+
+    fig, ax = plt.subplots()
+
+    ax.plot(mujoco_time, mujoco_qpos[:,0],label="q0")
+    ax.plot(mujoco_time, mujoco_qpos[:,1],label="q1")
+    ax.legend()
+
+
+    
+    ##END-OF-DEBUG
+
+    fig, ax = plt.subplots()
+    if extra_info is not None:
+        ideal_solution_vector = extra_info["ideal_solution_vector"]
+        bar_height_ideal = np.abs(ideal_solution_vector) / np.max(np.abs(ideal_solution_vector))
+        ax.bar(np.arange(len(ideal_solution_vector)), bar_height_ideal[:, 0], width=1, label="True Model")
+
+    bar_height_found = np.abs(solution) / np.max(np.abs(solution))
+    ax.bar(np.arange(len(solution)), bar_height_found[:, 0], width=0.5, label="Model Found")
+    ax.legend()
+
+    plt.show()  

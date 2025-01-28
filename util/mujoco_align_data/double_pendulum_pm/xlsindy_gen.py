@@ -25,6 +25,7 @@ def xlsindy_component(): # Name of this function should not be changed
     time_sym = sp.symbols("t")
 
     num_coordinates = 2
+
     symbols_matrix = xlsindy.catalog_gen.generate_symbolic_matrix(num_coordinates, time_sym)
 
     # Create the catalog (Mandatory part)
@@ -73,7 +74,7 @@ def xlsindy_component(): # Name of this function should not be changed
         "ideal_solution_vector": ideal_solution_vector
     }
 
-    return symbols_matrix, full_catalog, extra_info # extra_info is optionnal and should be set to None if not in use
+    return num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info # extra_info is optionnal and should be set to None if not in use
 
 
 
