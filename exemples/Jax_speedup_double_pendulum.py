@@ -87,12 +87,13 @@ ts = np.array(ts)
 print(f"Execution time cpu accel: {ts.mean()*1000:.6f} ms")
 
 ## Jax acceleration function, high parallel
-parralel_batch=70000 # seems to be capped at 10 000
+parralel_batch=10000000 # seems to be capped at 10 000
 
 # Result 
 # 10 000 : 0.000026 ms
 # 20 000 : 0.000019 ms
 # 50 000 : 0.000011 ms
+# 70 000 : 0.000017 ms
 # 100 000 : 0.000 010 ms
 
 acceleration_func, _ = xlsindy.euler_lagrange.generate_acceleration_function(
@@ -118,8 +119,8 @@ for i in range(sample):
         ts.append(end-start)
 
 ts = np.array(ts)
-print(f"Execution time jax accel: {ts.mean()*1000:.6f} ms relative sequential: {ts.mean()*1000/parralel_batch:.6f} ms")
-print(f"Execution time jax accel: {ts.min()*1000:.6f} ms relative sequential: {ts.min()*1000/parralel_batch:.6f} ms")
+print(f"Execution time jax accel: {ts.mean()*1000:.6f} ms relative sequential: {ts.mean()*1000000000/parralel_batch:.3f} ms")
+print(f"Execution time jax accel: {ts.min()*1000:.6f} ms relative sequential: {ts.min()*1000000000/parralel_batch:.3f} ms")
 
 # Jax dynamic function, high parallel
 

@@ -56,7 +56,7 @@ def animate_single_pendulum(
 
 
 def animate_double_pendulum(
-    length1: float, length2: float, angle_array: np.ndarray, time_array: np.ndarray
+    length1: float, length2: float, angle_array: np.ndarray, time_array: np.ndarray, fig= None
 ):
     """
     Animates a double pendulum based on its segment lengths, angles, and time steps.
@@ -74,8 +74,10 @@ def animate_double_pendulum(
 
     x2 = length2 * np.sin(angle_array[:, 2]) + x1
     y2 = -length2 * np.cos(angle_array[:, 2]) + y1
+    if fig == None:
+        fig = plt.figure(figsize=(5, 4))
 
-    fig = plt.figure(figsize=(5, 4))
+    
     ax = fig.add_subplot(
         autoscale_on=False,
         xlim=(-total_length, total_length),
