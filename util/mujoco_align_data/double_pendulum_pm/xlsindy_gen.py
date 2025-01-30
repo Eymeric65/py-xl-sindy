@@ -35,7 +35,7 @@ def xlsindy_component(): # Name of this function should not be changed
     catalog_part1 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_1, num_coordinates, 2))
     catalog_part2 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_2, num_coordinates, 2))
     cross_catalog = np.outer(catalog_part2, catalog_part1)
-    full_catalog = np.concatenate((cross_catalog.flatten(), catalog_part1, catalog_part2))
+    full_catalog = np.concatenate(([1],cross_catalog.flatten(), catalog_part1, catalog_part2)) # Maybe not ?
 
     # give a reference lagrangian for the system analysed (optional) through the extra_info dictionary
 

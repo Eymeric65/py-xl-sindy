@@ -81,7 +81,7 @@ if __name__ == "__main__":
         time_end=args.max_time,
         period=args.forces_period,
         period_shift=args.forces_period_shift,
-        augmentations=30,
+        augmentations=40,
     )
 
 
@@ -134,6 +134,14 @@ if __name__ == "__main__":
     mujoco_qvel = np.array(mujoco_qvel)
     mujoco_qacc = np.array(mujoco_qacc)
 
+    fig, ax = plt.subplots()
+
+    ax.set_title("avant")
+    ax.plot(mujoco_time, mujoco_qpos[:,0],label="q0")
+    ax.plot(mujoco_time, mujoco_qpos[:,1],label="q1")
+    ax.legend()
+
+    print("catalog : ",full_catalog)
 
 
     # from mujoco paradigm to xlsindy paradigm, TODO : maybe this should be coded in xlsindy_gen.py script inside another function
