@@ -23,6 +23,8 @@ import xlsindy
 
 import matplotlib.pyplot as plt
 
+from sympy import latex
+
 
 
 @dataclass
@@ -66,6 +68,11 @@ if __name__ == "__main__":
             xlsindy_component = xlsindy_gen.xlsindy_component
         except AttributeError:
             raise AttributeError("xlsindy_gen.py should contain a function named xlsindy_component")
+        
+        try:
+            mujoco_transform = xlsindy_gen.mujoco_transform
+        except AttributeError:
+            mujoco_transform = None
         
         num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = xlsindy_component()
 
@@ -134,15 +141,6 @@ if __name__ == "__main__":
     mujoco_qvel = np.array(mujoco_qvel)
     mujoco_qacc = np.array(mujoco_qacc)
 
-    fig, ax = plt.subplots()
-
-    ax.set_title("avant")
-    ax.plot(mujoco_time, mujoco_qpos[:,0],label="q0")
-    ax.plot(mujoco_time, mujoco_qpos[:,1],label="q1")
-    ax.legend()
-
-    print("catalog : ",full_catalog)
-
 
     # from mujoco paradigm to xlsindy paradigm, TODO : maybe this should be coded in xlsindy_gen.py script inside another function
     mujoco_qpos = np.cumsum(mujoco_qpos, axis=1) + args.mujoco_angle_offset
@@ -173,32 +171,102 @@ if __name__ == "__main__":
     apply_normalization = True,
     )
 
+    # Compare the result with the base environment 
     modele_fit = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog, friction_count=num_coordinates)
+
+    model_acceleration_func, _ = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,fluid_forces=solution[-2:, 0])
+    model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func, forces_function)
+
+    model_acc = []
+
+    for i in range(len(mujoco_time)): # skip start
+
+        base_vector = np.ravel(np.column_stack((mujoco_qpos[i],mujoco_qvel[i])))
+
+        model_acc+= [model_dynamics_system(mujoco_time[i],base_vector)]
+
+    model_acc = np.array(model_acc)
+
+    model_acc = model_acc[:,1::2]
+
+    ## Numerical value as a result
+    def relative_mse(X, Y):
+        """Relative Mean Squared Error (scale-invariant)"""
+        return np.sqrt(np.mean(((X - Y) / (np.max(X) - np.min(X))) ** 2)) * 100
+    
+    # Estimate of the variance between model and mujoco
+    RMSE_acceleration = relative_mse(model_acc[3:-3],mujoco_qacc[3:-3])
+    print("estimate variance between mujoco and model is : ",RMSE_acceleration)
+
+    # Sparsity difference
+    sparsity_reference = np.count_nonzero( extra_info["ideal_solution_vector"] )
+    sparsity_model = np.count_nonzero(solution)
+
+    sparsity_percentage = 100*(sparsity_model-sparsity_reference)/sparsity_reference
+    sparsity_difference = abs(sparsity_model-sparsity_reference)
+    print("sparsity difference percentage : ",sparsity_percentage)
+    print("sparsity difference number : ",sparsity_difference)
+
+    # model comparison RMSE
+    def normalise_solution(X):
+        """Normalise the solution vector because Lagrangian can be translated and multiply by singleton"""
+
+        max_ind = np.argmax(np.abs(X))
+        return X /X[max_ind]
+
+    RMSE_model = relative_mse(normalise_solution(extra_info["ideal_solution_vector"]),normalise_solution(solution))
+    print("RMSE model comparison : ",RMSE_model)
 
     print("Regression finished plotting in progress ... ")
     # Matplot plotting for the results
 
-    ##DEBUG
-    print("shape of qpos :",mujoco_qpos.shape)
-
     fig, ax = plt.subplots()
-
-    ax.plot(mujoco_time, mujoco_qpos[:,0],label="q0")
-    ax.plot(mujoco_time, mujoco_qpos[:,1],label="q1")
+    for i in range(num_coordinates):
+        ax.plot(mujoco_time, mujoco_qacc[:,i],label=f"mujoco $\\ddot{{q}}_{i}$")
+        ax.plot(mujoco_time, model_acc[:,i],label=f"model $\\ddot{{q}}_{i}$")
     ax.legend()
 
+
+    fig, ax = plt.subplots()
+    for i in range(num_coordinates):
+        ax.plot(mujoco_time, mujoco_qpos[:,i],label=f"q_{i}")
+    ax.legend()
+
+
+    fig, ax = plt.subplots()    
 
     
-    ##END-OF-DEBUG
 
-    fig, ax = plt.subplots()
+    non_null_term = np.argwhere(solution != 0) 
+
     if extra_info is not None:
         ideal_solution_vector = extra_info["ideal_solution_vector"]
-        bar_height_ideal = np.abs(ideal_solution_vector) / np.max(np.abs(ideal_solution_vector))
-        ax.bar(np.arange(len(ideal_solution_vector)), bar_height_ideal[:, 0], width=1, label="True Model")
 
-    bar_height_found = np.abs(solution) / np.max(np.abs(solution))
-    ax.bar(np.arange(len(solution)), bar_height_found[:, 0], width=0.5, label="Model Found")
+        non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution_vector != 0 )),axis=0),axis=0)
+
+        ax.bar(np.arange(len(non_null_term)), normalise_solution(ideal_solution_vector)[*non_null_term.T], width=1, label="True Model")
+
+    ax.bar(np.arange(len(non_null_term)), normalise_solution(solution)[*non_null_term.T], width=0.5, label="Model Found")
     ax.legend()
 
+    def label_catalog(catalog,non_null_term):
+        """Convert the catalog into label"""
+        res=[]
+        for index in non_null_term[:,0]:
+
+            if index > len(catalog)-1:
+                res+=[f"fluid forces $v_{{{index-len(catalog)}}}$"]
+            else:
+                res+= [f"${latex(catalog[index])}$"]
+        return res
+
+    catalog_string = label_catalog(full_catalog,non_null_term)
+
+    # Set x-axis tick label
+    ax.set_xticklabels(catalog_string)
+    ax.set_xticks(np.arange(len(non_null_term)))
+    ax.tick_params(labelrotation=90)
+    ax.set_xlabel("Function from catalog")
+
+    plt.tight_layout()
     plt.show()  

@@ -34,10 +34,12 @@ def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
         np.ndarray: matrix of shape (4, n) containing symbolic expression.
     """
     symbolic_matrix = np.zeros((4, coord_count), dtype=object)
-    symbolic_matrix[0, :] = [sympy.Function(f"Fext{i}")(t) for i in range(coord_count)]
-    symbolic_matrix[1, :] = [sympy.Function(f"q{i}")(t) for i in range(coord_count)]
-    symbolic_matrix[2, :] = [sympy.Function(f"q{i}_d")(t) for i in range(coord_count)]
-    symbolic_matrix[3, :] = [sympy.Function(f"q{i}_dd")(t) for i in range(coord_count)]
+    symbolic_matrix[0, :] = [sympy.Function(f"Fext_{i}")(t) for i in range(coord_count)]
+    symbolic_matrix[1, :] = [sympy.Function(f"q_{i}")(t) for i in range(coord_count)]
+    #symbolic_matrix[2, :] = [sympy.Function(f"\\dot{{q_{i}}}")(t) for i in range(coord_count)]
+    #symbolic_matrix[3, :] = [sympy.Function(f"\\ddot{{q_{i}}}")(t) for i in range(coord_count)]
+    symbolic_matrix[2, :] = [sympy.Function(f"qd_{i}")(t) for i in range(coord_count)]
+    symbolic_matrix[3, :] = [sympy.Function(f"qdd_{i}")(t) for i in range(coord_count)]
     return symbolic_matrix
 
 
