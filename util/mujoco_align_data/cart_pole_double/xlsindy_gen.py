@@ -24,7 +24,7 @@ def xlsindy_component(): # Name of this function should not be changed
 
     time_sym = sp.symbols("t")
 
-    num_coordinates = 2
+    num_coordinates = 3
 
     symbols_matrix = xlsindy.catalog_gen.generate_symbolic_matrix(num_coordinates, time_sym)
 
@@ -32,8 +32,8 @@ def xlsindy_component(): # Name of this function should not be changed
     function_catalog_1 = [lambda x: symbols_matrix[2, x]]
     function_catalog_2 = [lambda x: sp.sin(symbols_matrix[1, x]), lambda x: sp.cos(symbols_matrix[1, x])]
 
-    catalog_part1 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_1, num_coordinates, 3))
-    catalog_part2 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_2, num_coordinates, 3))
+    catalog_part1 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_1, num_coordinates, 2))
+    catalog_part2 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_2, num_coordinates, 2))
     cross_catalog = np.outer(catalog_part2, catalog_part1)
     full_catalog = np.concatenate(([1],cross_catalog.flatten(), catalog_part1, catalog_part2)) # Maybe not ?
 
@@ -44,7 +44,7 @@ def xlsindy_component(): # Name of this function should not be changed
     mass1 = 0.8
     mass2 = 0.8
 
-    friction_forces = [-1.4, -1.2]
+    friction_forces = [-1.4, -1.2,-0.8]
 
     # Assign ideal model variables
     theta1 = symbols_matrix[1, 0]
@@ -77,4 +77,6 @@ def xlsindy_component(): # Name of this function should not be changed
     return num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info # extra_info is optionnal and should be set to None if not in use
 
 
+def mujoco_transform(pos,vel,acc):
 
+    return pos,vel,acc

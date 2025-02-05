@@ -174,7 +174,8 @@ def generate_acceleration_function(
 
         if verbose:
             print("Time to Lambdify: {}".format(time.time() - start_time))
-
+    else: # Fail
+        acc_func = None
     return acc_func, valid
 
 

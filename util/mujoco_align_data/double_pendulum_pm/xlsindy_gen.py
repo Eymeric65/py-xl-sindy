@@ -9,6 +9,9 @@ import xlsindy
 import numpy as np
 import sympy as sp
 
+mujoco_angle_offset = np.pi
+
+
 def xlsindy_component(): # Name of this function should not be changed
     """
     This function is used to generate backbone of the xl_sindy algorithm
@@ -32,8 +35,8 @@ def xlsindy_component(): # Name of this function should not be changed
     function_catalog_1 = [lambda x: symbols_matrix[2, x]]
     function_catalog_2 = [lambda x: sp.sin(symbols_matrix[1, x]), lambda x: sp.cos(symbols_matrix[1, x])]
 
-    catalog_part1 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_1, num_coordinates, 3))
-    catalog_part2 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_2, num_coordinates, 3))
+    catalog_part1 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_1, num_coordinates, 2))
+    catalog_part2 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_2, num_coordinates, 2))
     cross_catalog = np.outer(catalog_part2, catalog_part1)
     full_catalog = np.concatenate(([1],cross_catalog.flatten(), catalog_part1, catalog_part2)) # Maybe not ?
 
@@ -71,10 +74,17 @@ def xlsindy_component(): # Name of this function should not be changed
         "lagrangian": Lagrangian,
         "substitutions": substitutions,
         "friction_forces": friction_forces,
-        "ideal_solution_vector": ideal_solution_vector
+        "ideal_solution_vector": ideal_solution_vector,
+        "initial_condition": np.array([[np.pi, 0], [np.pi, 0]])
     }
 
     return num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info # extra_info is optionnal and should be set to None if not in use
 
 
+def mujoco_transform(pos,vel,acc):
 
+    pos = -np.cumsum(pos, axis=1) + mujoco_angle_offset
+    vel = -np.cumsum(vel, axis=1)
+    acc = -np.cumsum(acc, axis=1)
+
+    return pos,vel,acc
