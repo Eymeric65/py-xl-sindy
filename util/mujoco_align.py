@@ -23,7 +23,9 @@ import xlsindy
 
 import matplotlib.pyplot as plt
 
-from sympy import latex
+import xlsindy.result_formatting
+
+
 
 
 
@@ -47,12 +49,15 @@ class Args:
     """if True, generate the lagrangian Sindy regression"""
     force_ideal_solution:bool = False
     """if True, override the regression and force the ideal model (for debug purpose of mujoco/rk45sim)"""
+    plot:bool = False
+    """if True, plot on pyplot"""
 
 
 if __name__ == "__main__":
 
     args = tyro.cli(Args)
     #print(args)
+
 
     # CLI validation
     if args.forces_scale_vector is None:
@@ -75,6 +80,11 @@ if __name__ == "__main__":
             mujoco_transform = xlsindy_gen.mujoco_transform
         except AttributeError:
             mujoco_transform = None
+
+        try:
+            forces_wrapper = xlsindy_gen.forces_wrapper
+        except AttributeError:
+            forces_wrapper = None
         
         num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = xlsindy_component()
 
@@ -103,6 +113,7 @@ if __name__ == "__main__":
     mujoco_qpos = []
     mujoco_qvel = []
     mujoco_qacc = []
+    force_vector =[]
 
     def random_controller(forces_function):
 
@@ -110,6 +121,8 @@ if __name__ == "__main__":
 
             forces = forces_function(data.time)
             data.qfrc_applied = forces
+
+            force_vector.append(forces.copy())
 
             mujoco_time.append(data.time)
             mujoco_qpos.append(data.qpos.copy())
@@ -142,8 +155,9 @@ if __name__ == "__main__":
     mujoco_qpos = np.array(mujoco_qpos)
     mujoco_qvel = np.array(mujoco_qvel)
     mujoco_qacc = np.array(mujoco_qacc)
+    force_vector = np.array(force_vector)
 
-    mujoco_qpos,mujoco_qvel,mujoco_qacc = mujoco_transform(mujoco_qpos,mujoco_qvel,mujoco_qacc)
+    mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector = mujoco_transform(mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector)
 
     if args.regression:
         # Goes into the xlsindy regression
@@ -161,7 +175,8 @@ if __name__ == "__main__":
             time_symbol=time_sym,
             symbol_matrix=symbols_matrix,
             catalog=full_catalog,
-            external_force_function= forces_function, # super strange need to be reworked at least should propose an alternative with the vector of forces over time
+            external_force= force_vector, # super strange need to be reworked at least should propose an alternative with the vector of forces over time
+            #extermal_force_func=forces_function,
             noise_level = 0,
             truncation_level = 5,
             subsample_rate = subsample,
@@ -171,16 +186,18 @@ if __name__ == "__main__":
             use_regression = True,
             apply_normalization = True,
             )
+
+            #print("subsample test :",np.linalg.norm(t_values_s-mujoco_time[5::subsample]))
         
         else:
             solution=extra_info["ideal_solution_vector"]
 
 
         # Compare the result with the base environment 
-        modele_fit = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog, friction_count=num_coordinates)
+        modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
 
-        model_acceleration_func, _ = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,fluid_forces=solution[-num_coordinates:, 0])
-        model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func, forces_function)
+        model_acceleration_func, _ = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,first_order_friction=friction_matrix)
+        model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func, forces_wrapper(forces_function))
 
         model_acc = []
 
@@ -195,15 +212,20 @@ if __name__ == "__main__":
         model_acc = model_acc[:,1::2]
 
         ## Numerical value as a result
-        def relative_mse(X, Y):
-            """Relative Mean Squared Error (scale-invariant)"""
-            return np.sqrt(np.mean(((X - Y) / (np.max(X) - np.min(X))) ** 2)) * 100
+
         
         # Estimate of the variance between model and mujoco
-        RMSE_acceleration = relative_mse(model_acc[3:-3],mujoco_qacc[3:-3])
+        RMSE_acceleration = xlsindy.result_formatting.relative_mse(model_acc[3:-3],mujoco_qacc[3:-3])
         print("estimate variance between mujoco and model is : ",RMSE_acceleration)
 
         # Sparsity difference
+        non_null_term = np.argwhere(solution != 0) 
+
+        if extra_info is not None:
+            ideal_solution = extra_info["ideal_solution_vector"]
+
+            non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution != 0 )),axis=0),axis=0)
+
         sparsity_reference = np.count_nonzero( extra_info["ideal_solution_vector"] )
         sparsity_model = np.count_nonzero(solution)
 
@@ -219,78 +241,71 @@ if __name__ == "__main__":
             rk45_velocity_values = rk45_phase_values[:, 1::2]
 
     # model comparison RMSE
-        def normalise_solution(X):
-            """Normalise the solution vector because Lagrangian can be translated and multiply by singleton"""
+        ideal_solution_norm_nn = xlsindy.result_formatting.normalise_solution(extra_info["ideal_solution_vector"])[*non_null_term.T]
+        solution_norm_nn = xlsindy.result_formatting.normalise_solution(solution)[*non_null_term.T]
 
-            max_ind = np.argmax(np.abs(X))
-            return X /X[max_ind]
-
-        RMSE_model = relative_mse(normalise_solution(extra_info["ideal_solution_vector"]),normalise_solution(solution))
+        RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
         print("RMSE model comparison : ",RMSE_model)
 
-    print("Regression finished plotting in progress ... ")
-    # Matplot plotting for the results
+    if args.plot:
 
-    fig, ax = plt.subplots()
-    for i in range(num_coordinates):
-        ax.plot(mujoco_time, mujoco_qacc[:,i],label=f"mujoco $\\ddot{{q}}_{i}$")
+        print("Regression finished plotting in progress ... ")
+        # Matplot plotting for the results
 
-        if args.regression:
-            ax.plot(mujoco_time, model_acc[:,i],label=f"model $\\ddot{{q}}_{i}$")
-    ax.legend()
+        fig, ax = plt.subplots()
+        for i in range(num_coordinates):
 
-    fig, ax = plt.subplots()
-    for i in range(num_coordinates):
-        ax.plot(mujoco_time, mujoco_qvel[:,i],label=f"mujoco $\\dot{{q}}_{i}$")
-
-        if args.regression:
-            ax.plot(rk45_time_values, rk45_velocity_values[:,i],label=f"model $\\dot{{q}}_{i}$")
-    ax.legend()
+            if args.regression:
+                ax.plot(mujoco_time, model_acc[:,i],label=f"model $\\ddot{{q}}_{i}$")
+        
+            ax.plot(mujoco_time, mujoco_qacc[:,i],label=f"mujoco $\\ddot{{q}}_{i}$")
 
 
-    fig, ax = plt.subplots()
-    for i in range(num_coordinates):
-        ax.plot(mujoco_time, mujoco_qpos[:,i],label=f"q_{i}")
-
-        if args.regression & args.generate_ideal_path:
-            ax.plot(rk45_time_values, rk45_theta_values[:,i],label=f"rk_{{45}}q_{i}")
-    ax.legend()
-
-
-    fig, ax = plt.subplots()    
-
-    if args.regression:
-
-        non_null_term = np.argwhere(solution != 0) 
-
-        if extra_info is not None:
-            ideal_solution_vector = extra_info["ideal_solution_vector"]
-
-            non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution_vector != 0 )),axis=0),axis=0)
-
-            ax.bar(np.arange(len(non_null_term)), normalise_solution(ideal_solution_vector)[*non_null_term.T], width=1, label="True Model")
-
-        ax.bar(np.arange(len(non_null_term)), normalise_solution(solution)[*non_null_term.T], width=0.5, label="Model Found")
         ax.legend()
 
-        def label_catalog(catalog,non_null_term):
-            """Convert the catalog into label"""
-            res=[]
-            for index in non_null_term[:,0]:
+        fig, ax = plt.subplots()
+        for i in range(num_coordinates):
+            ax.plot(mujoco_time, mujoco_qvel[:,i],label=f"mujoco $\\dot{{q}}_{i}$")
 
-                if index > len(catalog)-1:
-                    res+=[f"fluid forces $v_{{{index-len(catalog)}}}$"]
-                else:
-                    res+= [f"${latex(catalog[index]).replace("qd","\\dot{{q}}")}$"]
-            return res
+            if args.regression:
+                ax.plot(rk45_time_values, rk45_velocity_values[:,i],label=f"model $\\dot{{q}}_{i}$")
+        ax.legend()
 
-        catalog_string = label_catalog(full_catalog,non_null_term)
 
-        # Set x-axis tick label
-        ax.set_xticklabels(catalog_string)
-        ax.set_xticks(np.arange(len(non_null_term)))
-        ax.tick_params(labelrotation=90)
-        ax.set_xlabel("Function from catalog")
+        fig, ax = plt.subplots()
+        for i in range(num_coordinates):
+            ax.plot(mujoco_time, mujoco_qpos[:,i],label=f"q_{i}")
 
-    plt.tight_layout()
-    plt.show()  
+            if args.regression & args.generate_ideal_path:
+                ax.plot(rk45_time_values, rk45_theta_values[:,i],label=f"rk_{{45}}q_{i}")
+        ax.legend()
+
+
+        fig, ax = plt.subplots()    
+
+        if args.regression:
+
+            non_null_term = np.argwhere(solution != 0) 
+
+            if extra_info is not None:
+                ideal_solution_vector = extra_info["ideal_solution_vector"]
+
+                non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution_vector != 0 )),axis=0),axis=0)
+
+                ax.bar(np.arange(len(non_null_term)), xlsindy.result_formatting.normalise_solution(ideal_solution_vector)[*non_null_term.T], width=1, label="True Model")
+
+            ax.bar(np.arange(len(non_null_term)), xlsindy.result_formatting.normalise_solution(solution)[*non_null_term.T], width=0.5, label="Model Found")
+            ax.legend()
+
+
+
+            catalog_string = xlsindy.catalog_gen.label_catalog(full_catalog,non_null_term)
+
+            # Set x-axis tick label
+            ax.set_xticklabels(catalog_string)
+            ax.set_xticks(np.arange(len(non_null_term)))
+            ax.tick_params(labelrotation=90)
+            ax.set_xlabel("Function from catalog")
+
+        plt.tight_layout()
+        plt.show()  

@@ -19,7 +19,8 @@ def execute_regression(
     time_symbol: sympy.Symbol,
     symbol_matrix: np.ndarray,
     catalog: np.ndarray,
-    external_force_function: Callable,
+    external_force: np.ndarray,
+    #extermal_force_func: Callable,
     noise_level: float = 0,
     truncation_level: int = 5,
     subsample_rate: int = 1,
@@ -37,7 +38,7 @@ def execute_regression(
         theta_values (np.ndarray): Array of angular positions over time.
         symbol_list (np.ndarray): Symbolic variables for model construction.
         catalog (np.ndarray): Catalog of features for regression.
-        external_force_function (Callable): Function for external forces.
+        external_force (np.ndarray): array of external forces.
         time_step (float): Time step value.
         noise_level (float): Level of noise to be added to data.
         truncation_level (int): Truncation level for matrix.
@@ -66,16 +67,27 @@ def execute_regression(
         theta_values,
         time_values,
         subsample=subsample_rate,
-        friction=True,
+        friction_order_one=True,
         truncation=truncation_level,
         velocity_values=velocity_values,
         acceleration_values=acceleration_values,
     )
 
     # Create forces vector based on external force function and sampled times
-    forces_vector = calculate_forces_vector(
-        external_force_function, sampled_time_values
-    )
+
+    #external_force_vec = calculate_forces_vector(extermal_force_func,sampled_time_values)
+
+    #print("ta putain de maere :",external_force[truncation_level::subsample_rate].shape)
+
+    #external_force[:,:-1]-=external_force[:,1:]
+
+    external_force_vec = np.reshape(external_force[truncation_level::subsample_rate].T,(-1,1))
+
+    #print("transform",np.linalg.norm(external_force_vec_2-external_force_vec))
+    
+
+    #print("len of the arrays ",len(external_force),experimental_matrix.shape)
+
 
     covariance_matrix = None
     solution = None
@@ -89,7 +101,7 @@ def execute_regression(
         )
 
         # Perform Lasso regression to obtain coefficients
-        coefficients = lasso_regression(forces_vector, normalized_matrix)
+        coefficients = lasso_regression(external_force_vec, normalized_matrix)
 
         # Revert normalization to obtain solution in original scale
         solution = unnormalize_experiment(
@@ -108,7 +120,7 @@ def execute_regression(
             covariance_reduced
         )
 
-        residuals = forces_vector - experimental_matrix @ solution
+        residuals = external_force_vec - experimental_matrix @ solution
         sigma_squared = (
             1
             / (experimental_matrix.shape[0] - experimental_matrix.shape[1])

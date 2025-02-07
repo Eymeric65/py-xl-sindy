@@ -8,7 +8,7 @@ import numpy as np
 import sympy
 from typing import List, Callable, Union
 
-
+from sympy import latex
 
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     """
@@ -60,6 +60,7 @@ def calculate_forces_vector(
     force_vector[:-1, :] -= force_vector[
         1:, :
     ]  # Offset forces in order to get local joint forces
+    print(force_vector.shape)
     return np.transpose(
         np.reshape(force_vector, (1, -1))
     )  # Makes everything flat for rendering afterwards
@@ -166,23 +167,29 @@ def generate_full_catalog(
 def create_solution_vector(
     expression: sympy.Expr,
     catalog: List[Union[int, float]],
-    friction_terms: List[Union[int, float]] = [],
+    friction_terms: np.ndarray = None,
 ) -> np.ndarray:
     """
     Creates a solution vector by matching expression terms to a catalog.
 
     Args:
         expression (sympy.Expr): The equation to match.
-        catalog (List[sympy.Expr]): List of functions or constants to match against.
-        friction_terms (List[sympy.Expr], optional): List of friction terms to include. Defaults to an empty list.
+        catalog (List[Union[int, float]]): List of functions or constants to match against.
+        friction_terms (np.ndarray, optional): array of friction terms to include. Defaults to an empty list. Lines are dynamic equation and column are \\dot{{q}}
 
     Returns:
         np.ndarray: Solution vector containg the coefficient in order that return*catalog=expression.
     """
+
+    if friction_terms is None :
+        friction_len = 0
+    else:
+        friction_len = np.prod(friction_terms.shape)
+
     expanded_expression_terms = sympy.expand(
         sympy.expand_trig(expression)
     ).args  # Expand the expression in order to get base function (ex: x, x^2, sin(s), ...)
-    solution_vector = np.zeros((len(catalog) + len(friction_terms), 1))
+    solution_vector = np.zeros((len(catalog) + friction_len, 1))
     for term in expanded_expression_terms:
         for idx, catalog_term in enumerate(catalog):
             test = term / catalog_term
@@ -191,13 +198,19 @@ def create_solution_vector(
             ):  # if test is a constant it means that catalog_term is inside equation
                 solution_vector[idx, 0] = test
 
-    for i, friction_value in enumerate(friction_terms):
-        solution_vector[len(catalog) + i] = friction_value
+    if friction_terms is not None:
+        solution_vector[len(catalog):len(catalog)+friction_len] = np.reshape(friction_terms,(-1,1))
+
+    # for i, friction_value in enumerate(friction_terms): # old friction paradigm
+    #     solution_vector[len(catalog) + i] = friction_value
     return solution_vector
 
 
 def create_solution_expression(
-    solution_vector: np.ndarray, catalog: List[sympy.Expr], friction_count: int = 0
+    solution_vector: np.ndarray, 
+    catalog: List[sympy.Expr],
+    num_coordinates:int = None,
+    first_order_friction:bool=False
 ) -> sympy.Expr:
     """
     Constructs an expression from a solution vector and a catalog.
@@ -205,12 +218,35 @@ def create_solution_expression(
     Args:
         solution_vector (np.ndarray): Solution values.
         catalog (List[Union[int, float]]): List of functions or constants.
-        friction_count (int): Number of friction terms. at the end of solution_vector
+        num_coordinates (int): Number of coordinates, used to return the friction term
+        first_order_friction (bool): Wether or not the generation used the first order friction paradigm
 
     Returns:
-        sympy.Expr: Constructed solution expression, litteraly construct solution_vector*catalog.T .
+        sympy.Expr: Constructed solution expression, litteraly construct solution_vector*catalog.T. Friction term are excluded
+        np.ndarray: First Order friction matrix
     """
     model_expression = 0
-    for i in range(len(solution_vector) - friction_count):
+    for i in range(len(catalog)):
         model_expression += solution_vector[i] * catalog[i]
-    return model_expression
+
+    if first_order_friction :
+        if num_coordinates is None:
+            raise TypeError("You should specify the number of coordinate if you want to retrieve the first order friction matrix")
+        
+        first_order_friction_matrix = np.reshape(solution_vector[len(catalog):len(catalog)+num_coordinates**2],(num_coordinates,num_coordinates))
+
+    else:
+        first_order_friction_matrix = None
+    
+    return model_expression,first_order_friction_matrix
+
+def label_catalog(catalog,non_null_term):
+    """Convert the catalog into label"""
+    res=[]
+    for index in non_null_term[:,0]:
+
+        if index > len(catalog)-1:
+            res+=[f"fluid forces $v_{{{index-len(catalog)}}}$"]
+        else:
+            res+= [f"${latex(catalog[index]).replace("qd","\\dot{{q}}")}$"]
+    return res

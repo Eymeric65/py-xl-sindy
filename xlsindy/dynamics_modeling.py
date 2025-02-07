@@ -109,31 +109,13 @@ def dynamics_function_RK4_env(
 
     def ret_func(state,forces):
 
-        #print("state shape ",state.shape)
-        #print("forces shape ",forces.shape)
-
         state = jnp.reshape(state,(-1, 2))
 
         state_transposed = jnp.transpose(state)
-
-        # Prepare input matrix for dynamics calculations as a numerical symbol matrix
-        #input_matrix = jnp.zeros(
-        #   (state_transposed.shape[0] + 2, state_transposed.shape[1])
-        #)
-        #input_matrix[1:3, :] = state_transposed
-        #input_matrix[0, :] = forces
-
         input_matrix = jnp.concatenate([jnp.reshape(forces,(1,-1)),state_transposed,jnp.zeros((1,forces.shape[0]))],axis=0)
 
-        #print("input_matrix shape ",input_matrix.shape)
-
-        # Create the result use the same size as before
-        #result = jnp.zeros(state.shape)
-        #result[:, 0] = state[:, 1]
-        #result[:, 1] = acceleration_function(input_matrix)[:, 0]
-
         result = jnp.concatenate([jnp.reshape(state[:, 1],(-1,1)),jnp.reshape(acceleration_function(input_matrix)[:, 0],(-1,1))],axis=1)
-        #print("result shape ",result.shape)
+
         return jnp.reshape(result, (-1,))       
     
     return ret_func

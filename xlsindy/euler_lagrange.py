@@ -51,7 +51,7 @@ def generate_acceleration_function(
     symbol_matrix: np.ndarray,
     time_symbol: sympy.Symbol,
     substitution_dict: Dict[str, float] = {},
-    fluid_forces: List[int] = [],
+    first_order_friction: np.ndarray = None,
     verbose: bool = False,
     use_clever_solve: bool = True,
     lambdify_module: str = "numpy",
@@ -74,7 +74,7 @@ def generate_acceleration_function(
         symbol_matrix (np.ndarray): Matrix containing symbolic variables (external forces, positions, velocities, accelerations).
         time_symbol (sp.Symbol): The time symbol in the Lagrangian.
         substitution_dict (dict): Dictionary of substitutions for simplifying expressions. Used in case where lagrangian is handmade with variable (like lenght of pendulum etc...)
-        fluid_forces (list): List of external fluid dissipation coefficient affecting the system (default is None).
+        first_order_friction (np.ndarray): friction coefficient array (default is None).
         verbose (bool): If True, print timing information (default is False).
         use_clever_solve (bool): If True, use matrix-based solution for acceleration (default is True).
 
@@ -83,8 +83,8 @@ def generate_acceleration_function(
         bool: Whether the acceleration function generation was successful.
     """
     num_coords = symbol_matrix.shape[1]
-    if len(fluid_forces) == 0:
-        fluid_forces = [0 for i in range(num_coords)]
+    if first_order_friction is None:
+        first_order_friction = np.zeros((num_coords,num_coords))
 
     accelerations = np.zeros(
         (num_coords, 1), dtype="object"
@@ -104,16 +104,23 @@ def generate_acceleration_function(
             print("Time to derive {}: {}".format(i, time.time() - start_time))
 
         dynamic_eq -= symbol_matrix[0, i]  # Add external forces
-        dynamic_eq += fluid_forces[i] * symbol_matrix[2, i]  # add visquous forces
+        
+        # add visquous forces
+        dynamic_eq += first_order_friction[i,:] @ symbol_matrix[2, :]
 
-        # Hardcoded dissipation matrix for chained system
-        if i < (num_coords - 1):
-            dynamic_eq += fluid_forces[i + 1] * symbol_matrix[2, i]
-            dynamic_eq += -fluid_forces[i + 1] * symbol_matrix[2, i + 1]
-            dynamic_eq += symbol_matrix[0, i + 1]
+        # if i < (num_coords - 1): # WTF is this # 20250206 Awesome work # Okay this is applied to correct the rk4 integration
+        #     dynamic_eq += symbol_matrix[0, i + 1]
 
-        if i > 0:
-            dynamic_eq += -fluid_forces[i] * symbol_matrix[2, i - 1]
+        # dynamic_eq += fluid_forces[i] * symbol_matrix[2, i]  # Old friction paradigm
+
+        # # Hardcoded dissipation matrix for chained system
+        # if i < (num_coords - 1):
+        #     dynamic_eq += fluid_forces[i + 1] * symbol_matrix[2, i]
+        #     dynamic_eq += -fluid_forces[i + 1] * symbol_matrix[2, i + 1]
+        #     dynamic_eq += symbol_matrix[0, i + 1]
+
+        # if i > 0:
+        #     dynamic_eq += -fluid_forces[i] * symbol_matrix[2, i - 1]
 
         if str(symbol_matrix[3, i]) in str(
             dynamic_eq
@@ -160,8 +167,6 @@ def generate_acceleration_function(
                     force_eval = force_func(input_values)
                     return np.linalg.solve(system_eval, force_eval)
             
-
-
             acc_func = acceleration_solver
         else:
             solution = sympy.solve(dynamic_equations, symbol_matrix[3, :])
@@ -187,7 +192,7 @@ def create_experiment_matrix(
     position_values: np.ndarray,
     time_values: np.ndarray,
     subsample: int = 1,
-    friction: bool = False,
+    friction_order_one:bool = False,
     truncation: int = 0,
     velocity_values: np.ndarray = [],
     acceleration_values: np.ndarray = [],
@@ -206,7 +211,7 @@ def create_experiment_matrix(
         position_values (np.array): Array of positions at each time step.
         time_step (float): Time interval between steps.
         subsample (int): Rate of subsampling the data (default is 1, no subsampling).
-        friction (bool): Whether to add frictional forces (default is False).
+        friction_order_one (bool): Whether to add frictional forces (default is False). Use the model of friction matrix in the first order
         truncation (int): Number of initial time steps to truncate (default is 0).
         velocity_values (np.array): Array of velocities (default is empty).
         acceleration_values (np.array): Array of accelerations (default is empty).
@@ -217,7 +222,7 @@ def create_experiment_matrix(
     """
     sampled_steps = len(position_values[truncation::subsample])
     experiment_matrix = np.zeros(
-        ((sampled_steps) * num_coords, len(catalog) + int(friction) * num_coords)
+        ((sampled_steps) * num_coords, len(catalog) + int(friction_order_one) * num_coords**2)
     )
 
     if not velocity_values.any():
@@ -258,23 +263,31 @@ def create_experiment_matrix(
                 q_matrix
             )
 
-        if friction:
+        if friction_order_one: # New friction paradigm (friction interaction matrix)
+
+            #print( experiment_matrix[i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords].shape)
+
             experiment_matrix[
-                i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i
-            ] += velocity_values[truncation::subsample, i]
+                i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords
+            ] += velocity_values[truncation::subsample,:]
 
-            if i < (num_coords - 1):
-                experiment_matrix[
-                    i * sampled_steps : (i + 1) * sampled_steps,
-                    len(catalog_lambda) + i + 1,
-                ] += (
-                    velocity_values[truncation::subsample, i]
-                    - velocity_values[truncation::subsample, i + 1]
-                )
+        # if friction: # Old friction paradigm (hard coded paired friction)
+        #     experiment_matrix[
+        #         i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i
+        #     ] += velocity_values[truncation::subsample, i]
 
-            if i > 0:
-                experiment_matrix[
-                    i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i
-                ] -= velocity_values[truncation::subsample, i - 1]
+        #     if i < (num_coords - 1):
+        #         experiment_matrix[
+        #             i * sampled_steps : (i + 1) * sampled_steps,
+        #             len(catalog_lambda) + i + 1,
+        #         ] += (
+        #             velocity_values[truncation::subsample, i]
+        #             - velocity_values[truncation::subsample, i + 1]
+        #         )
+
+        #     if i > 0:
+        #         experiment_matrix[
+        #             i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i
+        #         ] -= velocity_values[truncation::subsample, i - 1]
 
     return experiment_matrix, time_values[truncation::subsample]

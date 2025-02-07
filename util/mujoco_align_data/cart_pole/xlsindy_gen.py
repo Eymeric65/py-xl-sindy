@@ -41,9 +41,12 @@ def xlsindy_component(): # Name of this function should not be changed
 
     link_length = 1.0
     mass_base = 0.8
-    mass_link = 0.8
+    mass_link = 0.5
 
-    friction_forces = [-1.0, -0.0]
+    friction_coeff = [-0.8, -0.3]
+
+    friction_forces = np.array([[friction_coeff[0],0],[0,friction_coeff[1]]])
+
 
     # Assign ideal model variables
     theta1 = symbols_matrix[1, 0]
@@ -75,6 +78,17 @@ def xlsindy_component(): # Name of this function should not be changed
     return num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info # extra_info is optionnal and should be set to None if not in use
 
 
-def mujoco_transform(pos,vel,acc):
+def mujoco_transform(pos,vel,acc,forces):
 
-    return -pos,-vel,-acc
+    return -pos,-vel,-acc,forces
+
+def forces_wrapper(fun):
+
+    def wrapper(*args, **kwargs):
+
+        forces = fun(*args, **kwargs)
+
+        return forces
+    
+    return wrapper
+
