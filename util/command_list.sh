@@ -73,3 +73,21 @@ python mujoco_align.py \
 --regression \
 --generate-ideal-path \
 --plot
+
+python mujoco_align.py \
+--experiment-folder "mujoco_align_data/cart_pole_double" \
+--max-time 30 \
+--no-real_mujoco_time \
+--forces-scale-vector 3 6 8 \
+--forces-period 3 \
+--forces-period-shift 0.5 \
+--regression 
+
+python mujoco_align.py \
+--experiment-folder "mujoco_align_data/cart_pole_double" \
+--max-time 30 \
+--no-real_mujoco_time \
+--forces-scale-vector 1 1 1 \
+--forces-period 3 \
+--forces-period-shift 0.5 \
+--regression 

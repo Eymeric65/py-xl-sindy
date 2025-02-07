@@ -25,7 +25,9 @@ import matplotlib.pyplot as plt
 
 import xlsindy.result_formatting
 
-
+# loggin purpose
+import json
+from datetime import datetime
 
 
 
@@ -51,13 +53,22 @@ class Args:
     """if True, override the regression and force the ideal model (for debug purpose of mujoco/rk45sim)"""
     plot:bool = False
     """if True, plot on pyplot"""
+    export_json:bool = True
+    """if True, export the json of the result and environment information"""
 
 
 if __name__ == "__main__":
 
     args = tyro.cli(Args)
-    #print(args)
 
+    simulation_dict = {} # the simulation dictionnary storing everything about the simulation
+    #print(args)
+    simulation_dict["input"] = {}
+    simulation_dict["input"]["forces_scale_vector"]=args.forces_scale_vector
+    simulation_dict["input"]["max_time"] = args.max_time
+    simulation_dict["input"]["forces_period"] = args.forces_period
+    simulation_dict["input"]["forces_period_shift"] = args.forces_period_shift
+    simulation_dict["input"]["experiment_folder"] = args.experiment_folder.split("/")[-1]
 
     # CLI validation
     if args.forces_scale_vector is None:
@@ -87,6 +98,12 @@ if __name__ == "__main__":
             forces_wrapper = None
         
         num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = xlsindy_component()
+
+        simulation_dict["environment"] = {}
+        simulation_dict["environment"]["coordinate_number"] = num_coordinates
+        simulation_dict["environment"]["extra_info"]=extra_info
+        simulation_dict["environment"]["catalog_len"]=len(full_catalog)
+
 
         # Mujoco environment path
         mujoco_xml = os.path.join(folder_path, "environment.xml")
@@ -159,6 +176,16 @@ if __name__ == "__main__":
 
     mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector = mujoco_transform(mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector)
 
+    # Volume of the explored space
+
+    phase_portrait_explored = np.concatenate((mujoco_qpos,mujoco_qvel),axis=1)
+
+    estimated_volumes = xlsindy.result_formatting.estimate_volumes(phase_portrait_explored,5) # 5th nearest neighboor density estimation
+    print("estimated volumes is :",estimated_volumes)
+    simulation_dict["result"] = {}
+    simulation_dict["result"]["exploration_volumes"] = estimated_volumes
+
+
     if args.regression:
         # Goes into the xlsindy regression
 
@@ -216,6 +243,9 @@ if __name__ == "__main__":
         
         # Estimate of the variance between model and mujoco
         RMSE_acceleration = xlsindy.result_formatting.relative_mse(model_acc[3:-3],mujoco_qacc[3:-3])
+
+        simulation_dict["result"]["RMSE_acceleration"] = RMSE_acceleration
+
         print("estimate variance between mujoco and model is : ",RMSE_acceleration)
 
         # Sparsity difference
@@ -234,6 +264,9 @@ if __name__ == "__main__":
         print("sparsity difference percentage : ",sparsity_percentage)
         print("sparsity difference number : ",sparsity_difference)
 
+        simulation_dict["result"]["sparsity_difference"] = sparsity_difference
+        simulation_dict["result"]["sparsity_difference_percentage"] = sparsity_percentage
+
         if args.generate_ideal_path : 
 
             rk45_time_values, rk45_phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.01)
@@ -246,6 +279,32 @@ if __name__ == "__main__":
 
         RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
         print("RMSE model comparison : ",RMSE_model)
+
+        simulation_dict["result"]["RMSE_model"] = RMSE_model
+
+        simulation_dict["result"]["ideal_solution_norm_nn"] = ideal_solution_norm_nn
+        simulation_dict["result"]["solution_norm_nn"] = solution_norm_nn
+
+    if args.export_json:
+
+        now = datetime.now()
+        timestamp = now.strftime("%Y%m%d_%H%M%S")
+
+        filename=f"result/{simulation_dict["input"]["experiment_folder"]}_{timestamp}.json"
+
+        def convert_to_strings(d):
+            if isinstance(d, dict):
+                return {k: convert_to_strings(v) for k, v in d.items()}
+            elif isinstance(d, list):
+                return [convert_to_strings(i) for i in d]
+            else:
+                return str(d)
+
+        simulation_dict = convert_to_strings(simulation_dict)
+        print(simulation_dict)
+
+        with open(filename, 'w') as file:
+            json.dump(simulation_dict, file, indent=4)
 
     if args.plot:
 
