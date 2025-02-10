@@ -108,20 +108,6 @@ def generate_acceleration_function(
         # add visquous forces
         dynamic_eq += first_order_friction[i,:] @ symbol_matrix[2, :]
 
-        # if i < (num_coords - 1): # WTF is this # 20250206 Awesome work # Okay this is applied to correct the rk4 integration
-        #     dynamic_eq += symbol_matrix[0, i + 1]
-
-        # dynamic_eq += fluid_forces[i] * symbol_matrix[2, i]  # Old friction paradigm
-
-        # # Hardcoded dissipation matrix for chained system
-        # if i < (num_coords - 1):
-        #     dynamic_eq += fluid_forces[i + 1] * symbol_matrix[2, i]
-        #     dynamic_eq += -fluid_forces[i + 1] * symbol_matrix[2, i + 1]
-        #     dynamic_eq += symbol_matrix[0, i + 1]
-
-        # if i > 0:
-        #     dynamic_eq += -fluid_forces[i] * symbol_matrix[2, i - 1]
-
         if str(symbol_matrix[3, i]) in str(
             dynamic_eq
         ):  # If we have acceleration term (we should if we somewhat analyse a real system)
@@ -271,23 +257,5 @@ def create_experiment_matrix(
                 i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords
             ] += velocity_values[truncation::subsample,:]
 
-        # if friction: # Old friction paradigm (hard coded paired friction)
-        #     experiment_matrix[
-        #         i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i
-        #     ] += velocity_values[truncation::subsample, i]
-
-        #     if i < (num_coords - 1):
-        #         experiment_matrix[
-        #             i * sampled_steps : (i + 1) * sampled_steps,
-        #             len(catalog_lambda) + i + 1,
-        #         ] += (
-        #             velocity_values[truncation::subsample, i]
-        #             - velocity_values[truncation::subsample, i + 1]
-        #         )
-
-        #     if i > 0:
-        #         experiment_matrix[
-        #             i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i
-        #         ] -= velocity_values[truncation::subsample, i - 1]
 
     return experiment_matrix, time_values[truncation::subsample]

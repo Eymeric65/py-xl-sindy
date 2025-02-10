@@ -43,7 +43,7 @@ def xlsindy_component(): # Name of this function should not be changed
     mass_base = 0.8
     mass_link = 0.5
 
-    friction_coeff = [-0.8, -0.3]
+    friction_coeff = [-0.8, -1.3]
 
     friction_forces = np.array([[friction_coeff[0],0],[0,friction_coeff[1]]])
 

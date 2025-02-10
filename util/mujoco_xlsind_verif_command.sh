@@ -80,14 +80,13 @@ python mujoco_align.py \
 # Friction on both joint, cartpole [0.8,0.3]
 python mujoco_align.py \
 --experiment-folder "mujoco_align_data/cart_pole" \
---max-time 3 \
+--max-time 30 \
 --no-real_mujoco_time \
 --forces-scale-vector 4 5 \
 --forces-period 3 \
 --forces-period-shift 0.5 \
 --regression \
---force-ideal-solution \
---generate-ideal-path
+--force-ideal-solution 
 
 # Result
 # - Variance 0.066 %

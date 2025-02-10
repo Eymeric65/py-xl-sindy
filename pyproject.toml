@@ -25,6 +25,7 @@ matplotlib = "^3.10.0"
 jax = "^0.5.0"
 tyro = "^0.9.13"
 mujoco = "^3.2.7"
+pandas = "^2.2.3"
 
 
 [tool.poetry.group.dev.dependencies]

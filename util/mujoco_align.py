@@ -55,6 +55,8 @@ class Args:
     """if True, plot on pyplot"""
     export_json:bool = True
     """if True, export the json of the result and environment information"""
+    mujoco_viewer:bool = False
+    """if True, open a mujoco viewer for the simulation"""
 
 
 if __name__ == "__main__":
@@ -151,21 +153,29 @@ if __name__ == "__main__":
     mujoco.set_mjcb_control(random_controller(forces_function)) # use this for the controller, could be made easier with using directly the data from mujoco.
 
     # Viewer of the experiment
-    with mujoco.viewer.launch_passive(mujoco_model, mujoco_data) as viewer:
 
-        time_start_simulation = time.time()
-        while viewer.is_running() and mujoco_data.time < args.max_time:
-      
+    if args.mujoco_viewer:
 
+        with mujoco.viewer.launch_passive(mujoco_model, mujoco_data) as viewer:
+
+            time_start_simulation = time.time()
+            while viewer.is_running() and mujoco_data.time < args.max_time:
+        
+
+                mujoco.mj_step(mujoco_model, mujoco_data)
+                viewer.sync()
+                
+                if args.real_mujoco_time:
+                    time_until_next_step = mujoco_model.opt.timestep - (time.time() - time_start_simulation)
+                    if time_until_next_step > 0:
+                        time.sleep(time_until_next_step)
+
+            viewer.close()
+
+    else:
+        while mujoco_data.time < args.max_time:
             mujoco.mj_step(mujoco_model, mujoco_data)
-            viewer.sync()
-            
-            if args.real_mujoco_time:
-                time_until_next_step = mujoco_model.opt.timestep - (time.time() - time_start_simulation)
-                if time_until_next_step > 0:
-                    time.sleep(time_until_next_step)
 
-        viewer.close()
 
     # turn the result into a numpy array
     mujoco_time = np.array(mujoco_time)
@@ -301,7 +311,6 @@ if __name__ == "__main__":
                 return str(d)
 
         simulation_dict = convert_to_strings(simulation_dict)
-        print(simulation_dict)
 
         with open(filename, 'w') as file:
             json.dump(simulation_dict, file, indent=4)
