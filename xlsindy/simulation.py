@@ -29,6 +29,7 @@ def execute_regression(
     acceleration_values: np.ndarray = [],
     use_regression: bool = True,
     apply_normalization: bool = True,
+    regression_function:Callable=lasso_regression
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Executes regression for a dynamic system to estimate the system’s parameters.
@@ -48,6 +49,7 @@ def execute_regression(
         acceleration_values (np.ndarray): Array of accelerations (optional).
         use_regression (bool): Whether to apply regularization.
         apply_normalization (bool): Whether to normalize data.
+        regression_function (Callable): the regression function used to make the retrieval
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -73,21 +75,7 @@ def execute_regression(
         acceleration_values=acceleration_values,
     )
 
-    # Create forces vector based on external force function and sampled times
-
-    #external_force_vec = calculate_forces_vector(extermal_force_func,sampled_time_values)
-
-    #print("ta putain de maere :",external_force[truncation_level::subsample_rate].shape)
-
-    #external_force[:,:-1]-=external_force[:,1:]
-
     external_force_vec = np.reshape(external_force[truncation_level::subsample_rate].T,(-1,1))
-
-    #print("transform",np.linalg.norm(external_force_vec_2-external_force_vec))
-    
-
-    #print("len of the arrays ",len(external_force),experimental_matrix.shape)
-
 
     covariance_matrix = None
     solution = None
@@ -101,7 +89,7 @@ def execute_regression(
         )
 
         # Perform Lasso regression to obtain coefficients
-        coefficients = lasso_regression(external_force_vec, normalized_matrix)
+        coefficients = regression_function(external_force_vec, normalized_matrix)
 
         # Revert normalization to obtain solution in original scale
         solution = unnormalize_experiment(

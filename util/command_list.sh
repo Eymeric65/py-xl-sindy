@@ -89,3 +89,30 @@ python mujoco_align.py \
 --forces-period 3 \
 --forces-period-shift 0.5 \
 --regression 
+
+## Add random seed
+
+python mujoco_align.py \
+--experiment-folder "mujoco_align_data/cart_pole_double" \
+--max-time 30 \
+--no-real_mujoco_time \
+--forces-scale-vector 1 1 1 \
+--forces-period 3 \
+--forces-period-shift 0.5 \
+--regression \
+--random-seed 1230
+
+#First experiment
+# volume 5.872773931493762e-10
+# estimate variance between mujoco and model is :  0.21659797131950162
+# sparsity difference percentage :  171.42857142857142
+# sparsity difference number :  24
+# RMSE model comparison :  17.266200706299394
+#Second experiment
+#estimated volumes is : 5.872773931493762e-10
+# estimate variance between mujoco and model is :  0.21659797131950162
+# sparsity difference percentage :  171.42857142857142
+# sparsity difference number :  24
+# RMSE model comparison :  17.266200706299394
+
+# Matching ! can make experiment relayable

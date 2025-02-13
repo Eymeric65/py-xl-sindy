@@ -57,6 +57,8 @@ class Args:
     """if True, export the json of the result and environment information"""
     mujoco_viewer:bool = False
     """if True, open a mujoco viewer for the simulation"""
+    random_seed:int =12
+    """the random seed of the experiment (only used for force function)"""
 
 
 if __name__ == "__main__":
@@ -120,6 +122,7 @@ if __name__ == "__main__":
         period=args.forces_period,
         period_shift=args.forces_period_shift,
         augmentations=40,
+        random_seed=args.random_seed
     )
 
 

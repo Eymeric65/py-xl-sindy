@@ -167,6 +167,7 @@ def generate_random_force(
     period_initial: float,
     period_shift_initial: float,
     component_count: int,
+    random_gen: np.random.Generator,
 ) -> Callable[[float], np.ndarray]:
     """
     Recursively generates a random external force function with specified augmentations.
@@ -193,6 +194,7 @@ def generate_random_force(
         period_initial,
         period_shift_initial,
         component_count,
+        random_gen
     )
 
     # Calculate period, shift, and variance for the current augmentation level
@@ -203,11 +205,11 @@ def generate_random_force(
 
     # Generate time points with random shifts
     time_points = np.arange(0, time_end + period, period)
-    time_points += (np.random.random(len(time_points)) - 0.5) * 2 * period_shift
+    time_points += (random_gen.random(len(time_points)) - 0.5) * 2 * period_shift
 
     # Generate random force values with variance
     force_values = (
-        np.random.random_sample((component_count, len(time_points))) * 2 - 1
+        random_gen.random((component_count, len(time_points))) * 2 - 1
     ) * variance
     force_values += baseline_force_function(time_points)
     force_values /= np.std(force_values)  # Normalize to standard deviation of 1
@@ -223,6 +225,7 @@ def optimized_force_generator(
     period: float,
     period_shift: float,
     augmentations: int = 50,
+    random_seed:int =20
 ) -> Callable[[float], np.ndarray]:
     """
     Generates an optimized force function, applying a scale vector to the generated force.
@@ -240,9 +243,11 @@ def optimized_force_generator(
     """
     scale_vector = np.reshape(scale_vector, (component_count, 1))
 
+    rng = np.random.default_rng(random_seed)
+
     # Generate the recursive force function
     base_force_function = generate_random_force(
-        time_end, 0, augmentations, period, period_shift, component_count
+        time_end, 0, augmentations, period, period_shift, component_count,random_gen=rng
     )
 
     def force_function(t: float) -> np.ndarray:
