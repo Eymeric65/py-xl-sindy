@@ -86,8 +86,8 @@ if __name__ == "__main__":
     )
 
     modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
-    model_acceleration_func, _ = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,first_order_friction=friction_matrix)
-    model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func, forces_wrapper(forces_function))
+    model_acceleration_func, _ = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,first_order_friction=friction_matrix,lambdify_module="jax")
+    model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
     
     model_acc = []
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
         base_vector = np.ravel(np.column_stack((imported_qpos[i],imported_qvel[i])))
 
-        model_acc+= [model_dynamics_system(imported_time[i],base_vector)]
+        model_acc+= [model_dynamics_system(base_vector,force_vector[i])]
 
     model_acc = np.array(model_acc)
 
