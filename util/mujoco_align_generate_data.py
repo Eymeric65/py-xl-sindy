@@ -195,6 +195,14 @@ if __name__ == "__main__":
 
     surfacteur = len(full_catalog) * 10
     subsample = nb_t // surfacteur
+    start_truncation = 2
+
+    mujoco_time = mujoco_time[start_truncation::subsample]
+    mujoco_qpos = mujoco_qpos[start_truncation::subsample]
+    mujoco_qvel = mujoco_qvel[start_truncation::subsample]
+    mujoco_qacc = mujoco_qacc[start_truncation::subsample]
+    force_vector = force_vector[start_truncation::subsample]
+
     # Volume of the explored space
 
     phase_portrait_explored = np.concatenate((mujoco_qpos,mujoco_qvel),axis=1)
@@ -216,25 +224,17 @@ if __name__ == "__main__":
             subsample = nb_t // surfacteur
             
             solution, exp_matrix, t_values_s,_ = xlsindy.simulation.execute_regression(
-            time_values=mujoco_time,
             theta_values=mujoco_qpos,
             time_symbol=time_sym,
             symbol_matrix=symbols_matrix,
             catalog=full_catalog,
-            external_force= force_vector, # super strange need to be reworked at least should propose an alternative with the vector of forces over time
-            #extermal_force_func=forces_function,
-            noise_level = 0,
-            truncation_level = 5,
-            subsample_rate = subsample,
+            external_force= force_vector,
             hard_threshold = 1e-3,
             velocity_values = mujoco_qvel,
             acceleration_values = mujoco_qacc,
-            use_regression = True,
             apply_normalization = True,
             regression_function=regression_function
             )
-
-            #print("subsample test :",np.linalg.norm(t_values_s-mujoco_time[5::subsample]))
         
         else:
             solution=extra_info["ideal_solution_vector"]

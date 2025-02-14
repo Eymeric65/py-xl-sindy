@@ -176,10 +176,9 @@ def create_experiment_matrix(
     symbol_matrix: np.ndarray,
     time_symbol: sympy.Symbol,
     position_values: np.ndarray,
-    time_values: np.ndarray,
+    velocity_values: np.ndarray,
+    acceleration_values: np.ndarray,
     friction_order_one:bool = False,
-    velocity_values: np.ndarray = [],
-    acceleration_values: np.ndarray = [],
 ) -> List[np.ndarray]:
     """
     Create the SINDy experiment matrix.
@@ -191,14 +190,12 @@ def create_experiment_matrix(
         num_coords (int): Number of generalized coordinates.
         catalog (list): List of Lagrangian expressions to evaluate.
         symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
-        time_values (np.array): Array of time values.
+        time_symbol (sp.Symbol): The symbol for the time
         position_values (np.array): Array of positions at each time step.
-        time_step (float): Time interval between steps.
-        subsample (int): Rate of subsampling the data (default is 1, no subsampling).
+        velocity_values (np.array): Array of velocities.
+        acceleration_values (np.array): Array of accelerations.
         friction_order_one (bool): Whether to add frictional forces (default is False). Use the model of friction matrix in the first order
-        truncation (int): Number of initial time steps to truncate (default is 0).
-        velocity_values (np.array): Array of velocities (default is empty).
-        acceleration_values (np.array): Array of accelerations (default is empty).
+
 
     Returns:
         np.array: Experiment matrix.
@@ -208,18 +205,6 @@ def create_experiment_matrix(
     experiment_matrix = np.zeros(
         ((sampled_steps) * num_coords, len(catalog) + int(friction_order_one) * num_coords**2)
     )
-
-    if not velocity_values.any():
-        print("Using approximation for velocity")
-        velocity_values = np.gradient(
-            position_values, time_values, axis=0, edge_order=2
-        )
-
-    if not acceleration_values.any():
-        print("Using approximation for acceleration")
-        acceleration_values = np.gradient(
-            velocity_values, time_values, axis=0, edge_order=2
-        )
 
     q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
     q_matrix[1, :, :] = np.transpose(position_values)
@@ -249,11 +234,9 @@ def create_experiment_matrix(
 
         if friction_order_one: # New friction paradigm (friction interaction matrix)
 
-            #print( experiment_matrix[i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords].shape)
-
             experiment_matrix[
                 i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords
             ] += velocity_values
 
 
-    return experiment_matrix, time_values
+    return experiment_matrix
