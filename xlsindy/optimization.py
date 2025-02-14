@@ -130,30 +130,30 @@ def covariance_vector(
 ## Optimisation function
 
 def hard_threshold_sparse_regression(
-    exp_matrix: np.ndarray,
     forces_vector: np.ndarray,
-    catalog: np.ndarray,
+    exp_matrix: np.ndarray,
+    #catalog: np.ndarray,
     condition_func: Callable = condition_value,
     threshold: float = 0.03,
-) -> Tuple[
-    np.ndarray, np.ndarray, int, List[Tuple[np.ndarray, np.ndarray, np.ndarray]]
-]:
+) -> np.ndarray:
     """
     Performs sparse regression with a hard threshold to select significant features.
 
     Parameters:
         exp_matrix (np.ndarray): Experimental matrix.
         forces_vector (np.ndarray): Forces vector.
-        catalog (np.ndarray): Catalog of features.
         condition_func (Callable): Function to calculate condition values.
         threshold (float): Threshold for feature selection.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray, int, List]: Model fit, solution vector, reduction count, and regression steps.
+        np.ndarray: solution vector. shape (-1,)
     """
     solution, residuals, rank, _ = np.linalg.lstsq(
         exp_matrix, forces_vector, rcond=None
     )
+
+    print("solution shape",solution.shape)
+
     retained_solution = solution.copy()
     result_solution = np.zeros(solution.shape)
     active_indices = np.arange(len(solution))
@@ -178,14 +178,11 @@ def hard_threshold_sparse_regression(
         )
         current_num_indices = len(active_indices)
 
-    model_fit = np.sum(
-        [catalog[idx] * retained_solution[i] for i, idx in enumerate(active_indices)],
-        axis=0,
-    )
     result_solution[active_indices] = retained_solution
-    reduction_count = len(solution) - current_num_indices
 
-    return model_fit # , result_solution, reduction_count, steps # deprecated
+    result_solution = np.reshape(result_solution,(-1,))# flatten
+
+    return result_solution # model_fit, result_solution, reduction_count, steps # deprecated
 
 
 def lasso_regression(
@@ -206,7 +203,7 @@ def lasso_regression(
         eps (float): Regularization parameter.
 
     Returns:
-        np.ndarray: Coefficients of the fitted model.
+        np.ndarray: Coefficients of the fitted model. shape (-1,)
     """
     y = forces_vector[:, 0]
     model_cv = LassoCV(

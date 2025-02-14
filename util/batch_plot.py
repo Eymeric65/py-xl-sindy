@@ -33,6 +33,11 @@ for filename in json_files:
     forces_period_shift = float(data["input"]["forces_period_shift"])
     coordinate_number = int(data["environment"]["coordinate_number"])
     catalog_len = int(data["environment"]["catalog_len"])
+
+    forces_input = data["input"]["forces_scale_vector"]
+    forces_input = np.array(forces_input,dtype=float)
+
+    max_forces = np.sum(forces_input)
     
     # Build a record (dictionary) of scalar inputs for this file
     record = {
@@ -48,7 +53,8 @@ for filename in json_files:
         "forces_period_shift": forces_period_shift,
         "coordinate_number": coordinate_number,
         "catalog_len": catalog_len,
-        "id":id
+        "id":id,
+        "max_forces":max_forces
     }
     records.append(record)
     id+=1
@@ -110,11 +116,18 @@ for i in range(num_exp):
     ax= fig.add_subplot(gs[i,:])
     row_exp = df.loc[df["experiment_folder"]==exp_names[i]]
 
-    ax.scatter(row_exp["exploration_volumes"], row_exp["RMSE_model"], marker='o', label=exp_names[i])
+    #ax.scatter(row_exp["max_forces"], row_exp["RMSE_model"], marker='o', label=exp_names[i])
+    ax.scatter(row_exp["exploration_volumes"], row_exp["RMSE_model"], marker='o', label=exp_names[i]) # Normal exploration plot
     ax.set_xscale("log")
+
     #ax.set_yscale("log")
+
     ax.legend()
     ax.grid(True)
+
+    spar_ax=ax.twinx()
+    spar_ax.scatter(row_exp["exploration_volumes"], row_exp["sparsity_difference"], marker='o',color='r', label=exp_names[i]) # Normal exploration plot
+
 
     ideal_solution = ideal_solutions_norm[row_exp["id"].iat[0]]
 

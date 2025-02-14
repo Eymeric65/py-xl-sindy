@@ -191,6 +191,10 @@ if __name__ == "__main__":
 
     mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector = mujoco_transform(mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector)
 
+    nb_t = len(mujoco_time)
+
+    surfacteur = len(full_catalog) * 10
+    subsample = nb_t // surfacteur
     # Volume of the explored space
 
     phase_portrait_explored = np.concatenate((mujoco_qpos,mujoco_qvel),axis=1)

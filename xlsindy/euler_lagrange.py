@@ -177,9 +177,7 @@ def create_experiment_matrix(
     time_symbol: sympy.Symbol,
     position_values: np.ndarray,
     time_values: np.ndarray,
-    subsample: int = 1,
     friction_order_one:bool = False,
-    truncation: int = 0,
     velocity_values: np.ndarray = [],
     acceleration_values: np.ndarray = [],
 ) -> List[np.ndarray]:
@@ -206,7 +204,7 @@ def create_experiment_matrix(
         np.array: Experiment matrix.
         np.array: Subsampled time values.
     """
-    sampled_steps = len(position_values[truncation::subsample])
+    sampled_steps = len(position_values)
     experiment_matrix = np.zeros(
         ((sampled_steps) * num_coords, len(catalog) + int(friction_order_one) * num_coords**2)
     )
@@ -224,9 +222,9 @@ def create_experiment_matrix(
         )
 
     q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
-    q_matrix[1, :, :] = np.transpose(position_values[truncation::subsample])
-    q_matrix[2, :, :] = np.transpose(velocity_values[truncation::subsample])
-    q_matrix[3, :, :] = np.transpose(acceleration_values[truncation::subsample])
+    q_matrix[1, :, :] = np.transpose(position_values)
+    q_matrix[2, :, :] = np.transpose(velocity_values)
+    q_matrix[3, :, :] = np.transpose(acceleration_values)
 
     for i in range(num_coords):
         catalog_lagrange = list(
@@ -255,7 +253,7 @@ def create_experiment_matrix(
 
             experiment_matrix[
                 i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords
-            ] += velocity_values[truncation::subsample,:]
+            ] += velocity_values
 
 
-    return experiment_matrix, time_values[truncation::subsample]
+    return experiment_matrix, time_values

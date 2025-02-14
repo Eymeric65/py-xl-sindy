@@ -116,3 +116,36 @@ python mujoco_align.py \
 # RMSE model comparison :  17.266200706299394
 
 # Matching ! can make experiment relayable
+
+## Test regression function
+python mujoco_align.py \
+--experiment-folder "mujoco_align_data/cart_pole_double" \
+--max-time 30 \
+--no-real_mujoco_time \
+--forces-scale-vector 1 1 1 \
+--forces-period 3 \
+--forces-period-shift 0.5 \
+--regression \
+--random-seed 1230 \
+--optimization-function "lasso_regression"
+
+# estimate variance between mujoco and model is :  0.21659797131950162
+# sparsity difference percentage :  171.42857142857142
+# sparsity difference number :  24
+# RMSE model comparison :  17.266200706299394
+
+python mujoco_align.py \
+--experiment-folder "mujoco_align_data/cart_pole_double" \
+--max-time 30 \
+--no-real_mujoco_time \
+--forces-scale-vector 1 1 1 \
+--forces-period 3 \
+--forces-period-shift 0.5 \
+--regression \
+--random-seed 1230 \
+--optimization-function "hard_threshold_sparse_regression"
+
+# estimate variance between mujoco and model is :  0.005252022875356534
+# sparsity difference percentage :  71.42857142857143
+# sparsity difference number :  10
+# RMSE model comparison :  0.669557318522642
