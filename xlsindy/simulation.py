@@ -15,13 +15,13 @@ from .optimization import *
 
 def execute_regression(
     theta_values: np.ndarray,
+    velocity_values: np.ndarray,
+    acceleration_values: np.ndarray,
     time_symbol: sympy.Symbol,
     symbol_matrix: np.ndarray,
     catalog: np.ndarray,
     external_force: np.ndarray,
     hard_threshold: float = 1e-3,
-    velocity_values: np.ndarray = [],
-    acceleration_values: np.ndarray = [],
     apply_normalization: bool = True,
     regression_function:Callable=lasso_regression
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

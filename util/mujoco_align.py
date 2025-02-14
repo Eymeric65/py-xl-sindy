@@ -4,6 +4,8 @@ The script takes in input :
 - the simulation folder containing the mujoco environment.xml file and the xlsindy_gen.py script
 - the way forces function should be created
 - some optional hyperparameters
+
+This script enable the user to check that mujoco environment and lagrangian can align (check the validity of mujoco transform and so on).
 """
 #tyro cly dependencies
 from dataclasses import dataclass
@@ -217,20 +219,16 @@ if __name__ == "__main__":
 
         if not args.force_ideal_solution:
 
-            nb_t = len(mujoco_time)
-
-            surfacteur = len(full_catalog) * 10
-            subsample = nb_t // surfacteur
-            
+           
             solution, exp_matrix, _ = xlsindy.simulation.execute_regression(
             theta_values=mujoco_qpos,
+            velocity_values = mujoco_qvel,
+            acceleration_values = mujoco_qacc,
             time_symbol=time_sym,
             symbol_matrix=symbols_matrix,
             catalog=full_catalog,
             external_force= force_vector,
             hard_threshold = 1e-3,
-            velocity_values = mujoco_qvel,
-            acceleration_values = mujoco_qacc,
             apply_normalization = True,
             regression_function=regression_function
             )
