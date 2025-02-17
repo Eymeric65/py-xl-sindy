@@ -225,7 +225,7 @@ def optimized_force_generator(
     period: float,
     period_shift: float,
     augmentations: int = 50,
-    random_seed:int =20
+    random_seed:List[int] =[20]
 ) -> Callable[[float], np.ndarray]:
     """
     Generates an optimized force function, applying a scale vector to the generated force.

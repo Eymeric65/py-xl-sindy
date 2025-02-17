@@ -25,7 +25,6 @@ import xlsindy
 
 import matplotlib.pyplot as plt
 
-import xlsindy.result_formatting
 
 # loggin purpose
 import json
@@ -59,7 +58,7 @@ class Args:
     """if True, export the json of the result and environment information"""
     mujoco_viewer:bool = False
     """if True, open a mujoco viewer for the simulation"""
-    random_seed:int =12
+    random_seed:List[int] = field(default_factory=lambda:[2])
     """the random seed of the experiment (only used for force function)"""
     optimization_function:str = "lasso_regression"
     """the regression function used in the regression"""
@@ -310,15 +309,7 @@ if __name__ == "__main__":
 
         filename=f"result/{simulation_dict["input"]["experiment_folder"]}_{timestamp}.json"
 
-        def convert_to_strings(d):
-            if isinstance(d, dict):
-                return {k: convert_to_strings(v) for k, v in d.items()}
-            elif isinstance(d, list):
-                return [convert_to_strings(i) for i in d]
-            else:
-                return str(d)
-
-        simulation_dict = convert_to_strings(simulation_dict)
+        simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
 
         with open(filename, 'w') as file:
             json.dump(simulation_dict, file, indent=4)

@@ -41,6 +41,17 @@ def estimate_local_volumes_emp(data, k):
     local_volumes = discount*unit_ball_volume * (R_k ** d)/k
     return local_volumes
 
+
+def convert_to_strings(d):
+    if isinstance(d, dict):
+        return {k: convert_to_strings(v) for k, v in d.items()}
+    elif isinstance(d, list):
+        return [convert_to_strings(i) for i in d]
+    elif isinstance(d,np.ndarray):
+        return convert_to_strings(d.tolist())
+    else:
+        return str(d)
+
 # Example usage:
 
 if __name__=="__main__" : 
@@ -58,3 +69,5 @@ if __name__=="__main__" :
         res[i] = local_volumes
 
     print(f"Estimated Volume of the Data Distribution: {np.mean(res):.4f}")
+
+

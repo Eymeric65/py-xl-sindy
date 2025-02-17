@@ -9,7 +9,10 @@ User can choose :
 #tyro cly dependencies
 from dataclasses import dataclass
 from dataclasses import field
+from typing import List
 import tyro
+
+import xlsindy
 
 import numpy as np
 import json
@@ -18,7 +21,6 @@ import sys
 import os
 import importlib
 
-import xlsindy
 
 @dataclass
 class Args:
@@ -26,10 +28,12 @@ class Args:
     """the experiment file (without extension)"""
     optimization_function:str = "lasso_regression"
     """the regression function used in the regression"""
-    experiment_folder: str = "None"
-    """the folder where the experiment environent is stored : the mujoco environment.xml file and the xlsindy_gen.py script"""
     algorithm:str = "xlsindy"
     """the name of the algorithm used (for the moment "xlsindy" and "sindy" are the only possible)"""
+    noise_level:float = 0.0
+    """the level of noise introduce in the experiment"""
+    random_seed:List[int] = field(default_factory=lambda:[0])
+    """the random seed for the noise"""
 
 if __name__ == "__main__":
 
@@ -38,38 +42,48 @@ if __name__ == "__main__":
     ## CLI validation
     if args.experiment_file == "None":
         raise ValueError("experiment_file should be provided, don't hesitate to invoke --help")
-    if args.experiment_folder == "None":
-        raise ValueError("experiment_folder should be provided, don't hesitate to invoke --help")
-    else:
-        folder_path = os.path.join(os.path.dirname(__file__), args.experiment_folder)
-        sys.path.append(folder_path)
-
-        # import the xlsindy_gen.py script
-        xlsindy_gen = importlib.import_module("xlsindy_gen")
-
-        try:
-            xlsindy_component = eval(f"xlsindy_gen.{args.algorithm}_component")
-        except AttributeError:
-            raise AttributeError(f"xlsindy_gen.py should contain a function named {args.algorithm}_component in order to work with algorithm {args.algorithm}")
-        
-        try:
-            forces_wrapper = xlsindy_gen.forces_wrapper
-        except AttributeError:
-            forces_wrapper = None
-        
-        num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = xlsindy_component()        
-
-    regression_function=eval(f"xlsindy.optimization.{args.optimization_function}")
 
     with open(args.experiment_file+".json", 'r') as json_file:
         simulation_dict = json.load(json_file)
 
-    sim_data = np.load('data.npz')
-    imported_time = sim_data['array1']
+    folder_path = os.path.join(os.path.dirname(__file__), "mujoco_align_data/"+simulation_dict["input"]["experiment_folder"])
+    sys.path.append(folder_path)
+
+    # import the xlsindy_gen.py script
+    xlsindy_gen = importlib.import_module("xlsindy_gen")
+
+    try:
+        xlsindy_component = eval(f"xlsindy_gen.{args.algorithm}_component")
+    except AttributeError:
+        raise AttributeError(f"xlsindy_gen.py should contain a function named {args.algorithm}_component in order to work with algorithm {args.algorithm}")
+    
+    try:
+        forces_wrapper = xlsindy_gen.forces_wrapper
+    except AttributeError:
+        forces_wrapper = None
+    
+    num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = xlsindy_component()        
+
+    regression_function=eval(f"xlsindy.optimization.{args.optimization_function}")
+
+
+
+    sim_data = np.load(args.experiment_file+".npz")
+
+    rng=np.random.default_rng(args.random_seed)
+
+    #load
+    imported_time = sim_data['array1'] 
     imported_qpos = sim_data['array2']
     imported_qvel = sim_data['array3']
     imported_qacc = sim_data['array4']
     imported_force = sim_data['array5']
+
+    #add noise
+    imported_qpos+= rng.normal(loc=0,scale=args.noise_level,size=imported_qpos.shape)
+    imported_qvel+= rng.normal(loc=0,scale=args.noise_level,size=imported_qvel.shape)
+    imported_qacc+= rng.normal(loc=0,scale=args.noise_level,size=imported_qacc.shape)
+    imported_force+= rng.normal(loc=0,scale=args.noise_level,size=imported_force.shape)
 
     ## XLSINDY dependent
     solution, exp_matrix, _ = xlsindy.simulation.execute_regression(
@@ -95,10 +109,55 @@ if __name__ == "__main__":
 
         base_vector = np.ravel(np.column_stack((imported_qpos[i],imported_qvel[i])))
 
-        model_acc+= [model_dynamics_system(base_vector,force_vector[i])]
+        model_acc+= [model_dynamics_system(base_vector,imported_force[i])]
 
     model_acc = np.array(model_acc)
 
     model_acc = model_acc[:,1::2]
-    
     ## ---------------------------
+
+    ## Analysis of result
+    
+    result_name = f"result__{args.algorithm}__{args.noise_level:.1e}__{args.optimization_function}"
+    simulation_dict[result_name] = {}
+
+    simulation_dict[result_name]["catalog_len"]=len(full_catalog)
+    simulation_dict[result_name]["noiselevel"]=args.noise_level
+    simulation_dict[result_name]["ideal_solution"]=extra_info["ideal_solution_vector"]
+    simulation_dict[result_name]["solution"]=solution
+    # Estimate of the variance between model and mujoco
+    RMSE_acceleration = xlsindy.result_formatting.relative_mse(model_acc[3:-3],imported_qacc[3:-3])
+
+    simulation_dict[result_name]["RMSE_acceleration"] = RMSE_acceleration
+    print("estimate variance between mujoco and model is : ",RMSE_acceleration)
+
+    # Sparsity difference
+    non_null_term = np.argwhere(solution != 0) 
+
+    if extra_info is not None:
+        ideal_solution = extra_info["ideal_solution_vector"]
+
+        non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution != 0 )),axis=0),axis=0)
+
+    sparsity_reference = np.count_nonzero( extra_info["ideal_solution_vector"] )
+    sparsity_model = np.count_nonzero(solution)
+
+    sparsity_percentage = 100*(sparsity_model-sparsity_reference)/sparsity_reference
+    sparsity_difference = abs(sparsity_model-sparsity_reference)
+    print("sparsity difference percentage : ",sparsity_percentage)
+    print("sparsity difference number : ",sparsity_difference)
+
+    simulation_dict[result_name]["sparsity_difference"] = sparsity_difference
+    simulation_dict[result_name]["sparsity_difference_percentage"] = sparsity_percentage
+
+    # Model RMSE comparison
+    ideal_solution_norm_nn = xlsindy.result_formatting.normalise_solution(extra_info["ideal_solution_vector"])[*non_null_term.T]
+    solution_norm_nn = xlsindy.result_formatting.normalise_solution(solution)[*non_null_term.T]
+
+    RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
+    print("RMSE model comparison : ",RMSE_model)
+
+    simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
+
+    with open(args.experiment_file+".json", 'w') as file:
+        json.dump(simulation_dict, file, indent=4)

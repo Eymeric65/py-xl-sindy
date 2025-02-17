@@ -36,7 +36,7 @@ class Args:
     """the period for the forces function"""
     forces_period_shift: float = 0.5
     """the shift for the period of the forces function"""
-    random_seed:int =12
+    random_seed:List[int] = field(default_factory=lambda:[2])
     """the random seed of the experiment (only used for force function)"""
     sample_number:int=1000
     """the number of sample for the experiment (ten times the lenght of the catalog works well)"""
@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
         simulation_dict["environment"] = {}
         simulation_dict["environment"]["coordinate_number"] = num_coordinates
-        simulation_dict["environment"]["extra_info"]=extra_info
+        #simulation_dict["environment"]["extra_info"]=extra_info # maybe not necessary ?
 
 
         # Mujoco environment path
@@ -164,19 +164,11 @@ if __name__ == "__main__":
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
 
-    filename=f"result/{simulation_dict["input"]["experiment_folder"]}__{timestamp}"
+    filename=f"result/{simulation_dict["input"]["experiment_folder"]}__{"".join(map(str, args.random_seed))}_{timestamp}"
 
     np.savez(filename+".npz", array1=mujoco_time, array2=mujoco_qpos, array3=mujoco_qvel, array4=mujoco_qacc, array5=force_vector)
 
-    def convert_to_strings(d):
-        if isinstance(d, dict):
-            return {k: convert_to_strings(v) for k, v in d.items()}
-        elif isinstance(d, list):
-            return [convert_to_strings(i) for i in d]
-        else:
-            return str(d)
-
-    simulation_dict = convert_to_strings(simulation_dict)
+    simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
 
     with open(filename+".json", 'w') as file:
         json.dump(simulation_dict, file, indent=4)
