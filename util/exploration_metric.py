@@ -25,6 +25,10 @@ def force_global_amplitude(imported_time,imported_qpos,imported_qvel,imported_qa
 
     return np.max(imported_force)-np.min(imported_force)
 
+def log_force_global_amplitude(imported_time,imported_qpos,imported_qvel,imported_qacc,imported_force):
+
+    return np.log1p(np.max(imported_force)-np.min(imported_force))
+
 def exploration_volumes(imported_time,imported_qpos,imported_qvel,imported_qacc,imported_force):
 
     phase_portrait_explored = np.concatenate((imported_qpos,imported_qvel),axis=1)
@@ -35,14 +39,24 @@ def force_std(imported_time,imported_qpos,imported_qvel,imported_qacc,imported_f
 
     return np.std(imported_force)
 
+def log_force_std(imported_time,imported_qpos,imported_qvel,imported_qacc,imported_force):
+
+    return np.log1p(np.std(imported_force))
+
 def phase_std(imported_time,imported_qpos,imported_qvel,imported_qacc,imported_force):
 
     phase_portrait_explored = np.concatenate((imported_qpos,imported_qvel),axis=1)
 
     return np.std(phase_portrait_explored)
 
+def log_phase_std(imported_time,imported_qpos,imported_qvel,imported_qacc,imported_force):
 
-metric_list = [force_global_amplitude,exploration_volumes,force_std,phase_std]
+    phase_portrait_explored = np.concatenate((imported_qpos,imported_qvel),axis=1)
+
+    return np.log1p(np.std(phase_portrait_explored))
+
+
+metric_list = [force_global_amplitude,log_force_global_amplitude,exploration_volumes,log_force_std,force_std,phase_std,log_phase_std]
 
 if __name__ == "__main__":
 

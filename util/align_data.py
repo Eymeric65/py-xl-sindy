@@ -100,64 +100,76 @@ if __name__ == "__main__":
     )
 
     modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
-    model_acceleration_func, _ = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,first_order_friction=friction_matrix,lambdify_module="jax")
+    model_acceleration_func, valid_model = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,first_order_friction=friction_matrix,lambdify_module="jax")
     model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
     
+
     model_acc = []
 
-    for i in range(len(imported_time)): # skip start
+    if valid_model:
 
-        base_vector = np.ravel(np.column_stack((imported_qpos[i],imported_qvel[i])))
+        for i in range(len(imported_time)): # skip start
 
-        model_acc+= [model_dynamics_system(base_vector,imported_force[i])]
+            base_vector = np.ravel(np.column_stack((imported_qpos[i],imported_qvel[i])))
 
-    model_acc = np.array(model_acc)
+            model_acc+= [model_dynamics_system(base_vector,imported_force[i])]
 
-    model_acc = model_acc[:,1::2]
+        model_acc = np.array(model_acc)
+
+        model_acc = model_acc[:,1::2]
     ## ---------------------------
+
+    if not valid_model:
+        print("Skipped model verification, retrieval failed")
 
     ## Analysis of result
     
     result_name = f"result__{args.algorithm}__{args.noise_level:.1e}__{args.optimization_function}"
     simulation_dict[result_name] = {}
+    simulation_dict[result_name]["algoritm"]=args.algorithm
+    simulation_dict[result_name]["noise_level"]=args.noise_level
+    simulation_dict[result_name]["optimization_function"]=args.optimization_function
 
     simulation_dict[result_name]["catalog_len"]=len(full_catalog)
-    simulation_dict[result_name]["noiselevel"]=args.noise_level
+
     simulation_dict[result_name]["ideal_solution"]=extra_info["ideal_solution_vector"]
-    simulation_dict[result_name]["solution"]=solution
-    # Estimate of the variance between model and mujoco
-    RMSE_acceleration = xlsindy.result_formatting.relative_mse(model_acc[3:-3],imported_qacc[3:-3])
 
-    simulation_dict[result_name]["RMSE_acceleration"] = RMSE_acceleration
-    print("estimate variance between mujoco and model is : ",RMSE_acceleration)
+    if valid_model:
 
-    # Sparsity difference
-    non_null_term = np.argwhere(solution != 0) 
+        simulation_dict[result_name]["solution"]=solution
+        # Estimate of the variance between model and mujoco
+        RMSE_acceleration = xlsindy.result_formatting.relative_mse(model_acc[3:-3],imported_qacc[3:-3])
 
-    if extra_info is not None:
+        simulation_dict[result_name]["RMSE_acceleration"] = RMSE_acceleration
+        print("estimate variance between mujoco and model is : ",RMSE_acceleration)
+
+        # Sparsity difference
+        non_null_term = np.argwhere(solution != 0) 
+
         ideal_solution = extra_info["ideal_solution_vector"]
 
         non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution != 0 )),axis=0),axis=0)
 
-    sparsity_reference = np.count_nonzero( extra_info["ideal_solution_vector"] )
-    sparsity_model = np.count_nonzero(solution)
+        sparsity_reference = np.count_nonzero( extra_info["ideal_solution_vector"] )
+        sparsity_model = np.count_nonzero(solution)
 
-    sparsity_percentage = 100*(sparsity_model-sparsity_reference)/sparsity_reference
-    sparsity_difference = abs(sparsity_model-sparsity_reference)
-    print("sparsity difference percentage : ",sparsity_percentage)
-    print("sparsity difference number : ",sparsity_difference)
+        sparsity_percentage = 100*(sparsity_model-sparsity_reference)/sparsity_reference
+        sparsity_difference = abs(sparsity_model-sparsity_reference)
+        print("sparsity difference percentage : ",sparsity_percentage)
+        print("sparsity difference number : ",sparsity_difference)
 
-    simulation_dict[result_name]["sparsity_difference"] = sparsity_difference
-    simulation_dict[result_name]["sparsity_difference_percentage"] = sparsity_percentage
+        simulation_dict[result_name]["sparsity_difference"] = sparsity_difference
+        simulation_dict[result_name]["sparsity_difference_percentage"] = sparsity_percentage
 
-    # Model RMSE comparison
-    ideal_solution_norm_nn = xlsindy.result_formatting.normalise_solution(extra_info["ideal_solution_vector"])[*non_null_term.T]
-    solution_norm_nn = xlsindy.result_formatting.normalise_solution(solution)[*non_null_term.T]
+        # Model RMSE comparison
+        ideal_solution_norm_nn = xlsindy.result_formatting.normalise_solution(extra_info["ideal_solution_vector"])[*non_null_term.T]
+        solution_norm_nn = xlsindy.result_formatting.normalise_solution(solution)[*non_null_term.T]
 
-    RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
-    print("RMSE model comparison : ",RMSE_model)
+        RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
+        simulation_dict[result_name]["RMSE_model"] = RMSE_model
+        print("RMSE model comparison : ",RMSE_model)
 
     simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
-
+    print("print model ...")
     with open(args.experiment_file+".json", 'w') as file:
         json.dump(simulation_dict, file, indent=4)

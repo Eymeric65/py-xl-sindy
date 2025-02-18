@@ -1,72 +1,102 @@
-import json
+"""
+This script create or update the panda database from all the experiment.
+Create one record by result section in json file.
+"""
+
 import glob
-import numpy as np
+import json
 import pandas as pd
 
-# Get list of all JSON files in the "result" folder
-json_files = glob.glob("result/*.json")
 
-# List to hold each JSON file's scalar data (one record per file)
-records = []
-# List to hold each file's solution_norm vector (as a NumPy array)
-solution_norms = []
+def convert_value(value):
+    """Converts numeric strings to numbers, and lists of numeric strings to lists of numbers."""
+    if isinstance(value, str):
+        try:
+            # Convert string to float (or int if possible)
+            num = float(value)
+            return int(num) if num.is_integer() else num
+        except ValueError:
+            return value  # Return as string if conversion fails
 
-id=0
+    if isinstance(value, list):
+        # Recursively process each element of the list
+        return [convert_value(v) for v in value]
 
-ideal_solutions_norm=[]
+    return value  # Return as is if it's not a string or list
 
-for filename in json_files:
-    with open(filename, "r") as f:
-        data = json.load(f)
+def flatten_common(data, parent_key=''):
+    """
+    Recursively flattens a dictionary.
+    All keys will be concatenated with underscores.
+    """
+    items = {}
+    for key, value in data.items():
+        new_key = f"{parent_key}{key}_" if parent_key else f"{key}_"
+        if isinstance(value, dict):
+            items.update(flatten_common(value, new_key))
+        else:
+            items[new_key[:-1]] = convert_value(value)  # remove trailing underscore
+    return items
+
+def flatten_result_section(section):
+    """
+    Flattens a result section without prefixing keys with 'result'.
+    """
+    items = {}
+    def _flatten(x, prefix=''):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                _flatten(v, prefix + k + '_')
+        else:
+            items[prefix[:-1]] = convert_value(x)  # remove trailing underscore
+    _flatten(section)
+    return items
+
+def flatten_json_with_results(nested_json):
+    """
+    Separates common parts and result sections.
+    For each key starting with 'result', create a record that merges
+    the common flattened data with the flattened result section.
+    If no result section exists, just return the common parts.
+    """
+    common_data = {}
+    result_records = []
     
-    # Extract scalar values from the JSON. Many numeric values are stored as strings,
-    # so we convert them as needed.
-    experiment_folder = data["input"]["experiment_folder"]
-    exploration_vol = float(data["result"]["exploration_volumes"])
-    rmse_model = float(data["result"]["RMSE_model"])
-    rmse_acceleration = float(data["result"]["RMSE_acceleration"])
-    sparsity_diff = float(data["result"]["sparsity_difference"])
-    sparsity_diff_perc = float(data["result"]["sparsity_difference_percentage"])
-    max_time = float(data["input"]["max_time"])
-    forces_period = float(data["input"]["forces_period"])
-    forces_period_shift = float(data["input"]["forces_period_shift"])
-    coordinate_number = int(data["environment"]["coordinate_number"])
-    catalog_len = int(data["environment"]["catalog_len"])
-
-    forces_input = data["input"]["forces_scale_vector"]
-    forces_input = np.array(forces_input,dtype=float)
-
-    max_forces = np.sum(forces_input)
+    # Separate common parts and result sections
+    for key, value in nested_json.items():
+        if key.startswith("result"):
+            # Process this result section and flatten without prefixing "result"
+            flat_result = flatten_result_section(value)
+            result_records.append(flat_result)
+        else:
+            # Flatten common sections normally (with keys concatenated as parent_child)
+            common_data.update(flatten_common({key: value}))
     
-    # Build a record (dictionary) of scalar inputs for this file
-    record = {
-        "filename": filename,
-        "experiment_folder": experiment_folder,
-        "exploration_volumes": exploration_vol,
-        "RMSE_model": rmse_model,
-        "RMSE_acceleration": rmse_acceleration,
-        "sparsity_difference": sparsity_diff,
-        "sparsity_difference_percentage": sparsity_diff_perc,
-        "max_time": max_time,
-        "forces_period": forces_period,
-        "forces_period_shift": forces_period_shift,
-        "coordinate_number": coordinate_number,
-        "catalog_len": catalog_len,
-        "id":id,
-        "max_forces":max_forces
-    }
-    records.append(record)
-    id+=1
+    # If no result sections are present, return the common data as one record
+    if not result_records:
+        return [common_data]
     
-    # Convert the solution_norm_nn string (which looks like a NumPy array) to an actual array
-    sol_norm_str = data["result"]["solution_norm_nn"]
-    sol_norm_array = np.fromstring(sol_norm_str.strip("[]"), sep=" ")
+    # Otherwise, merge the common data into each result record
+    merged_records = []
+    for record in result_records:
+        merged = {**common_data, **record}
+        merged_records.append(merged)
+    return merged_records
 
-    ideal_solutions_norm_str = data["result"]["ideal_solution_norm_nn"]
-    ideal_solutions_norm_sarray = np.fromstring(ideal_solutions_norm_str.strip("[]"), sep=" ")
+# Process each JSON file in the "result" folder
+all_records = []
+for json_file in glob.glob("result/*.json"):
+    with open(json_file, 'r') as f:
+        json_data = json.load(f)
+        # flatten_json_with_results returns a list of records
+        records = flatten_json_with_results(json_data)
+        all_records.extend(records)
 
-    solution_norms.append(sol_norm_array[ideal_solutions_norm_sarray!=0]) # Keep only non null term
-    ideal_solutions_norm.append(ideal_solutions_norm_sarray[ideal_solutions_norm_sarray!=0])
+print(all_records[0])
 
-# Create a pandas DataFrame from the records
-df = pd.DataFrame(records)
+# Create a DataFrame from the records
+df = pd.DataFrame(all_records)
+print(df.columns)
+
+# Save the DataFrame exactly:
+df.to_pickle("experiment_database.pkl")

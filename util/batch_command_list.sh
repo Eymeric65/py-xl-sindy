@@ -75,7 +75,7 @@ python batch_launch.py \
 --max-time 20 \
 --number-coordinate 3 \
 --forces-span 1 12 \
---number-experiment 2 \
+--number-experiment 200 \
 --mode "generate" \
 --random-seed 13 \
 --sample-number 500
@@ -94,12 +94,33 @@ python batch_launch.py \
 
 python batch_file_execute.py \
 --script "align_data" \
---script_args "hard_threshold_sparse_regression" "xlsindy"
+--script_args "hard_threshold_sparse_regression" "xlsindy" 0.0 \
+--random-seed 1
 
 python batch_file_execute.py \
 --script "align_data" \
---script_args "lasso_regression" "xlsindy"
+--script_args "lasso_regression" "xlsindy" 0.0 \
+--random-seed 1
 
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "hard_threshold_sparse_regression" "xlsindy" 0.001 \
+--random-seed 1
+
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "lasso_regression" "xlsindy" 0.001 \
+--random-seed 1
+
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "hard_threshold_sparse_regression" "xlsindy" 0.01 \
+--random-seed 1
+
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "lasso_regression" "xlsindy" 0.01 \
+--random-seed 1
 # Populate metric
 
 python batch_file_execute.py \
