@@ -177,12 +177,26 @@ def classical_sindy_expand_catalog(
         expand_matrix (np.ndarray): the expand information matrix has shape (len(catalog),n) and if set to one at line i and row p means that the function i should be aplied in the equation of the p coordinate
 
     Returns:
-        np.ndarray: an array of shape (len(catalog),n) containing all the function 
+        np.ndarray: an array of shape (np.sum(expand_matrix),n) containing all the function 
     """
 
-    repeat_count = np.sum(expand_matrix,axis=0)
+    # Create the output array
+    res = np.zeros((expand_matrix.sum(), expand_matrix.shape[1]), dtype=object)
 
-    return np.repeat(catalog,repeat_count)
+    # Compute the cumulative row indices (flattened order, then reshaped)
+    line_count = np.cumsum(expand_matrix.ravel()) - 1
+    line_count = line_count.reshape(expand_matrix.shape)
+
+    # Compute the product in a vectorized way
+    prod = (expand_matrix * catalog[:, None]).ravel()
+
+    # Create an array of column indices that match the row-major flattening order
+    cols = np.tile(np.arange(expand_matrix.shape[1]), expand_matrix.shape[0])
+    
+    # Use fancy indexing to assign the values
+    res[line_count.ravel(), cols] = prod
+
+    return res
 
 def lagrangian_sindy_expand_catalog(
         catalog:List[sympy.Expr],
@@ -204,6 +218,8 @@ def lagrangian_sindy_expand_catalog(
     num_coordinate = symbol_matrix.shape[1]
 
     res=np.empty((len(catalog),num_coordinate),dtype=object)
+    
+
 
     for i in range(num_coordinate):
 
@@ -235,18 +251,24 @@ def expand_catalog(
 
     res=[]
 
-    for (name,args) in catalog_repartition:
+    #print("debug :",catalog_repartition)
+
+    for catalog in catalog_repartition:
+
+        name,*args=catalog
 
         if name == "lagrangian":
 
-            res+=lagrangian_sindy_expand_catalog(args,symbol_matrix,time_symbol)
+            res+=[lagrangian_sindy_expand_catalog(*args,symbol_matrix,time_symbol)]
 
         elif name == "classical":
 
-            res+=classical_sindy_expand_catalog(*args)
+            res+=[classical_sindy_expand_catalog(*args)]
 
         else:
             raise ValueError("catalog not recognised")
+        
+        print(res[-1].shape)
         
     return np.concatenate(res,axis=0)
 

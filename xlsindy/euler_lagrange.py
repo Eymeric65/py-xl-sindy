@@ -203,7 +203,7 @@ def create_experiment_matrix(
     """
     sampled_steps = len(position_values)
 
-    catalog_lenght = catalogs.shape[1]
+    catalog_lenght = catalogs.shape[0]
 
     experiment_matrix = np.zeros(
         ((sampled_steps) * num_coords, catalog_lenght)

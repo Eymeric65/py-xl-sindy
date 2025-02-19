@@ -54,32 +54,14 @@ def generate_acceleration_function(
     expanded_catalog=catalog_gen.expand_catalog(catalog_repartition,symbol_matrix,time_symbol)
 
     dynamic_equations = regression_solution.T @ expanded_catalog
-
     dynamic_equations = dynamic_equations.flatten()
+    dynamic_equations -= np.array([symbol_matrix[0, i] for i in range(num_coords)],dtype=object) # Add external forces
 
-    #dynamic_equations = np.zeros((num_coords,), dtype="object")
     valid = True
 
-    # for i in range(num_coords): # Create the dynamic equation array
-
-    #     dynamic_eq = euler_lagrange.compute_euler_lagrange_equation(
-    #         lagrangian, symbol_matrix, time_symbol, i
-    #     )  # Get every Euler_lagrange equation
-
-    #     dynamic_eq -= symbol_matrix[0, i]  # Add external forces
-        
-    #     # add visquous forces
-    #     dynamic_eq += first_order_friction[i,:] @ symbol_matrix[2, :]
-
-    #     if str(symbol_matrix[3, i]) in str(
-    #         dynamic_eq
-    #     ):  # If we have acceleration term (we should if we somewhat analyse a real system)
-    #         dynamic_equations[i] = dynamic_eq.subs(substitution_dict)
-    #     else:
-    #         valid = False
-    #         break
-
-
+    for i in range(num_coords):
+        if not str(symbol_matrix[3, i]) in str(dynamic_equations[i]):
+            valid = False
 
     if valid:
 

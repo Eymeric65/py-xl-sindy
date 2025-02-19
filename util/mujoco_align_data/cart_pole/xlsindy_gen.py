@@ -37,8 +37,9 @@ def xlsindy_component(): # Name of this function should not be changed
     cross_catalog = np.outer(catalog_part2, catalog_part1)
 
     lagrange_catalog = np.concatenate((cross_catalog.flatten(), catalog_part1, catalog_part2)) # Maybe not ?
+
     friction_catalog = np.array([symbols_matrix[2, x] for x in range(num_coordinates)]) # Contain only \dot{q}_1 \dot{q}_2
-    expand_matrix = np.ones(len(friction_catalog),num_coordinates)
+    expand_matrix = np.ones((len(friction_catalog),num_coordinates),dtype=int)
     catalog_repartition=[("lagrangian",lagrange_catalog),("classical",friction_catalog,expand_matrix)]
 
 
