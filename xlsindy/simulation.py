@@ -19,7 +19,7 @@ def execute_regression(
     acceleration_values: np.ndarray,
     time_symbol: sympy.Symbol,
     symbol_matrix: np.ndarray,
-    catalog: np.ndarray,
+    catalog_repartition: np.ndarray,
     external_force: np.ndarray,
     hard_threshold: float = 1e-3,
     apply_normalization: bool = True,
@@ -31,7 +31,7 @@ def execute_regression(
     Parameters:
         theta_values (np.ndarray): Array of angular positions over time.
         symbol_list (np.ndarray): Symbolic variables for model construction.
-        catalog (np.ndarray): Catalog of features for regression.
+        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
         external_force (np.ndarray): array of external forces.
         time_step (float): Time step value.
         hard_threshold (float): Threshold below which coefficients are zeroed.
@@ -46,6 +46,8 @@ def execute_regression(
     """
     
     num_coordinates = theta_values.shape[1]
+
+    catalog=expand_catalog(catalog_repartition,symbol_matrix,time_symbol)
 
     # Generate the experimental matrix from the catalog
     experimental_matrix = create_experiment_matrix(

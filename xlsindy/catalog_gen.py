@@ -10,6 +10,8 @@ from typing import List, Callable, Union
 
 from sympy import latex
 
+from . import euler_lagrange
+
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     """
     Creates a symbolic matrix representing external forces and state variables for a number of coordinates.
@@ -163,11 +165,106 @@ def generate_full_catalog(
         catalog += _generate_combination_catalog(base_catalog, i + 1, 0, power, power)
     return catalog
 
+def classical_sindy_expand_catalog(
+        catalog:List[sympy.Expr],
+        expand_matrix:np.ndarray
+) -> np.ndarray:
+    """
+    expand the catalog in the case of a classical SINDy experiment (for other forces in lagrangian case or full classical SINDy retrieval)
+
+    Args:
+        catalog (List[sympy.Expr]): the list of function to expand
+        expand_matrix (np.ndarray): the expand information matrix has shape (len(catalog),n) and if set to one at line i and row p means that the function i should be aplied in the equation of the p coordinate
+
+    Returns:
+        np.ndarray: an array of shape (len(catalog),n) containing all the function 
+    """
+
+    repeat_count = np.sum(expand_matrix,axis=0)
+
+    return np.repeat(catalog,repeat_count)
+
+def lagrangian_sindy_expand_catalog(
+        catalog:List[sympy.Expr],
+        symbol_matrix: np.ndarray,
+        time_symbol: sympy.Symbol,
+) -> np.ndarray:
+    """
+    expand the catalog in the case of a XlSINDy experiment
+    
+    Args:
+        catalog (List[sympy.Expr]): the list of function to expand
+        symbol_matrix (np.ndarray): The matrix of symbolic variables (external forces, positions, velocities, and accelerations).
+        time_symbol (sp.Symbol): The symbolic variable representing time.
+
+    Returns:
+        np.ndarray: an array of shape (len(catalog),n) containing all the function 
+    """
+
+    num_coordinate = symbol_matrix.shape[1]
+
+    res=np.empty((len(catalog),num_coordinate),dtype=object)
+
+    for i in range(num_coordinate):
+
+        catalog_lagrange = list(
+            map(
+                lambda x: euler_lagrange.compute_euler_lagrange_equation(
+                    x, symbol_matrix, time_symbol, i
+                ),
+                catalog,
+            )
+        )
+        res[:,i] = catalog_lagrange
+
+    return res
+
+def expand_catalog(
+        catalog_repartition:List[tuple],
+        symbol_matrix: np.ndarray,
+        time_symbol: sympy.Symbol,
+):
+    """
+    create a global catalog for the regression system
+
+    Args:
+        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
+        symbol_matrix (np.ndarray): The matrix of symbolic variables (external forces, positions, velocities, and accelerations).
+        time_symbol (sp.Symbol): The symbolic variable representing time.
+    """
+
+    res=[]
+
+    for (name,args) in catalog_repartition:
+
+        if name == "lagrangian":
+
+            res+=lagrangian_sindy_expand_catalog(args,symbol_matrix,time_symbol)
+
+        elif name == "classical":
+
+            res+=classical_sindy_expand_catalog(*args)
+
+        else:
+            raise ValueError("catalog not recognised")
+        
+    return np.concatenate(res,axis=0)
+
+
+def separate_catalog(
+    catalog:np.ndarray,
+    catalog_repartition:List[tuple]
+):
+    """
+    separate a catalog that has been concatenated in the catalog_repartition order
+
+    Args:
+        catalog (np.ndarray)
+    """
 
 def create_solution_vector(
     expression: sympy.Expr,
     catalog: List[Union[int, float]],
-    friction_terms: np.ndarray = None,
 ) -> np.ndarray:
     """
     Creates a solution vector by matching expression terms to a catalog.
@@ -175,21 +272,21 @@ def create_solution_vector(
     Args:
         expression (sympy.Expr): The equation to match.
         catalog (List[Union[int, float]]): List of functions or constants to match against.
-        friction_terms (np.ndarray, optional): array of friction terms to include. Defaults to an empty list. Lines are dynamic equation and column are \\dot{{q}}
 
     Returns:
         np.ndarray: Solution vector containg the coefficient in order that return*catalog=expression.
     """
 
-    if friction_terms is None :
-        friction_len = 0
-    else:
-        friction_len = np.prod(friction_terms.shape)
+    # if friction_terms is None :
+    #     friction_len = 0
+    # else:
+    #     friction_len = np.prod(friction_terms.shape)
 
     expanded_expression_terms = sympy.expand(
         sympy.expand_trig(expression)
     ).args  # Expand the expression in order to get base function (ex: x, x^2, sin(s), ...)
-    solution_vector = np.zeros((len(catalog) + friction_len, 1))
+    solution_vector = np.zeros((len(catalog), 1))
+    #solution_vector = np.zeros((len(catalog) + friction_len, 1))
     for term in expanded_expression_terms:
         for idx, catalog_term in enumerate(catalog):
             test = term / catalog_term
@@ -198,8 +295,8 @@ def create_solution_vector(
             ):  # if test is a constant it means that catalog_term is inside equation
                 solution_vector[idx, 0] = test
 
-    if friction_terms is not None:
-        solution_vector[len(catalog):len(catalog)+friction_len] = np.reshape(friction_terms,(-1,1))
+    # if friction_terms is not None:
+    #     solution_vector[len(catalog):len(catalog)+friction_len] = np.reshape(friction_terms,(-1,1))
 
     # for i, friction_value in enumerate(friction_terms): # old friction paradigm
     #     solution_vector[len(catalog) + i] = friction_value

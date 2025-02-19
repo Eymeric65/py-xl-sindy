@@ -35,7 +35,12 @@ def xlsindy_component(): # Name of this function should not be changed
     catalog_part1 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_1, num_coordinates, 2))
     catalog_part2 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_2, num_coordinates, 2))
     cross_catalog = np.outer(catalog_part2, catalog_part1)
-    full_catalog = np.concatenate((cross_catalog.flatten(), catalog_part1, catalog_part2)) # Maybe not ?
+
+    lagrange_catalog = np.concatenate((cross_catalog.flatten(), catalog_part1, catalog_part2)) # Maybe not ?
+    friction_catalog = np.array([symbols_matrix[2, x] for x in range(num_coordinates)]) # Contain only \dot{q}_1 \dot{q}_2
+    expand_matrix = np.ones(len(friction_catalog),num_coordinates)
+    catalog_repartition=[("lagrangian",lagrange_catalog),("classical",friction_catalog,expand_matrix)]
+
 
     # give a reference lagrangian for the system analysed (optional) through the extra_info dictionary
 
@@ -64,18 +69,25 @@ def xlsindy_component(): # Name of this function should not be changed
     Lagrangian = 1/2 * (ml+mb)*theta1_d**2 + 1/2*ml*l1**2*theta2_d**2 - ml*l1*sp.cos(theta2)*theta2_d*theta1_d-ml*g*l1*sp.cos(theta2)
     
     # Generate solution vector
-    ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(sp.expand_trig(Lagrangian.subs(substitutions)), full_catalog, friction_terms=friction_forces)
+    ideal_lagrangian_vector = xlsindy.catalog_gen.create_solution_vector(sp.expand_trig(Lagrangian.subs(substitutions)), lagrange_catalog)
+    ideal_friction_vector = np.reshape(friction_forces,(-1,1))
 
+    ideal_solution_vector=np.concatenate((ideal_lagrangian_vector,ideal_friction_vector),axis=0)
     # Create the extra_info dictionnary 
     extra_info = {
         "lagrangian": Lagrangian,
         "substitutions": substitutions,
         "friction_forces": friction_forces,
         "ideal_solution_vector": ideal_solution_vector,
-        "initial_condition": np.array([[0, 0], [0, 0]])
+        "initial_condition": np.array([[0, 0], [0, 0]]),
+        "lagrange_catalog":lagrange_catalog,
+        "friction_catalog":friction_catalog,
+        "catalog_len": len(lagrange_catalog)+np.sum(expand_matrix)
     }
 
-    return num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info # extra_info is optionnal and should be set to None if not in use
+    
+
+    return num_coordinates, time_sym, symbols_matrix,catalog_repartition, extra_info # extra_info is optionnal and should be set to None if not in use
 
 
 def mujoco_transform(pos,vel,acc,forces):

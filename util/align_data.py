@@ -62,7 +62,7 @@ if __name__ == "__main__":
     except AttributeError:
         forces_wrapper = None
     
-    num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = xlsindy_component()        
+    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component()        
 
     regression_function=eval(f"xlsindy.optimization.{args.optimization_function}")
 
@@ -92,15 +92,15 @@ if __name__ == "__main__":
     acceleration_values = imported_qacc,
     time_symbol=time_sym,
     symbol_matrix=symbols_matrix,
-    catalog=full_catalog,
+    catalog_repartition=catalog_repartition,
     external_force= imported_force,
     hard_threshold = 1e-3,
     apply_normalization = True,
     regression_function=regression_function
     )
 
-    modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
-    model_acceleration_func, valid_model = xlsindy.euler_lagrange.generate_acceleration_function(modele_fit, symbols_matrix, time_sym,first_order_friction=friction_matrix,lambdify_module="jax")
+    #modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
+    model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(solution,catalog_repartition, symbols_matrix, time_sym,lambdify_module="jax")
     model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
     
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     simulation_dict[result_name]["noise_level"]=args.noise_level
     simulation_dict[result_name]["optimization_function"]=args.optimization_function
 
-    simulation_dict[result_name]["catalog_len"]=len(full_catalog)
+    simulation_dict[result_name]["catalog_len"]=extra_info["catalog_len"]
 
     simulation_dict[result_name]["ideal_solution"]=extra_info["ideal_solution_vector"]
 

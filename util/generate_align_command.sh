@@ -16,3 +16,11 @@ python align_data.py \
 --experiment-file "cart_pole_double__20250214_172043" \
 --optimization-function ""hard_threshold_sparse_regression"" \
 --algorithm "xlsindy"
+
+#After the rework
+python align_data.py \
+--experiment-file "cart_pole__121_20250217_175541" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "xlsindy" \
+--noise-level 0.0 \
+--random-seed 0.0

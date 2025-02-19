@@ -11,7 +11,114 @@ from scipy.integrate import RK45
 from typing import List, Callable, Dict
 
 import jax.numpy as jnp
+import sympy
+from typing import Tuple
 
+from . import euler_lagrange
+from . import catalog_gen
+
+import time
+
+def generate_acceleration_function(
+    regression_solution: np.ndarray,
+    catalog_repartition: List[tuple],
+    symbol_matrix: np.ndarray,
+    time_symbol: sympy.Symbol,
+    lambdify_module: str = "numpy",
+) -> Tuple[Callable[[np.ndarray], np.ndarray], bool]:
+    """
+    Generate a function for computing accelerations based on the Lagrangian.
+
+    This is actually a multi step process that will convert a Lagrangian into an acceleration function through euler lagrange theory.
+
+    Some information about clever solve : there is two mains way to retrieve the acceleration from the other variable.
+    The first one is to ask sympy to symbolically solve our equation and after to lambify it for use afterward.
+    The main drawback of this is that when system is not perfectly retrieved it is theorically extremely hard to get a simple equation giving acceleration from the other variable.
+    This usually lead to code running forever trying to solve this symbolic issue.
+
+    The other way is to create a linear system of b=Ax where x are the acceleration coordinate and b is the force vector.
+    At runtime one's need to replace every term in b and A and solve the linear equation (of dimension n so really fast)
+
+    Args:
+        regression_solution (np.ndarray): the solution vector from the regression
+        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
+        symbol_matrix (np.ndarray): Matrix containing symbolic variables (external forces, positions, velocities, accelerations).
+        time_symbol (sp.Symbol): The time symbol in the Lagrangian.
+
+    Returns:
+        function: A function that computes the accelerations given system state. takes as input a numerical symbol matrix
+        bool: Whether the acceleration function generation was successful.
+    """
+    num_coords = symbol_matrix.shape[1]
+
+    expanded_catalog=catalog_gen.expand_catalog(catalog_repartition,symbol_matrix,time_symbol)
+
+    dynamic_equations = regression_solution.T @ expanded_catalog
+
+    dynamic_equations = dynamic_equations.flatten()
+
+    #dynamic_equations = np.zeros((num_coords,), dtype="object")
+    valid = True
+
+    # for i in range(num_coords): # Create the dynamic equation array
+
+    #     dynamic_eq = euler_lagrange.compute_euler_lagrange_equation(
+    #         lagrangian, symbol_matrix, time_symbol, i
+    #     )  # Get every Euler_lagrange equation
+
+    #     dynamic_eq -= symbol_matrix[0, i]  # Add external forces
+        
+    #     # add visquous forces
+    #     dynamic_eq += first_order_friction[i,:] @ symbol_matrix[2, :]
+
+    #     if str(symbol_matrix[3, i]) in str(
+    #         dynamic_eq
+    #     ):  # If we have acceleration term (we should if we somewhat analyse a real system)
+    #         dynamic_equations[i] = dynamic_eq.subs(substitution_dict)
+    #     else:
+    #         valid = False
+    #         break
+
+
+
+    if valid:
+
+        system_matrix, force_vector = np.empty(
+            (num_coords, num_coords), dtype=object
+        ), np.empty((num_coords, 1), dtype=object)
+
+        for i in range(num_coords):
+            equation = dynamic_equations[i]
+            for j in range(num_coords):
+                equation = equation.collect(symbol_matrix[3, j])
+                term = equation.coeff(symbol_matrix[3, j])
+                system_matrix[i, j] = -term
+                equation -= term * symbol_matrix[3, j]
+
+            force_vector[i, 0] = equation
+
+        system_func = sympy.lambdify([symbol_matrix], system_matrix,lambdify_module)
+        force_func = sympy.lambdify([symbol_matrix], force_vector,lambdify_module)
+
+        if lambdify_module == "jax":
+
+            def acceleration_solver(input_values):
+                system_eval = system_func(input_values)
+                force_eval = force_func(input_values)
+                return jnp.linalg.solve(system_eval, force_eval)
+
+        else:
+
+            def acceleration_solver(input_values):
+                system_eval = system_func(input_values)
+                force_eval = force_func(input_values)
+                return np.linalg.solve(system_eval, force_eval)
+        
+        acc_func = acceleration_solver
+
+    else: # Fail
+        acc_func = None
+    return acc_func, valid
 
 def dynamics_function(
     acceleration_function: Callable[[np.ndarray], np.ndarray],

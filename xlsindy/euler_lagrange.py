@@ -46,7 +46,7 @@ def compute_euler_lagrange_equation(
     return dL_dq - time_derivative
 
 
-def generate_acceleration_function(
+def generate_acceleration_function_dep(
     lagrangian: sympy.Expr,
     symbol_matrix: np.ndarray,
     time_symbol: sympy.Symbol,
@@ -172,7 +172,7 @@ def generate_acceleration_function(
 
 def create_experiment_matrix(
     num_coords: int,
-    catalog: List[sympy.Expr],
+    catalogs: np.ndarray,
     symbol_matrix: np.ndarray,
     time_symbol: sympy.Symbol,
     position_values: np.ndarray,
@@ -188,7 +188,7 @@ def create_experiment_matrix(
 
     Args:
         num_coords (int): Number of generalized coordinates.
-        catalog (list): List of Lagrangian expressions to evaluate.
+        catalogs (list): array of catalog function of shape (p,n)
         symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
         time_symbol (sp.Symbol): The symbol for the time
         position_values (np.array): Array of positions at each time step.
@@ -202,8 +202,11 @@ def create_experiment_matrix(
         np.array: Subsampled time values.
     """
     sampled_steps = len(position_values)
+
+    catalog_lenght = catalogs.shape[1]
+
     experiment_matrix = np.zeros(
-        ((sampled_steps) * num_coords, len(catalog) + int(friction_order_one) * num_coords**2)
+        ((sampled_steps) * num_coords, catalog_lenght)
     )
 
     q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
@@ -212,18 +215,18 @@ def create_experiment_matrix(
     q_matrix[3, :, :] = np.transpose(acceleration_values)
 
     for i in range(num_coords):
-        catalog_lagrange = list(
-            map(
-                lambda x: compute_euler_lagrange_equation(
-                    x, symbol_matrix, time_symbol, i
-                ),
-                catalog,
-            )
-        )
+        # catalog_lagrange = list(
+        #     map(
+        #         lambda x: compute_euler_lagrange_equation(
+        #             x, symbol_matrix, time_symbol, i
+        #         ),
+        #         catalogs[i,:],
+        #     )
+        # )
         catalog_lambda = list(
             map(
                 lambda x: sympy.lambdify([symbol_matrix], x, modules="numpy"),
-                catalog_lagrange,
+                catalogs[:,i],
             )
         )
 
@@ -232,11 +235,11 @@ def create_experiment_matrix(
                 q_matrix
             )
 
-        if friction_order_one: # New friction paradigm (friction interaction matrix)
+        # if friction_order_one: # New friction paradigm (friction interaction matrix)
 
-            experiment_matrix[
-                i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords
-            ] += velocity_values
+        #     experiment_matrix[
+        #         i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords
+        #     ] += velocity_values
 
 
     return experiment_matrix
