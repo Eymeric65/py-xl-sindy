@@ -152,7 +152,7 @@ def hard_threshold_sparse_regression(
         exp_matrix, forces_vector, rcond=None
     )
 
-    print("solution shape",solution.shape)
+    #print("solution shape",solution.shape)
 
     retained_solution = solution.copy()
     result_solution = np.zeros(solution.shape)

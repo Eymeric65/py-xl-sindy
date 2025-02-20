@@ -44,7 +44,7 @@ python align_data.py \
 #  change in the verification
 
 python align_data.py \
---experiment-file "result/cart_pole__120_20250217_175547" \
+--experiment-file "result/cart_pole__120_20250220_124628" \
 --optimization-function ""hard_threshold_sparse_regression"" \
 --algorithm "xlsindy" \
 --noise-level 0.0 \

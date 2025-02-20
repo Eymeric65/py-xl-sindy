@@ -62,7 +62,7 @@ def calculate_forces_vector(
     force_vector[:-1, :] -= force_vector[
         1:, :
     ]  # Offset forces in order to get local joint forces
-    print(force_vector.shape)
+    #print(force_vector.shape)
     return np.transpose(
         np.reshape(force_vector, (1, -1))
     )  # Makes everything flat for rendering afterwards
@@ -192,7 +192,7 @@ def classical_sindy_expand_catalog(
 
     # Create an array of column indices that match the row-major flattening order
     cols = np.tile(np.arange(expand_matrix.shape[1]), expand_matrix.shape[0])
-    
+
     # Use fancy indexing to assign the values
     res[line_count.ravel(), cols] = prod
 
@@ -268,7 +268,7 @@ def expand_catalog(
         else:
             raise ValueError("catalog not recognised")
         
-        print(res[-1].shape)
+        #print(res[-1].shape)
         
     return np.concatenate(res,axis=0)
 

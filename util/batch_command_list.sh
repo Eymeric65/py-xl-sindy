@@ -122,6 +122,10 @@ python batch_launch.py \
 --random-seed 14 \
 --sample-number 1000
 
+# Create Database
+
+python create_validation_database.py
+
 # Align
 
 python batch_file_execute.py \

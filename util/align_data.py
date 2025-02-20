@@ -24,6 +24,8 @@ import importlib
 from jax import jit
 from jax import vmap
 
+import pandas as pd
+
 
 @dataclass
 class Args:
@@ -39,6 +41,45 @@ class Args:
     """the random seed for the noise"""
     validation_on_database:bool = True
     """if true validate the model on the database file"""
+
+
+def extract_validation(database_pickle: str, training_filename: str):
+    """
+    Loads the sample database from a pickle file, filters out the training samples,
+    and returns the validation arrays for time, qpos, qvel, qacc, and force.
+
+    Parameters:
+        database_pickle (str): Path to the pickled Pandas DataFrame containing the samples.
+        training_filename (str): The filename (with or without path) used for training. (WITH extension)
+        
+    Returns:
+        tuple: Five NumPy arrays (time, qpos, qvel, qacc, force) for validation.
+    """
+    # Load the DataFrame from the pickle file.
+    df = pd.read_pickle(database_pickle)
+    
+    # Extract the system name from the training filename (assumes system is before '__')
+    training_base = os.path.basename(training_filename).split("__")[0]
+    
+    # Filter out rows: select only rows from the same system and not from the training file.
+    validation_df = df[(df['system'] == training_base) &
+                       (df['filename'] != os.path.basename(training_filename))]
+    
+    #print(len(df[df['system'] == training_base]),len(validation_df))
+    # Convert each column into a NumPy array by stacking the entries.
+    time_arr  = np.stack(validation_df['time'].values)
+    qpos_arr  = np.stack(validation_df['qpos'].values)
+    qvel_arr  = np.stack(validation_df['qvel'].values)
+    qacc_arr  = np.stack(validation_df['qacc'].values)
+    force_arr = np.stack(validation_df['force'].values)
+    
+    return time_arr, qpos_arr, qvel_arr, qacc_arr, force_arr
+
+# Example usage:
+# Suppose 'database.pkl' is your pickled DataFrame and 'double_pendulum_pm__14188_20250217_180452.npz'
+# is the training file.
+# time_val, qpos_val, qvel_val, qacc_val, force_val = extract_validation("database.pkl", "double_pendulum_pm__14188_20250217_180452.npz")
+
 
 if __name__ == "__main__":
 
@@ -135,18 +176,19 @@ if __name__ == "__main__":
         if args.validation_on_database:
 
 
-            validation_data = np.load("mujoco_align_data/"+simulation_dict["input"]["experiment_folder"]+".npz")
-
+            #validation_data = np.load("mujoco_align_data/"+simulation_dict["input"]["experiment_folder"]+".npz")
+            validation_time,validation_qpos,validation_qvel,validation_qacc,validation_force = extract_validation("validation_database.pkl",args.experiment_file+".npz")
             #load
-            validation_time = validation_data['array1'] 
-            validation_qpos = validation_data['array2']
-            validation_qvel = validation_data['array3']
-            validation_qacc = validation_data['array4']
-            validation_force = validation_data['array5']
+            # validation_time = validation_data['array1'] 
+            # validation_qpos = validation_data['array2']
+            # validation_qvel = validation_data['array3']
+            # validation_qacc = validation_data['array4']
+            # validation_force = validation_data['array5']
 
 
             validation_acc= xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,validation_qpos,validation_qvel,validation_force)
-            
+            validation_acc = validation_acc[:, 1::2]
+
             RMSE_validation = xlsindy.result_formatting.relative_mse(validation_acc[3:-3],validation_qacc[3:-3])
 
             simulation_dict[result_name]["RMSE_validation"] = RMSE_validation
