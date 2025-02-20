@@ -99,7 +99,7 @@ if __name__ == "__main__":
     xlsindy_gen = importlib.import_module("xlsindy_gen")
 
     try:
-        xlsindy_component = eval(f"xlsindy_gen.{args.algorithm}_component")
+        xlsindy_component = eval(f"xlsindy_gen.xlsindy_component")
     except AttributeError:
         raise AttributeError(f"xlsindy_gen.py should contain a function named {args.algorithm}_component in order to work with algorithm {args.algorithm}")
     
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     except AttributeError:
         forces_wrapper = None
     
-    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component()        
+    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=args.algorithm)        
 
     regression_function=eval(f"xlsindy.optimization.{args.optimization_function}")
 
@@ -145,6 +145,8 @@ if __name__ == "__main__":
     regression_function=regression_function
     )
 
+    ##--------------------------------
+
     #modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
     model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(solution,catalog_repartition, symbols_matrix, time_sym,lambdify_module="jax")
     model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
@@ -176,14 +178,8 @@ if __name__ == "__main__":
         if args.validation_on_database:
 
 
-            #validation_data = np.load("mujoco_align_data/"+simulation_dict["input"]["experiment_folder"]+".npz")
             validation_time,validation_qpos,validation_qvel,validation_qacc,validation_force = extract_validation("validation_database.pkl",args.experiment_file+".npz")
-            #load
-            # validation_time = validation_data['array1'] 
-            # validation_qpos = validation_data['array2']
-            # validation_qvel = validation_data['array3']
-            # validation_qacc = validation_data['array4']
-            # validation_force = validation_data['array5']
+
 
 
             validation_acc= xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,validation_qpos,validation_qvel,validation_force)

@@ -179,7 +179,6 @@ def classical_sindy_expand_catalog(
     Returns:
         np.ndarray: an array of shape (np.sum(expand_matrix),n) containing all the function 
     """
-
     # Create the output array
     res = np.zeros((expand_matrix.sum(), expand_matrix.shape[1]), dtype=object)
 
@@ -189,12 +188,13 @@ def classical_sindy_expand_catalog(
 
     # Compute the product in a vectorized way
     prod = (expand_matrix * catalog[:, None]).ravel()
+    indices = np.argwhere(prod !=0)
 
     # Create an array of column indices that match the row-major flattening order
     cols = np.tile(np.arange(expand_matrix.shape[1]), expand_matrix.shape[0])
 
     # Use fancy indexing to assign the values
-    res[line_count.ravel(), cols] = prod
+    res[line_count.ravel()[indices], cols[indices]] = prod[indices]
 
     return res
 
@@ -251,8 +251,6 @@ def expand_catalog(
 
     res=[]
 
-    #print("debug :",catalog_repartition)
-
     for catalog in catalog_repartition:
 
         name,*args=catalog
@@ -268,21 +266,10 @@ def expand_catalog(
         else:
             raise ValueError("catalog not recognised")
         
-        #print(res[-1].shape)
         
     return np.concatenate(res,axis=0)
 
 
-def separate_catalog(
-    catalog:np.ndarray,
-    catalog_repartition:List[tuple]
-):
-    """
-    separate a catalog that has been concatenated in the catalog_repartition order
-
-    Args:
-        catalog (np.ndarray)
-    """
 
 def create_solution_vector(
     expression: sympy.Expr,
@@ -299,16 +286,11 @@ def create_solution_vector(
         np.ndarray: Solution vector containg the coefficient in order that return*catalog=expression.
     """
 
-    # if friction_terms is None :
-    #     friction_len = 0
-    # else:
-    #     friction_len = np.prod(friction_terms.shape)
-
     expanded_expression_terms = sympy.expand(
         sympy.expand_trig(expression)
     ).args  # Expand the expression in order to get base function (ex: x, x^2, sin(s), ...)
     solution_vector = np.zeros((len(catalog), 1))
-    #solution_vector = np.zeros((len(catalog) + friction_len, 1))
+
     for term in expanded_expression_terms:
         for idx, catalog_term in enumerate(catalog):
             test = term / catalog_term
@@ -317,19 +299,12 @@ def create_solution_vector(
             ):  # if test is a constant it means that catalog_term is inside equation
                 solution_vector[idx, 0] = test
 
-    # if friction_terms is not None:
-    #     solution_vector[len(catalog):len(catalog)+friction_len] = np.reshape(friction_terms,(-1,1))
-
-    # for i, friction_value in enumerate(friction_terms): # old friction paradigm
-    #     solution_vector[len(catalog) + i] = friction_value
     return solution_vector
 
 
 def create_solution_expression(
     solution_vector: np.ndarray, 
     catalog: List[sympy.Expr],
-    num_coordinates:int = None,
-    first_order_friction:bool=False
 ) -> sympy.Expr:
     """
     Constructs an expression from a solution vector and a catalog.
@@ -337,8 +312,6 @@ def create_solution_expression(
     Args:
         solution_vector (np.ndarray): Solution values.
         catalog (List[Union[int, float]]): List of functions or constants.
-        num_coordinates (int): Number of coordinates, used to return the friction term
-        first_order_friction (bool): Wether or not the generation used the first order friction paradigm
 
     Returns:
         sympy.Expr: Constructed solution expression, litteraly construct solution_vector*catalog.T. Friction term are excluded
@@ -348,16 +321,7 @@ def create_solution_expression(
     for i in range(len(catalog)):
         model_expression += solution_vector[i] * catalog[i]
 
-    if first_order_friction :
-        if num_coordinates is None:
-            raise TypeError("You should specify the number of coordinate if you want to retrieve the first order friction matrix")
-        
-        first_order_friction_matrix = np.reshape(solution_vector[len(catalog):len(catalog)+num_coordinates**2],(num_coordinates,num_coordinates))
-
-    else:
-        first_order_friction_matrix = None
-    
-    return model_expression,first_order_friction_matrix
+    return model_expression
 
 def label_catalog(catalog,non_null_term):
     """Convert the catalog into label"""
@@ -369,3 +333,89 @@ def label_catalog(catalog,non_null_term):
         else:
             res+= [f"${latex(catalog[index]).replace("qd","\\dot{{q}}")}$"]
     return res
+
+
+def get_additive_equation_term( 
+        equation:sympy.Expr
+):
+    """
+    Extracts all additive terms from a SymPy expression and stores them
+    in an array along with their coefficients.
+
+    Parameters:
+        expr (sympy.Expr): The input SymPy expression.
+
+    Returns:
+        list: A list of tuples, where each tuple contains (coefficient, term).
+    """
+    terms = equation.as_ordered_terms()  # Extract additive terms
+    extracted_terms = []
+
+    for term in terms:
+        coeff, remainder = term.as_coeff_Mul()  # Extract coefficient
+        extracted_terms.append((coeff, remainder))
+
+    return extracted_terms
+
+def sindy_create_coefficient_matrices(lists):
+    """
+    Given a list of lists, where each inner list contains tuples of (coefficient, expression),
+    returns:
+      - unique_exprs: a sorted list of unique sympy expressions.
+      - coeff_matrix: a 2D numpy array (dtype=object) of shape (number of unique expressions, n)
+                      with the coefficient for the corresponding expression in each list.
+      - binary_matrix: a 2D numpy integer array with 1 if the corresponding coefficient is non-zero, 0 otherwise.
+    """
+    # Collect all expressions from all lists.
+    all_exprs = [expr for sublist in lists for (_, expr) in sublist]
+    
+    # Create a list of unique expressions. Sorting (here by string representation) ensures a reproducible order.
+    unique_exprs = np.array( sorted(list(set(all_exprs)), key=lambda expr: str(expr)) )
+    
+    num_exprs = len(unique_exprs)
+    num_lists = len(lists)
+    
+    # Create a mapping from expression to its row index.
+    expr_to_index = {expr: i for i, expr in enumerate(unique_exprs)}
+    
+    # Initialize coefficient matrix with zeros.
+    coeff_matrix = np.zeros((num_exprs, num_lists))
+    
+    # Fill in the coefficient matrix.
+    for col, sublist in enumerate(lists):
+        for coeff, expr in sublist:
+            row = expr_to_index[expr]
+            coeff_matrix[row, col] = coeff
+
+    # It's possible that some entries remain as the default 0 (which is fine)
+    # Now create a binary matrix: 1 if coefficient is nonzero, 0 otherwise.
+    binary_matrix = np.zeros((num_exprs, num_lists), dtype=int)
+    for i in range(num_exprs):
+        for j in range(num_lists):
+            # Use != 0; works with sympy numbers as well.
+            if coeff_matrix[i, j] != 0:
+                binary_matrix[i, j] = 1
+
+    return unique_exprs, coeff_matrix, binary_matrix
+
+def translate_coeff_matrix(coeff_matrix: np.ndarray, expand_matrix: np.ndarray) -> np.ndarray:
+    """
+    Translate the coefficient matrix into a column vector corresponding to the ordering
+    of the expanded catalog matrix (as produced by classical_sindy_expand_catalog).
+
+    Args:
+        coeff_matrix (np.ndarray): A matrix of shape (len(catalog), n) containing the coefficients.
+        expand_matrix (np.ndarray): A binary matrix of shape (len(catalog), n) that indicates
+                                    where each catalog function is applied (1 means applied).
+
+    Returns:
+        np.ndarray: A column vector of shape (expand_matrix.sum(), 1) containing the coefficients,
+                    in the order that matches the expanded catalog.
+    """
+    # Flatten the expand matrix in row-major order and find indices where its value is 1.
+    indices = np.where(expand_matrix.ravel() == 1)[0]
+    # Compute the elementwise product and extract the coefficients corresponding to the ones.
+    coeff_flat = (coeff_matrix * expand_matrix).ravel()[indices]
+    # Reshape into a column vector.
+    coeff_vector = coeff_flat.reshape(-1, 1)
+    return coeff_vector

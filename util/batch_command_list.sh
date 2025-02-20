@@ -128,11 +128,13 @@ python create_validation_database.py
 
 # Align
 
+#ex
 python batch_file_execute.py \
 --script "align_data" \
 --script_args "hard_threshold_sparse_regression" "xlsindy" 0.0 \
 --random-seed 1
 
+#ex
 python batch_file_execute.py \
 --script "align_data" \
 --script_args "lasso_regression" "xlsindy" 0.0 \

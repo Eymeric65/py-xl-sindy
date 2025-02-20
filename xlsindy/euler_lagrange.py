@@ -45,130 +45,32 @@ def compute_euler_lagrange_equation(
 
     return dL_dq - time_derivative
 
-
-def generate_acceleration_function_dep(
-    lagrangian: sympy.Expr,
-    symbol_matrix: np.ndarray,
-    time_symbol: sympy.Symbol,
-    substitution_dict: Dict[str, float] = {},
-    first_order_friction: np.ndarray = None,
-    verbose: bool = False,
-    use_clever_solve: bool = True,
-    lambdify_module: str = "numpy",
-) -> Tuple[Callable[[np.ndarray], np.ndarray], bool]:
+def newton_from_lagrangian(
+        lagrangian_expr:sympy.Expr,
+        symbol_matrix: np.ndarray,
+        time_symbol: sympy.Symbol,
+)-> List[sympy.Expr]:
     """
-    Generate a function for computing accelerations based on the Lagrangian.
-
-    This is actually a multi step process that will convert a Lagrangian into an acceleration function through euler lagrange theory.
-
-    Some information about clever solve : there is two mains way to retrieve the acceleration from the other variable.
-    The first one is to ask sympy to symbolically solve our equation and after to lambify it for use afterward.
-    The main drawback of this is that when system is not perfectly retrieved it is theorically extremely hard to get a simple equation giving acceleration from the other variable.
-    This usually lead to code running forever trying to solve this symbolic issue.
-
-    The other way is to create a linear system of b=Ax where x are the acceleration coordinate and b is the force vector.
-    At runtime one's need to replace every term in b and A and solve the linear equation (of dimension n so really fast)
+    Compute all the equation from the lagrangian in order to get newton system.
 
     Args:
-        lagrangian (sympy.Expr): The symbolic Lagrangian of the system.
-        symbol_matrix (np.ndarray): Matrix containing symbolic variables (external forces, positions, velocities, accelerations).
-        time_symbol (sp.Symbol): The time symbol in the Lagrangian.
-        substitution_dict (dict): Dictionary of substitutions for simplifying expressions. Used in case where lagrangian is handmade with variable (like lenght of pendulum etc...)
-        first_order_friction (np.ndarray): friction coefficient array (default is None).
-        verbose (bool): If True, print timing information (default is False).
-        use_clever_solve (bool): If True, use matrix-based solution for acceleration (default is True).
+        lagrangian_expr (sp.Expr): The symbolic expression of the Lagrangian.
+        symbol_matrix (np.ndarray): The matrix of symbolic variables (external forces, positions, velocities, and accelerations).
+        time_symbol (sp.Symbol): The symbolic variable representing time.
 
     Returns:
-        function: A function that computes the accelerations given system state. takes as input a numerical symbol matrix
-        bool: Whether the acceleration function generation was successful.
+        List[sympy.Expr]: The Newton equations of the system.
     """
-    num_coords = symbol_matrix.shape[1]
-    if first_order_friction is None:
-        first_order_friction = np.zeros((num_coords,num_coords))
 
-    accelerations = np.zeros(
-        (num_coords, 1), dtype="object"
-    )  # Initialisation of return acceleration array
-    dynamic_equations = np.zeros((num_coords,), dtype="object")
-    valid = True
+    n= symbol_matrix.shape[1]
 
-    for i in range(num_coords):
-        if verbose:
-            start_time = time.time()
+    res=[]
 
-        dynamic_eq = compute_euler_lagrange_equation(
-            lagrangian, symbol_matrix, time_symbol, i
-        )  # Get every Euler_lagrange equation
+    for i in range(n):
 
-        if verbose:
-            print("Time to derive {}: {}".format(i, time.time() - start_time))
+        res+=[compute_euler_lagrange_equation(lagrangian_expr,symbol_matrix,time_symbol,i)]
 
-        dynamic_eq -= symbol_matrix[0, i]  # Add external forces
-        
-        # add visquous forces
-        dynamic_eq += first_order_friction[i,:] @ symbol_matrix[2, :]
-
-        if str(symbol_matrix[3, i]) in str(
-            dynamic_eq
-        ):  # If we have acceleration term (we should if we somewhat analyse a real system)
-            dynamic_equations[i] = dynamic_eq.subs(substitution_dict)
-        else:
-            valid = False
-            break
-
-    if valid:
-        if verbose:
-            print("Dynamics {}: {}".format(len(dynamic_equations), dynamic_equations))
-            start_time = time.time()
-
-        if use_clever_solve:
-            system_matrix, force_vector = np.empty(
-                (num_coords, num_coords), dtype=object
-            ), np.empty((num_coords, 1), dtype=object)
-
-            for i in range(num_coords):
-                equation = dynamic_equations[i]
-                for j in range(num_coords):
-                    equation = equation.collect(symbol_matrix[3, j])
-                    term = equation.coeff(symbol_matrix[3, j])
-                    system_matrix[i, j] = -term
-                    equation -= term * symbol_matrix[3, j]
-
-                force_vector[i, 0] = equation
-
-            system_func = sympy.lambdify([symbol_matrix], system_matrix,lambdify_module)
-            force_func = sympy.lambdify([symbol_matrix], force_vector,lambdify_module)
-
-            if lambdify_module == "jax":
-
-                def acceleration_solver(input_values):
-                    system_eval = system_func(input_values)
-                    force_eval = force_func(input_values)
-                    return jnp.linalg.solve(system_eval, force_eval)
-
-            else:
-
-                def acceleration_solver(input_values):
-                    system_eval = system_func(input_values)
-                    force_eval = force_func(input_values)
-                    return np.linalg.solve(system_eval, force_eval)
-            
-            acc_func = acceleration_solver
-        else:
-            solution = sympy.solve(dynamic_equations, symbol_matrix[3, :])
-            accelerations[:, 0] = (
-                list(solution.values())
-                if isinstance(solution, dict)
-                else list(solution[0])
-            )
-            acc_func = sympy.lambdify([symbol_matrix], accelerations)
-
-        if verbose:
-            print("Time to Lambdify: {}".format(time.time() - start_time))
-    else: # Fail
-        acc_func = None
-    return acc_func, valid
-
+    return res
 
 def create_experiment_matrix(
     num_coords: int,
@@ -215,14 +117,7 @@ def create_experiment_matrix(
     q_matrix[3, :, :] = np.transpose(acceleration_values)
 
     for i in range(num_coords):
-        # catalog_lagrange = list(
-        #     map(
-        #         lambda x: compute_euler_lagrange_equation(
-        #             x, symbol_matrix, time_symbol, i
-        #         ),
-        #         catalogs[i,:],
-        #     )
-        # )
+
         catalog_lambda = list(
             map(
                 lambda x: sympy.lambdify([symbol_matrix], x, modules="numpy"),
@@ -234,12 +129,5 @@ def create_experiment_matrix(
             experiment_matrix[i * sampled_steps : (i + 1) * sampled_steps, j] = func(
                 q_matrix
             )
-
-        # if friction_order_one: # New friction paradigm (friction interaction matrix)
-
-        #     experiment_matrix[
-        #         i * sampled_steps : (i + 1) * sampled_steps, len(catalog_lambda) + i*num_coords:len(catalog_lambda) +(i+1)*num_coords
-        #     ] += velocity_values
-
 
     return experiment_matrix
