@@ -43,18 +43,49 @@ python align_data.py \
 
 #  change in the verification
 
+#SINDY VERIFICATION
+
 python align_data.py \
---experiment-file "result/cart_pole__120_20250220_124628" \
+--experiment-file "result/cart_pole__120_20250220_170619" \
 --optimization-function ""hard_threshold_sparse_regression"" \
 --algorithm "xlsindy" \
 --noise-level 0.0 \
 --random-seed 12
 
-#sindy try 
-
 python align_data.py \
---experiment-file "result/cart_pole__120_20250220_124628" \
+--experiment-file "result/cart_pole__120_20250220_170619" \
 --optimization-function ""hard_threshold_sparse_regression"" \
 --algorithm "sindy" \
 --noise-level 0.0 \
 --random-seed 12
+
+python align_data.py \
+--experiment-file "result/cart_pole_double__130_20250220_170625" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "xlsindy" \
+--noise-level 0.0 \
+--random-seed 12
+
+python align_data.py \
+--experiment-file "result/cart_pole_double__130_20250220_170625" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "sindy" \
+--noise-level 0.0 \
+--random-seed 12
+
+python align_data.py \
+--experiment-file "result/double_pendulum_pm__140_20250220_170629" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "xlsindy" \
+--noise-level 0.0 \
+--random-seed 12
+
+python align_data.py \
+--experiment-file "result/double_pendulum_pm__140_20250220_170629" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "sindy" \
+--noise-level 0.0 \
+--random-seed 12
+
+## OMG IT WORKS 
+

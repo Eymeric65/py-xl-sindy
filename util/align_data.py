@@ -145,6 +145,9 @@ if __name__ == "__main__":
     regression_function=regression_function
     )
 
+    #DEBUG
+    solution = extra_info["ideal_solution_vector"]
+
     ##--------------------------------
 
     #modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
