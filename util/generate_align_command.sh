@@ -24,3 +24,28 @@ python align_data.py \
 --algorithm "xlsindy" \
 --noise-level 0.0 \
 --random-seed 12
+
+python align_data.py \
+--experiment-file "result/cart_pole_double__130_20250217_175855" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "xlsindy" \
+--noise-level 0.0 \
+--random-seed 12
+
+python align_data.py \
+--experiment-file "result/double_pendulum_pm__140_20250217_180211" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "xlsindy" \
+--noise-level 0.0 \
+--random-seed 12
+
+#Everything work fine !!
+
+#  change in the verification
+
+python align_data.py \
+--experiment-file "result/cart_pole__120_20250217_175547" \
+--optimization-function ""hard_threshold_sparse_regression"" \
+--algorithm "xlsindy" \
+--noise-level 0.0 \
+--random-seed 12

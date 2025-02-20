@@ -21,6 +21,9 @@ import sys
 import os
 import importlib
 
+from jax import jit
+from jax import vmap
+
 
 @dataclass
 class Args:
@@ -34,6 +37,8 @@ class Args:
     """the level of noise introduce in the experiment"""
     random_seed:List[int] = field(default_factory=lambda:[0])
     """the random seed for the noise"""
+    validation_on_database:bool = True
+    """if true validate the model on the database file"""
 
 if __name__ == "__main__":
 
@@ -104,24 +109,6 @@ if __name__ == "__main__":
     model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
     
 
-    model_acc = []
-
-    if valid_model:
-
-        for i in range(len(imported_time)): # skip start
-
-            base_vector = np.ravel(np.column_stack((imported_qpos[i],imported_qvel[i])))
-
-            model_acc+= [model_dynamics_system(base_vector,imported_force[i])]
-
-        model_acc = np.array(model_acc)
-
-        model_acc = model_acc[:,1::2]
-    ## ---------------------------
-
-    if not valid_model:
-        print("Skipped model verification, retrieval failed")
-
     ## Analysis of result
     
     result_name = f"result__{args.algorithm}__{args.noise_level:.1e}__{args.optimization_function}"
@@ -134,7 +121,36 @@ if __name__ == "__main__":
 
     simulation_dict[result_name]["ideal_solution"]=extra_info["ideal_solution_vector"]
 
+    
+
     if valid_model:
+
+        model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1)
+
+        model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,imported_qpos,imported_qvel,imported_force)
+
+        # Finally, select the columns of interest (e.g., every second column starting at index 1)
+        model_acc = model_acc[:, 1::2]
+
+        if args.validation_on_database:
+
+
+            validation_data = np.load("mujoco_align_data/"+simulation_dict["input"]["experiment_folder"]+".npz")
+
+            #load
+            validation_time = validation_data['array1'] 
+            validation_qpos = validation_data['array2']
+            validation_qvel = validation_data['array3']
+            validation_qacc = validation_data['array4']
+            validation_force = validation_data['array5']
+
+
+            validation_acc= xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,validation_qpos,validation_qvel,validation_force)
+            
+            RMSE_validation = xlsindy.result_formatting.relative_mse(validation_acc[3:-3],validation_qacc[3:-3])
+
+            simulation_dict[result_name]["RMSE_validation"] = RMSE_validation
+            print("estimate variance on validation is : ",RMSE_validation)
 
         simulation_dict[result_name]["solution"]=solution
         # Estimate of the variance between model and mujoco
@@ -168,6 +184,9 @@ if __name__ == "__main__":
         RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
         simulation_dict[result_name]["RMSE_model"] = RMSE_model
         print("RMSE model comparison : ",RMSE_model)
+
+    if not valid_model:
+        print("Skipped model verification, retrieval failed")
 
     simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
     print("print model ...")

@@ -59,6 +59,38 @@ python batch_launch.py \
 
 ## --- Second set of experiment 20250217 ---
 
+# Test generate 
+
+python batch_launch.py \
+--experiment-folder "mujoco_align_data/cart_pole" \
+--max-time 20 \
+--number-coordinate 2 \
+--forces-span 1 12 \
+--number-experiment 1 \
+--mode "generate" \
+--random-seed 12 \
+--sample-number 1000
+
+python batch_launch.py \
+--experiment-folder "mujoco_align_data/cart_pole_double" \
+--max-time 20 \
+--number-coordinate 3 \
+--forces-span 1 12 \
+--number-experiment 1 \
+--mode "generate" \
+--random-seed 13 \
+--sample-number 3000
+
+python batch_launch.py \
+--experiment-folder "mujoco_align_data/double_pendulum_pm" \
+--max-time 20 \
+--number-coordinate 2 \
+--forces-span 1 12 \
+--number-experiment 1 \
+--mode "generate" \
+--random-seed 14 \
+--sample-number 1000
+
 # Generate
 python batch_launch.py \
 --experiment-folder "mujoco_align_data/cart_pole" \
@@ -68,7 +100,7 @@ python batch_launch.py \
 --number-experiment 200 \
 --mode "generate" \
 --random-seed 12 \
---sample-number 500
+--sample-number 1000
 
 python batch_launch.py \
 --experiment-folder "mujoco_align_data/cart_pole_double" \
@@ -78,7 +110,7 @@ python batch_launch.py \
 --number-experiment 200 \
 --mode "generate" \
 --random-seed 13 \
---sample-number 500
+--sample-number 3000
 
 python batch_launch.py \
 --experiment-folder "mujoco_align_data/double_pendulum_pm" \
@@ -100,6 +132,27 @@ python batch_file_execute.py \
 python batch_file_execute.py \
 --script "align_data" \
 --script_args "lasso_regression" "xlsindy" 0.0 \
+--random-seed 1
+
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "hard_threshold_sparse_regression" "xlsindy" 0.05 \
+--random-seed 1
+
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "lasso_regression" "xlsindy" 0.05 \
+--random-seed 1
+
+
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "hard_threshold_sparse_regression" "xlsindy" 0.1 \
+--random-seed 1
+
+python batch_file_execute.py \
+--script "align_data" \
+--script_args "lasso_regression" "xlsindy" 0.1 \
 --random-seed 1
 
 python batch_file_execute.py \

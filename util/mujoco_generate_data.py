@@ -151,7 +151,9 @@ if __name__ == "__main__":
 
     mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector = mujoco_transform(mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector)
 
-    subsample = args.sample_number
+    raw_sample_number=len(mujoco_time)
+
+    subsample = raw_sample_number//args.sample_number
     start_truncation = 2
 
     mujoco_time = mujoco_time[start_truncation::subsample]

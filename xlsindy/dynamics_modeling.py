@@ -347,3 +347,21 @@ def optimized_force_generator(
         return force_value * scale_vector
 
     return force_function
+
+def vectorised_acceleration_generation(
+        dynamic_system:Callable,
+        qpos,
+        qvel,
+        force
+):
+    """
+    Take a dynamic system function after being vectorised model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1) and return a batch of acceleration
+    """
+
+    T, n = qpos.shape
+
+    base_vectors = np.empty((T, 2 * n), dtype=qpos.dtype)
+    base_vectors[:, 0::2] = qpos
+    base_vectors[:, 1::2] = qvel
+
+    return dynamic_system(base_vectors.T, force.T).T
