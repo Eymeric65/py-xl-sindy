@@ -166,7 +166,7 @@ if __name__ == "__main__":
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
 
-    filename=f"result/{simulation_dict["input"]["experiment_folder"]}__{"".join(map(str, args.random_seed))}_{timestamp}"
+    filename=f"result/{simulation_dict['input']['experiment_folder']}__{''.join(map(str, args.random_seed))}_{timestamp}"
 
     np.savez(filename+".npz", array1=mujoco_time, array2=mujoco_qpos, array3=mujoco_qvel, array4=mujoco_qacc, array5=force_vector)
 

@@ -345,7 +345,7 @@ def label_catalog(catalog,non_null_term):
         if index > len(catalog)-1:
             res+=[f"fluid forces $v_{{{index-len(catalog)}}}$"]
         else:
-            res+= [f"${latex(catalog[index]).replace("qd","\\dot{{q}}")}$"]
+            res += ["${}$".format(latex(catalog[index]).replace('qd', '\\dot{q}'))]
     return res
 
 
