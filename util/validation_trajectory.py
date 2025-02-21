@@ -24,6 +24,8 @@ import xlsindy.result_formatting
 from datetime import datetime
 import json
 
+from jax import vmap
+
 def auto_zoom_viewport(ax, x, y, margin=0.5):
     """
     Automatically zooms the viewport for a given plot.
@@ -82,7 +84,7 @@ class Args:
     """the maximum time for the validation simulation"""
     random_seed:List[int] = field(default_factory=lambda:[])
     """the random seed to add for the force function (only used for force function)"""
-    plot:bool = True
+    plot:bool = False
     """if True, plot the different validation trajectories"""
 
 def convert_numbers(data):
@@ -192,6 +194,14 @@ if __name__ == "__main__":
 
     mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector = mujoco_transform(mujoco_qpos,mujoco_qvel,mujoco_qacc,force_vector)
 
+    #phase for comparison
+    mujoco_phase = np.zeros((mujoco_qpos.shape[0],mujoco_qpos.shape[1]+mujoco_qvel.shape[1]))
+
+    mujoco_phase[:,::2] = mujoco_qpos
+    mujoco_phase[:,1::2] = mujoco_qvel
+
+
+
     sim_key = [key for key in simulation_dict.keys() if key.startswith("result__")]
     #sim_key=[]
 
@@ -210,7 +220,8 @@ if __name__ == "__main__":
 
         exp_dict=simulation_dict[sim]
 
-        if "solution" in exp_dict:
+        if "solution" in exp_dict  and not "RMSE_trajectory" in exp_dict: # add this for not redundancy : and not "RMSE_trajectory" in exp_dict
+            
 
             _, _, _, catalog_repartition, extra_info = xlsindy_component(mode=exp_dict["algoritm"],random_seed=exp_dict["random_seed"],sindy_catalog_len=exp_dict["catalog_len"])
 
@@ -218,15 +229,28 @@ if __name__ == "__main__":
             #solution=np.array(exp_dict["ideal_solution"])
 
             model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(solution,catalog_repartition, symbols_matrix, time_sym,lambdify_module="jax")
+
             model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_wrapper(forces_function)) 
 
             time_values, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.1)
+
             theta_values = phase_values[:, ::2]
             velocity_values = phase_values[:, 1::2]
 
             acceleration_values = np.gradient(velocity_values, time_values, axis=0, edge_order=1)
             
             ## Add here the register in the simulation dictionnary the performance of it.
+            if np.max(time_values) == args.max_time: # Means that it is successful
+                
+                mujoco_phase_interp = np.zeros(phase_values.shape)
+
+                for i in range(mujoco_phase_interp.shape[1]):
+
+                    mujoco_phase_interp[:,i] = np.interp(time_values,mujoco_time,mujoco_phase[:,i])
+
+                RMSE_trajectory = xlsindy.result_formatting.relative_mse(phase_values,mujoco_phase_interp)
+                exp_dict["RMSE_trajectory"]=RMSE_trajectory
+                print("RMSE trajectory :",RMSE_trajectory)
 
 
             exp_database[sim] = {}
@@ -244,6 +268,11 @@ if __name__ == "__main__":
     generate_colors_for_experiments(exp_database)
 
     exp_database["mujoco"] = mujoco_exp
+
+    simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
+    print("print model ...")
+    with open(args.experiment_file+".json", 'w') as file:
+        json.dump(simulation_dict, file, indent=4)
 
     if args.plot:
 

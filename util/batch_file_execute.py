@@ -55,6 +55,17 @@ if __name__ == "__main__":
             "--experiment-file", filepath,
             ]
         
+    if args.script =="validation_trajectory":
+
+        def command_generator(filepath,i):
+            
+            return [
+                "python","validation_trajectory.py",
+                "--experiment-file",filepath,
+                "--max-time", str(args.script_args[0]),
+                "--random-seed", str(args.random_seed)
+            ]
+        
     commands =[]
 
         # Loop through all .json files in the "result" folder

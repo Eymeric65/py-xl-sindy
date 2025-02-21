@@ -141,8 +141,6 @@ def xlsindy_component(mode:str="xlsindy",random_seed:List[int]=[12],sindy_catalo
         "catalog_len": catalog_len
     }
 
-    
-
     return num_coordinates, time_sym, symbols_matrix,catalog_repartition, extra_info # extra_info is optionnal and should be set to None if not in use
 
 

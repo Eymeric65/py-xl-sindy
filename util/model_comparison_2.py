@@ -25,10 +25,10 @@ base_colors = {couple: cmap(i % 10) for i, couple in enumerate(couples)}
 max_noise = df['noise_level'].max()
 
 # Define the three metrics.
-metrics = ['RMSE_validation', 'RMSE_acceleration', 'RMSE_model']
+metrics = ['RMSE_validation', 'RMSE_acceleration', 'RMSE_model',"RMSE_trajectory"]
 
 # Set up three subplots that share the same x-axis.
-fig, axs = plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(12, 12))
+fig, axs = plt.subplots(nrows=len(metrics), ncols=1, sharex=True, figsize=(12, 12))
 plt.subplots_adjust(hspace=0.3)
 
 width = 0.8  # width available for each couple group
@@ -86,6 +86,8 @@ for ax, metric in zip(axs, metrics):
 axs[-1].set_xticks(range(len(couples)))
 axs[-1].set_xticklabels(couples, rotation=45, ha='right')
 axs[-1].set_xlabel('Couple (algoritm - optimization_function)')
+
+axs[-1].set_yscale("log")
 
 fig.suptitle("Box Plots for RMSE_validation, RMSE_acceleration, and RMSE_model\nby Couple and Noise Level", fontsize=16)
 plt.tight_layout(rect=[0, 0, 1, 0.95])

@@ -117,7 +117,7 @@ if __name__ == "__main__":
         forces_wrapper = None
 
     random_seed = simulation_dict["input"]["random_seed"] + args.random_seed
-    
+    print("random seed is :",random_seed)
     num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=args.algorithm,random_seed=random_seed)        
 
     regression_function=eval(f"xlsindy.optimization.{args.optimization_function}")
@@ -180,7 +180,7 @@ if __name__ == "__main__":
         model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1)
 
         model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,imported_qpos,imported_qvel,imported_force)
-
+        print("debug crade :",np.sum(model_acc)) # 2.782384e+21
         # Finally, select the columns of interest (e.g., every second column starting at index 1)
         model_acc = model_acc[:, 1::2]
 
