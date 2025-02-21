@@ -216,6 +216,7 @@ def run_rk45_integration(
     initial_state: np.ndarray,
     time_end: float,
     max_step: float = 0.05,
+    min_step:float = 1e-6
 ) -> List[np.ndarray]:
     """
     Runs an RK45 integration on a dynamics model.
@@ -232,8 +233,8 @@ def run_rk45_integration(
     initial_state_flat = np.reshape(initial_state, (-1,))
     model = RK45(dynamics, 0, initial_state_flat, time_end, max_step, 0.001, np.e**-6)
 
-    time_values = []
-    state_values = []
+    time_values = [0]
+    state_values = [initial_state_flat]
 
     try:
         while model.status != "finished":
@@ -242,6 +243,9 @@ def run_rk45_integration(
                     model.step()
                     time_values.append(model.t)
                     state_values.append(model.y)
+
+                    if (model.step_size is not None ) and (model.step_size < min_step):
+                        raise RuntimeError()
             print_progress(model.t, time_end)
 
     except RuntimeError:

@@ -27,7 +27,7 @@ from jax import vmap
 import pandas as pd
 
 
-@dataclass
+@dataclass 
 class Args:
     experiment_file: str = "None"
     """the experiment file (without extension)"""
@@ -39,7 +39,7 @@ class Args:
     """the level of noise introduce in the experiment"""
     random_seed:List[int] = field(default_factory=lambda:[0])
     """the random seed for the noise"""
-    skip_already_done:bool = False
+    skip_already_done:bool = True
     """if true, skip the experiment if already present in the result file"""
     validation_on_database:bool = True
     """if true validate the model on the database file"""
@@ -222,15 +222,12 @@ if __name__ == "__main__":
         simulation_dict[result_name]["sparsity_difference_percentage"] = sparsity_percentage
 
         # Model RMSE comparison
-        print(non_null_term)
-
         ideal_solution_norm_nn = xlsindy.result_formatting.normalise_solution(extra_info["ideal_solution_vector"])[non_null_term]
 
-        print(ideal_solution_norm_nn.shape)
 
         solution_norm_nn = xlsindy.result_formatting.normalise_solution(solution)[non_null_term]
 
-        RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
+        RMSE_model = xlsindy.result_formatting.relative_mse(solution_norm_nn,ideal_solution_norm_nn)
         simulation_dict[result_name]["RMSE_model"] = RMSE_model
         print("RMSE model comparison : ",RMSE_model)
 

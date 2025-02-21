@@ -65,7 +65,7 @@ if __name__ == "__main__":
         commands.append(command_generator(base_filepath,i))
 
     #num_threads = max(1, 1*(os.cpu_count() // 10))
-    num_threads=6
+    num_threads=2
 
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = [executor.submit(run_command, cmd) for cmd in commands]

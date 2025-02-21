@@ -48,7 +48,7 @@ for ax, metric in zip(axs, metrics):
         else:
             pos_list = np.linspace(i - width/2, i + width/2, n_levels)
         
-        for pos, noise in zip(pos_list, noise_levels):
+        for pos, noise,i in zip(pos_list, noise_levels,range(len(pos_list))):
             # Use all non-NaN values for the current metric.
             data = df_couple[df_couple['noise_level'] == noise][metric].dropna().values
             if len(data) == 0:
@@ -59,7 +59,7 @@ for ax, metric in zip(axs, metrics):
             if noise == 0:
                 color = base_color
             else:
-                factor = 1 - (noise / max_noise * 0.5)  # noise 0 => factor 1; max_noise => factor ~0.5.
+                factor = 1 - (i / len(pos_list) * 0.5)  # noise 0 => factor 1; max_noise => factor ~0.5.
                 color = darken_color(base_color, factor)
             
             # Plot the boxplot for this noise level.
