@@ -4,4 +4,4 @@ __pycache__
 temp/
 .dep/
 _build/
-.pkl
+*.pkl
