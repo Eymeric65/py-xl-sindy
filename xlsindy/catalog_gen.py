@@ -6,7 +6,7 @@ This file is mainly to create and manage catalog of function that will be use in
 
 import numpy as np
 import sympy
-from typing import List, Callable, Union
+from typing import List, Callable, Union, Tuple
 
 from sympy import latex
 
@@ -148,7 +148,7 @@ def generate_full_catalog(
         function_catalog (List[sympy.Expr]): List of functions to use.
         q_terms (int): Number of general coordinate.
         degree (int): Maximum degree of combinations.
-        power (int, optional): Maximum power level. Defaults to None, in which case it uses `degree`. Need to be inferior or equal to depth in order to generate at least function_i^power in the catalog
+        power (int, optional): Maximum power level of singleton. Defaults to None, in which case it uses `degree`. Need to be inferior or equal to depth in order to generate at least function_i^power in the catalog
 
     Returns:
         List[sympy.Expr]: List of combined functions.
@@ -164,6 +164,20 @@ def generate_full_catalog(
     for i in range(degree):  # generate for each depth
         catalog += _generate_combination_catalog(base_catalog, i + 1, 0, power, power)
     return catalog
+
+def cross_catalog(
+        catalog1:List[sympy.Expr],
+        catalog2:List[sympy.Expr]
+):
+    """
+    Compute the outer product of two catalog and concatenate everything back (catalog1,catalog2,catalog1 X catalog2)
+
+    Args:
+        catalog1 (List[sympy.Expr]): First catalog
+        catalog2 (List[sympy.Expr]): Second catalog
+    """    
+    cross_catalog = np.outer(catalog1, catalog2)
+    return np.concatenate((cross_catalog.flatten(), catalog1, catalog2)) 
 
 def classical_sindy_expand_catalog(
         catalog:List[sympy.Expr],
@@ -348,6 +362,9 @@ def get_additive_equation_term(
     Returns:
         list: A list of tuples, where each tuple contains (coefficient, term).
     """
+
+    equation = sympy.expand(sympy.expand_trig(equation))
+
     terms = equation.as_ordered_terms()  # Extract additive terms
     extracted_terms = []
 
@@ -419,3 +436,56 @@ def translate_coeff_matrix(coeff_matrix: np.ndarray, expand_matrix: np.ndarray) 
     # Reshape into a column vector.
     coeff_vector = coeff_flat.reshape(-1, 1)
     return coeff_vector
+
+def augment_catalog(
+        num_coordinates:int,
+        sup_catalog:List[sympy.Expr],
+        coeff_matrix:np.ndarray,
+        expand_matrix:np.ndarray,
+        base_catalog:np.ndarray,
+        requested_lenght:int,
+        random_seed:int
+)->Tuple[np.ndarray,np.ndarray,List[sympy.Expr]]:
+    """
+    Extend a base catalog with another from requested_lenght-len(base_catalog) new term
+
+    Args:
+        num_coordinates (int): number of coordinate
+        sup_catalog (List[sympy.Expr]): additionnal catalog where you take data
+        coeff_matrix (np.ndarray): base coeff matrix
+        binary_matrix (np.ndarray): base expand matrix
+        base_catalog (np.ndarray): base catalog
+        requested_lenght (int): the reqested lenght of the catalog
+        random_seed (int): the random seed to pick catalog
+
+    Returns:
+        np.ndarray : new coeff matrix
+        np.ndarray : new expand matrix
+        np.ndarray : new catalog
+
+    """
+    sup_catalog = sup_catalog[np.isin(sup_catalog,base_catalog,invert=True)] # Filter existing term
+
+
+    base_catalog = np.concatenate((base_catalog,sup_catalog))
+    coeff_matrix = np.concatenate((coeff_matrix,np.zeros((len(sup_catalog),num_coordinates))),axis=0)
+    expand_matrix = np.concatenate((expand_matrix,np.zeros((len(sup_catalog),num_coordinates),int)),axis=0)
+
+    zero_indices = np.argwhere(expand_matrix == 0)
+    
+    additional_pick_number = int(requested_lenght - np.sum(expand_matrix))
+    print(f"need to pick {additional_pick_number} more component")
+    rng = np.random.default_rng(random_seed)
+
+    selected_indices = zero_indices[rng.choice(len(zero_indices), size=additional_pick_number, replace=False)]
+
+    expand_matrix[tuple(selected_indices.T)] = 1
+
+    nonzero_lines = np.argwhere(np.sum(expand_matrix,axis=1)!=0).flatten()
+
+
+    coeff_matrix = coeff_matrix[nonzero_lines,:]
+    expand_matrix = expand_matrix[nonzero_lines,:]
+    base_catalog = base_catalog[nonzero_lines]
+
+    return coeff_matrix,expand_matrix,base_catalog

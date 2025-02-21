@@ -90,9 +90,9 @@ for json_file in glob.glob("result/*.json"):
         json_data = json.load(f)
         # flatten_json_with_results returns a list of records
         records = flatten_json_with_results(json_data)
+        for i in range(len(records)):
+            records[i]["filename"]=json_file
         all_records.extend(records)
-
-print(all_records[0])
 
 # Create a DataFrame from the records
 df = pd.DataFrame(all_records)

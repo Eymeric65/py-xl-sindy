@@ -39,6 +39,8 @@ class Args:
     """the level of noise introduce in the experiment"""
     random_seed:List[int] = field(default_factory=lambda:[0])
     """the random seed for the noise"""
+    skip_already_done:bool = True
+    """if true, skip the experiment if already present in the result file"""
     validation_on_database:bool = True
     """if true validate the model on the database file"""
 
@@ -92,6 +94,12 @@ if __name__ == "__main__":
     with open(args.experiment_file+".json", 'r') as json_file:
         simulation_dict = json.load(json_file)
 
+    result_name = f"result__{args.algorithm}__{args.noise_level:.1e}__{args.optimization_function}"
+    if args.skip_already_done :
+        if result_name in simulation_dict:
+            print("already aligned")
+            exit()
+
     folder_path = os.path.join(os.path.dirname(__file__), "mujoco_align_data/"+simulation_dict["input"]["experiment_folder"])
     sys.path.append(folder_path)
 
@@ -108,7 +116,7 @@ if __name__ == "__main__":
     except AttributeError:
         forces_wrapper = None
     
-    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=args.algorithm)        
+    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=args.algorithm,random_seed=args.random_seed)        
 
     regression_function=eval(f"xlsindy.optimization.{args.optimization_function}")
 
@@ -146,15 +154,13 @@ if __name__ == "__main__":
     )
 
     #DEBUG
-    solution = extra_info["ideal_solution_vector"]
+    #solution = extra_info["ideal_solution_vector"]
 
     ##--------------------------------
 
-    #modele_fit,friction_matrix = xlsindy.catalog_gen.create_solution_expression(solution[:, 0], full_catalog,num_coordinates=num_coordinates,first_order_friction=True)
     model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(solution,catalog_repartition, symbols_matrix, time_sym,lambdify_module="jax")
     model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
     
-
     ## Analysis of result
     
     result_name = f"result__{args.algorithm}__{args.noise_level:.1e}__{args.optimization_function}"
@@ -167,8 +173,6 @@ if __name__ == "__main__":
 
     simulation_dict[result_name]["ideal_solution"]=extra_info["ideal_solution_vector"]
 
-    
-
     if valid_model:
 
         model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1)
@@ -180,10 +184,7 @@ if __name__ == "__main__":
 
         if args.validation_on_database:
 
-
             validation_time,validation_qpos,validation_qvel,validation_qacc,validation_force = extract_validation("validation_database.pkl",args.experiment_file+".npz")
-
-
 
             validation_acc= xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,validation_qpos,validation_qvel,validation_force)
             validation_acc = validation_acc[:, 1::2]

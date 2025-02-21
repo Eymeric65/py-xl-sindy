@@ -8,10 +8,11 @@ it can be used as a template for the xlsindy_back_script argument of the mujoco_
 import xlsindy
 import numpy as np
 import sympy as sp
+from typing import List
 
 mujoco_angle_offset = np.pi
 
-def xlsindy_component(mode="xlsindy"): # Name of this function should not be changed
+def xlsindy_component(mode:str="xlsindy",random_seed:List[int]=[12],sindy_catalog_len:int=289): # Name of this function should not be changed
     """
     This function is used to generate backbone of the xl_sindy algorithm
     
@@ -95,20 +96,40 @@ def xlsindy_component(mode="xlsindy"): # Name of this function should not be cha
 
         for i in range(num_coordinates):
 
-            newton_system+=[xlsindy.catalog_gen.get_additive_equation_term(sp.expand_trig(newton_equations[i]))]
+            newton_system+=[xlsindy.catalog_gen.get_additive_equation_term(newton_equations[i])]
 
         catalog_need, coeff_matrix, binary_matrix = xlsindy.catalog_gen.sindy_create_coefficient_matrices(newton_system)
 
+        # complete the catalog
+
+        function_catalog_0 = [lambda x: symbols_matrix[3, x]] # \ddot{x}
+        function_catalog_1 = [lambda x: symbols_matrix[2, x]] # \ddot{x}
+        function_catalog_2 = [lambda x: sp.sin(symbols_matrix[1, x]), lambda x: sp.cos(symbols_matrix[1, x])]
+
+        catalog_part0 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_0, num_coordinates, 1))
+        catalog_part1 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_1, num_coordinates, 2))
+        catalog_part2 = np.array(xlsindy.catalog_gen.generate_full_catalog(function_catalog_2, num_coordinates, 2))
+
+        lagrange_catalog = xlsindy.catalog_gen.cross_catalog(catalog_part1,catalog_part2)
+        lagrange_catalog = xlsindy.catalog_gen.cross_catalog(lagrange_catalog,catalog_part0)
+        # --------------------
+
+        coeff_matrix,binary_matrix,catalog_need =xlsindy.catalog_gen.augment_catalog(
+                num_coordinates,
+                lagrange_catalog,
+                coeff_matrix,
+                binary_matrix,
+                catalog_need,
+                sindy_catalog_len,
+                random_seed
+        )
 
         solution = xlsindy.catalog_gen.translate_coeff_matrix(coeff_matrix,binary_matrix)
 
-        complete_catalog = catalog_need
-        complete_expand_matrix =binary_matrix
-
-
-        catalog_repartition=[("classical",complete_catalog,complete_expand_matrix)]
+        catalog_repartition=[("classical",catalog_need,binary_matrix)]
         ideal_solution_vector = solution
-        catalog_len = len(complete_catalog)
+        catalog_len = np.sum(binary_matrix)
+
 
     # Create the extra_info dictionnary 
     extra_info = {

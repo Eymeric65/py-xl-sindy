@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 # Directories and file pattern
+filing_percentage=0.5
 result_dir = "result"
 output_dir = "mujoco_align_data"
 pattern = os.path.join(result_dir, "*__*.npz")
@@ -30,7 +31,7 @@ for file_path in file_list:
 
     # Determine sample size (ensure at least one sample is taken)
     n_samples = time_data.shape[0]
-    sample_size = max(1, int(np.ceil(0.1 * n_samples)))
+    sample_size = max(1, int(np.ceil(filing_percentage * n_samples)))
 
     # Randomly choose indices without replacement
     indices = rng.choice(n_samples, size=sample_size, replace=False)
