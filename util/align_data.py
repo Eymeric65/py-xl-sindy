@@ -204,11 +204,11 @@ if __name__ == "__main__":
         print("estimate variance between mujoco and model is : ",RMSE_acceleration)
 
         # Sparsity difference
-        non_null_term = np.argwhere(solution != 0) 
+        non_null_term = np.argwhere(solution[:,0] != 0).flatten()
 
-        ideal_solution = extra_info["ideal_solution_vector"]
+        ideal_solution = extra_info["ideal_solution_vector"][:,0]
 
-        non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution != 0 )),axis=0),axis=0)
+        non_null_term=np.unique(np.concat((non_null_term,np.argwhere(ideal_solution != 0 ).flatten()),axis=0),axis=0)
 
         sparsity_reference = np.count_nonzero( extra_info["ideal_solution_vector"] )
         sparsity_model = np.count_nonzero(solution)
@@ -222,8 +222,13 @@ if __name__ == "__main__":
         simulation_dict[result_name]["sparsity_difference_percentage"] = sparsity_percentage
 
         # Model RMSE comparison
-        ideal_solution_norm_nn = xlsindy.result_formatting.normalise_solution(extra_info["ideal_solution_vector"])[*non_null_term.T]
-        solution_norm_nn = xlsindy.result_formatting.normalise_solution(solution)[*non_null_term.T]
+        print(non_null_term)
+
+        ideal_solution_norm_nn = xlsindy.result_formatting.normalise_solution(extra_info["ideal_solution_vector"])[non_null_term]
+
+        print(ideal_solution_norm_nn.shape)
+
+        solution_norm_nn = xlsindy.result_formatting.normalise_solution(solution)[non_null_term]
 
         RMSE_model = xlsindy.result_formatting.relative_mse(ideal_solution_norm_nn,solution_norm_nn)
         simulation_dict[result_name]["RMSE_model"] = RMSE_model

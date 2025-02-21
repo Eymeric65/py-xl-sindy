@@ -92,7 +92,7 @@ python align_data.py \
 #SINDY random catalog
 
 python align_data.py \
---experiment-file "result/double_pendulum_pm__141_20250220_171846" \
+--experiment-file "result/cart_pole__120_20250221_124728" \
 --optimization-function ""hard_threshold_sparse_regression"" \
 --algorithm "sindy" \
 --noise-level 0.0 \
