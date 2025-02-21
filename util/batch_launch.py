@@ -6,6 +6,8 @@ from dataclasses import field
 from typing import List
 import tyro
 
+import os
+
 import numpy as np
 
 @dataclass
@@ -85,6 +87,7 @@ if __name__=="__main__":
         elif args.mode == "generate":
             commands += [mujoco_generate_cmd_creator(args.experiment_folder,args.max_time,forces_vec,[args.random_seed,i],args.sample_number)]
 
+    num_threads = max(1, 3*(os.cpu_count() // 4))
     # Execute commands in parallel
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(run_command, cmd) for cmd in commands]

@@ -43,7 +43,7 @@ if __name__ == "__main__":
             "--optimization-function", args.script_args[0],
             "--algorithm",args.script_args[1],
             "--noise-level",str(args.script_args[2]),
-            "--random-seed",str(args.random_seed),str(i)
+            "--random-seed",str(args.random_seed)
             ]
         
     if args.script =="exploration_metric":
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         #print(base_filepath)
         commands.append(command_generator(base_filepath,i))
 
-    num_threads = max(1, (os.cpu_count() // 4))
+    num_threads = max(1, 3*(os.cpu_count() // 4))
 
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = [executor.submit(run_command, cmd) for cmd in commands]

@@ -39,7 +39,7 @@ class Args:
     """the level of noise introduce in the experiment"""
     random_seed:List[int] = field(default_factory=lambda:[0])
     """the random seed for the noise"""
-    skip_already_done:bool = True
+    skip_already_done:bool = False
     """if true, skip the experiment if already present in the result file"""
     validation_on_database:bool = True
     """if true validate the model on the database file"""
@@ -115,8 +115,10 @@ if __name__ == "__main__":
         forces_wrapper = xlsindy_gen.forces_wrapper
     except AttributeError:
         forces_wrapper = None
+
+    random_seed = simulation_dict["input"]["random_seed"] + args.random_seed
     
-    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=args.algorithm,random_seed=args.random_seed)        
+    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=args.algorithm,random_seed=random_seed)        
 
     regression_function=eval(f"xlsindy.optimization.{args.optimization_function}")
 
@@ -124,7 +126,7 @@ if __name__ == "__main__":
 
     sim_data = np.load(args.experiment_file+".npz")
 
-    rng=np.random.default_rng(args.random_seed)
+    rng=np.random.default_rng(random_seed)
 
     #load
     imported_time = sim_data['array1'] 
@@ -168,7 +170,7 @@ if __name__ == "__main__":
     simulation_dict[result_name]["algoritm"]=args.algorithm
     simulation_dict[result_name]["noise_level"]=args.noise_level
     simulation_dict[result_name]["optimization_function"]=args.optimization_function
-
+    simulation_dict[result_name]["random_seed"]=random_seed
     simulation_dict[result_name]["catalog_len"]=extra_info["catalog_len"]
 
     simulation_dict[result_name]["ideal_solution"]=extra_info["ideal_solution_vector"]
