@@ -62,4 +62,9 @@ python display_data.py \
 --noise-level 0.0 \
 --random-seed 1 
 
+python validation_trajectory.py \
+--experiment-file "result/cart_pole__122_20250221_134001" \
+--max-time 20 \
+--plot \
+--random-seed 2
 

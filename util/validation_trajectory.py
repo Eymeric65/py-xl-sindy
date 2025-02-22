@@ -17,6 +17,7 @@ import xlsindy
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.gridspec as gridspec
 
 import xlsindy.result_formatting
 
@@ -86,6 +87,8 @@ class Args:
     """the random seed to add for the force function (only used for force function)"""
     plot:bool = False
     """if True, plot the different validation trajectories"""
+    skip_already_done:bool = False
+    """if true, skip the experiment if already present in the result file"""
 
 def convert_numbers(data):
     if isinstance(data, dict):
@@ -200,69 +203,15 @@ if __name__ == "__main__":
     mujoco_phase[:,::2] = mujoco_qpos
     mujoco_phase[:,1::2] = mujoco_qvel
 
-    ##debug
-    exp_debug = simulation_dict["result__sindy__0.0e+00__lasso_regression"]
-    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=exp_debug["algoritm"],random_seed=exp_debug["random_seed"],sindy_catalog_len=exp_debug["catalog_len"])
 
-    debug_raw_sample_number=len(mujoco_time)
-
-    debug_subsample = debug_raw_sample_number//3000
-    debug_start_truncation = 2
-
-    debug_mujoco_time = mujoco_time[debug_start_truncation::debug_subsample]
-    debug_mujoco_qpos = mujoco_qpos[debug_start_truncation::debug_subsample]
-    debug_mujoco_qvel = mujoco_qvel[debug_start_truncation::debug_subsample]
-    debug_mujoco_qacc = mujoco_qacc[debug_start_truncation::debug_subsample]
-    debug_force_vector = force_vector[debug_start_truncation::debug_subsample]
-
-    print("debug mujoco :",len(debug_mujoco_time),np.sum(debug_mujoco_qpos),np.sum(debug_mujoco_qvel),np.sum(debug_mujoco_qacc),np.sum(debug_force_vector))
-    
-
-    print(np.sum(exp_debug["solution"]))
-
-    model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(np.array(exp_debug["solution"]),catalog_repartition, symbols_matrix, time_sym,lambdify_module="jax")
-    print("ouille :",catalog_repartition)
-    model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
-    model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1)
-    model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,debug_mujoco_qpos,debug_mujoco_qvel,debug_force_vector)
-    print("debug crade :",np.sum(model_acc),np.sum(debug_mujoco_qpos),np.sum(debug_mujoco_qvel),np.sum(debug_force_vector)) # -5318509.0 50339.30688502131 3109.270621773163 -3943.689611240574
-    fig, axs = plt.subplots(4, 1, sharex=True, figsize=(10, 8))
-
-    # Plot each time series
-    axs[0].plot(mujoco_time, mujoco_qpos, label='qpos', color='tab:blue')
-    axs[0].set_ylabel('qpos')
-    axs[0].legend(loc='upper right')
-
-    axs[1].plot(mujoco_time, mujoco_qvel, label='qvel', color='tab:orange')
-    axs[1].set_ylabel('qvel')
-    axs[1].legend(loc='upper right')
-
-    axs[2].plot(mujoco_time, mujoco_qacc, label='qacc', color='tab:green')
-    axs[2].set_ylabel('qacc')
-    axs[2].legend(loc='upper right')
-
-    axs[3].plot(mujoco_time, force_vector, label='force', color='tab:red')
-    axs[3].set_ylabel('force')
-    axs[3].set_xlabel('Time')
-    axs[3].legend(loc='upper right')
-
-    plt.tight_layout()
-    plt.show()
-    exit()
-
-    sim_key=[]
-    #end of DEBUg
-
-    #sim_key = [key for key in simulation_dict.keys() if key.startswith("result__")]
-    
-
+    sim_key = [key for key in simulation_dict.keys() if key.startswith("result__")]
 
     mujoco_exp = {}
     mujoco_exp["time"] = mujoco_time
     mujoco_exp["qpos"] = mujoco_qpos
     mujoco_exp["qvel"] = mujoco_qvel
     mujoco_exp["qacc"] = mujoco_qacc
-    mujoco_exp["line_style"] = '--'
+    mujoco_exp["line_style"] =(0, (5, 10)) # loosely dashed
     mujoco_exp["color"] = 'black'
 
     exp_database = {}
@@ -271,7 +220,7 @@ if __name__ == "__main__":
 
         exp_dict=simulation_dict[sim]
 
-        if "solution" in exp_dict  and not "RMSE_trajectory" in exp_dict: # add this for not redundancy : and not "RMSE_trajectory" in exp_dict
+        if "solution" in exp_dict  and (not args.skip_already_done or not "RMSE_trajectory" in exp_dict ): # add this for not redundancy : and not "RMSE_trajectory" in exp_dict
             
 
             _, _, _, catalog_repartition, extra_info = xlsindy_component(mode=exp_dict["algoritm"],random_seed=exp_dict["random_seed"],sindy_catalog_len=exp_dict["catalog_len"])
@@ -289,7 +238,8 @@ if __name__ == "__main__":
             velocity_values = phase_values[:, 1::2]
 
             acceleration_values = np.gradient(velocity_values, time_values, axis=0, edge_order=1)
-            
+
+            exp_database[sim] = {}
             ## Add here the register in the simulation dictionnary the performance of it.
             if np.max(time_values) == args.max_time: # Means that it is successful
                 
@@ -301,10 +251,11 @@ if __name__ == "__main__":
 
                 RMSE_trajectory = xlsindy.result_formatting.relative_mse(phase_values,mujoco_phase_interp)
                 exp_dict["RMSE_trajectory"]=RMSE_trajectory
+                exp_database[sim]["RMSE"]=RMSE_trajectory
                 print("RMSE trajectory :",RMSE_trajectory)
 
 
-            exp_database[sim] = {}
+            
             exp_database[sim]["time"] = time_values
             exp_database[sim]["qpos"] = theta_values
             exp_database[sim]["qvel"] = velocity_values
@@ -318,6 +269,10 @@ if __name__ == "__main__":
 
     generate_colors_for_experiments(exp_database)
 
+    unique_combos = list(set((exp["algoritm"], exp["optimization_function"]) for exp in exp_database.values()))
+
+    reverse_unique_combos = {combo:i for i,combo in enumerate(unique_combos)}
+
     exp_database["mujoco"] = mujoco_exp
 
     simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
@@ -327,41 +282,101 @@ if __name__ == "__main__":
 
     if args.plot:
 
-        fig, axs = plt.subplots(4*num_coordinates, 1, sharex=True, figsize=(10, 8))
+        #fig, axs = plt.subplots(3*num_coordinates, 1+len(unique_combos), sharex=True, figsize=(10, 8))
+        fig = plt.figure(figsize=(20, 10))
+        gs = gridspec.GridSpec(nrows=3*num_coordinates, ncols=2+len(unique_combos), figure=fig,width_ratios=[3,0.1]+[1 for _ in range(len(unique_combos)) ])
+        axs = []
+        
 
+        for i in range(3*num_coordinates):
+            if i==0:
+                
+                axs+=[fig.add_subplot(gs[i,0])]
+            else:
+                axs+=[fig.add_subplot(gs[i,0],sharex=axs[0])]
+
+            if i<3*num_coordinates-1:
+                axs[i].tick_params(labelbottom=False)
+        
+        axs2 = np.empty((3*num_coordinates,len(unique_combos)),dtype=object)
+
+        for i in range(3*num_coordinates):
+
+            for j in range(len(unique_combos)):
+
+                if i==0:
+                    share_x=None
+                else:
+                    sharex=axs2[0,j]
+
+                if j==0:
+                    share_y=None
+                else:
+                    share_y=axs2[i,0]
+
+                axs2[i,j] = fig.add_subplot(gs[i,j+2],sharex=share_x,sharey=share_y)
+
+                if i<3*num_coordinates-1:
+                    axs2[i,j].tick_params(labelbottom=False)
+                if j>0:
+                    axs2[i,j].tick_params(labelleft=False)
+        
         # Plot each time series
         for exp in exp_database:
 
             for i in range(num_coordinates):
 
+                axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
+                axs[num_coordinates+i].plot(exp_database[exp]["time"], exp_database[exp]["qvel"][:,i],  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) 
+
                 if exp=="mujoco":
                     auto_zoom_viewport(axs[i], exp_database[exp]["time"], exp_database[exp]["qpos"][:,i])
                     auto_zoom_viewport(axs[num_coordinates+i], exp_database[exp]["time"], exp_database[exp]["qvel"][:,i])
                     auto_zoom_viewport(axs[num_coordinates*2+i], exp_database[exp]["time"], exp_database[exp]["qacc"][:,i])
+                else: # dependent plot
+                    
+                    combo_indice = reverse_unique_combos[(exp_database[exp]["algoritm"], exp_database[exp]["optimization_function"])]
 
-                if exp != "mujoco" and exp_database[exp]["noise_level"]==0 and i==0:
-                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=exp) #, color='tab:blue')
-                else:
-                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
-                axs[num_coordinates+i].plot(exp_database[exp]["time"], exp_database[exp]["qvel"][:,i],  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) #, color='tab:orange')
-                axs[num_coordinates*2+i].plot(exp_database[exp]["time"], exp_database[exp]["qacc"][:,i],  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) #, color='tab:green')
+                    mujoco_qpos_interp = np.interp(exp_database[exp]["time"],mujoco_time,mujoco_qpos[:,i])
+                    mujoco_qvel_interp = np.interp(exp_database[exp]["time"],mujoco_time,mujoco_qvel[:,i])
+                    mujoco_qacc_interp = np.interp(exp_database[exp]["time"],mujoco_time,mujoco_qacc[:,i])
+                    if i==0:
+                        if "RMSE" in exp_database[exp]:
+                            axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=f"n:{exp_database[exp]["noise_level"]:0e} RMSE : {exp_database[exp]["RMSE"]:1e}")
+                        else:
+                            axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=f"n:{exp_database[exp]["noise_level"]}")
+                    else:
+                        axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
+                    axs2[num_coordinates+i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qvel"][:,i]-mujoco_qvel_interp),  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) 
+                    axs2[num_coordinates*2+i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qacc"][:,i]-mujoco_qacc_interp),  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) 
+
+
 
         for i in range(num_coordinates):
 
-            axs[i].set_ylabel(f'$q_{{{i}}}$',ha="right",rotation="horizontal")
-            axs[i].legend(loc='upper right')
+            
+            axs[i].set_ylabel(f'$q_{{{i}}}$',ha="center",rotation="vertical")
+            axs[num_coordinates+i].set_ylabel(f'$\\dot{{q}}_{{{i}}}$',ha="center",rotation="vertical")
+            axs[num_coordinates*2+i].set_ylabel(f'$u_{{{i}}}$',ha="center",rotation="vertical")
+            axs[num_coordinates*2+i].plot(mujoco_time, force_vector[:,i],  c="red",linestyle="-") #, color='tab:green')
 
-            axs[num_coordinates+i].set_ylabel(f'$\\dot{{q}}_{{{i}}}$',ha="right",rotation="horizontal")
-            #axs[1].legend(loc='upper right')
+            axs2[i,0].set_ylabel(f'$| q_{{{i}}}- q^i_{{{i}}} |$',ha="center",rotation="vertical")
+            axs2[num_coordinates+i,0].set_ylabel(f'$| \\dot{{q}}_{{{i}}} - \\dot{{q^i}}_{{{i}}} |$',ha="center",rotation="vertical")
+            axs2[num_coordinates*2+i,0].set_ylabel(f'$| \\ddot{{q}}_{{{i}}} - \\ddot{{q^i}}_{{{i}}} |$',ha="center",rotation="vertical")
 
-            axs[num_coordinates*2+i].set_ylabel(f'$\\ddot{{q}}_{{{i}}}$',ha="right",rotation="horizontal")
+            for j in range(len(unique_combos)):
+                
+                axs2[i,j].set_yscale("log")
+                axs2[num_coordinates+i,j].set_yscale("log")
+                axs2[num_coordinates*2+i,j].set_yscale("log")
 
-            axs[num_coordinates*3+i].plot(mujoco_time, force_vector[:,i],  c=exp_database["mujoco"]["color"],linestyle=exp_database["mujoco"]["line_style"]) #, color='tab:green')
+        for j in range(len(unique_combos)):
+            axs2[0,j].legend(loc="lower right", fontsize=8)
+            axs2[-1,j].set_xlabel("Time (s)")
 
-            #axs[2].legend(loc='upper right')
 
-        axs[-1].set_xlabel('Time')
+        axs[-1].set_xlabel("Time (s)")
             #axs[3].legend(loc='upper right')
 
-        plt.tight_layout()
+        #plt.tight_layout()
         plt.show()

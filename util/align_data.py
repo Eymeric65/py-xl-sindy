@@ -184,8 +184,6 @@ if __name__ == "__main__":
         model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1)
 
         model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,imported_qpos,imported_qvel,imported_force)
-        print("debug crade :",np.sum(model_acc),np.sum(imported_qpos),np.sum(imported_qvel),np.sum(imported_force)) # 2.782384e+21
-        print("debug tres crade :",np.sum(solution))
         # Finally, select the columns of interest (e.g., every second column starting at index 1)
         model_acc = model_acc[:, 1::2]
 
