@@ -269,9 +269,11 @@ if __name__ == "__main__":
 
     generate_colors_for_experiments(exp_database)
 
-    unique_combos = list(set((exp["algoritm"], exp["optimization_function"]) for exp in exp_database.values()))
+    unique_combos = sorted(list(set((exp["algoritm"], exp["optimization_function"]) for exp in exp_database.values())))
 
     reverse_unique_combos = {combo:i for i,combo in enumerate(unique_combos)}
+
+    exp_database = dict(sorted(exp_database.items(), key=lambda item: item[1]["noise_level"]))
 
     exp_database["mujoco"] = mujoco_exp
 
@@ -283,8 +285,8 @@ if __name__ == "__main__":
     if args.plot:
 
         #fig, axs = plt.subplots(3*num_coordinates, 1+len(unique_combos), sharex=True, figsize=(10, 8))
-        fig = plt.figure(figsize=(20, 10))
-        gs = gridspec.GridSpec(nrows=3*num_coordinates, ncols=2+len(unique_combos), figure=fig,width_ratios=[3,0.1]+[1 for _ in range(len(unique_combos)) ])
+        fig = plt.figure(figsize=(26, 13))
+        gs = gridspec.GridSpec(nrows=3*num_coordinates, ncols=2+len(unique_combos), figure=fig,width_ratios=[3,0.14]+[1 for _ in range(len(unique_combos)) ],wspace=0.075,hspace=0.1)
         axs = []
         
 
@@ -315,7 +317,7 @@ if __name__ == "__main__":
                     share_y=axs2[i,0]
 
                 axs2[i,j] = fig.add_subplot(gs[i,j+2],sharex=share_x,sharey=share_y)
-
+                axs2[i,j].grid(axis="y")
                 if i<3*num_coordinates-1:
                     axs2[i,j].tick_params(labelbottom=False)
                 if j>0:
@@ -326,7 +328,10 @@ if __name__ == "__main__":
 
             for i in range(num_coordinates):
 
-                axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
+                if exp=="mujoco" and i==0:
+                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label="real system")
+                else:
+                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
                 axs[num_coordinates+i].plot(exp_database[exp]["time"], exp_database[exp]["qvel"][:,i],  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) 
 
                 if exp=="mujoco":
@@ -342,7 +347,7 @@ if __name__ == "__main__":
                     mujoco_qacc_interp = np.interp(exp_database[exp]["time"],mujoco_time,mujoco_qacc[:,i])
                     if i==0:
                         if "RMSE" in exp_database[exp]:
-                            axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=f"n:{exp_database[exp]["noise_level"]:0e} RMSE : {exp_database[exp]["RMSE"]:1e}")
+                            axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=f"n:{exp_database[exp]["noise_level"]:.0e} RMSE : {exp_database[exp]["RMSE"]:.1e}")
                         else:
                             axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=f"n:{exp_database[exp]["noise_level"]}")
                     else:
@@ -365,18 +370,21 @@ if __name__ == "__main__":
             axs2[num_coordinates*2+i,0].set_ylabel(f'$| \\ddot{{q}}_{{{i}}} - \\ddot{{q^i}}_{{{i}}} |$',ha="center",rotation="vertical")
 
             for j in range(len(unique_combos)):
-                
+
                 axs2[i,j].set_yscale("log")
                 axs2[num_coordinates+i,j].set_yscale("log")
                 axs2[num_coordinates*2+i,j].set_yscale("log")
 
         for j in range(len(unique_combos)):
+            axs2[0,j].xaxis.set_label_position('top')  # Move the xlabel to the top
+            axs2[0,j].set_xlabel(f"{unique_combos[j][0]} - {" ".join(unique_combos[j][1].split("_"))}", labelpad=10)  # Top label with padding
             axs2[0,j].legend(loc="lower right", fontsize=8)
             axs2[-1,j].set_xlabel("Time (s)")
 
-
+        axs[0].legend()
         axs[-1].set_xlabel("Time (s)")
             #axs[3].legend(loc='upper right')
 
         #plt.tight_layout()
+        fig.savefig(f"poster_figure/trajectory_validation.svg", format="svg")
         plt.show()
