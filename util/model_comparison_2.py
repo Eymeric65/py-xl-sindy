@@ -76,7 +76,6 @@ for ax, metric in zip(axs, metrics):
             
             # Annotate with the count of data points.
             count = len(data)
-            y_max = np.max(data)
             ax.text(pos, -0.3, f"n={count}", ha='center', va='top', fontsize=8, color='black')
     
     ax.set_ylabel(metric)
@@ -87,7 +86,7 @@ axs[-1].set_xticks(range(len(couples)))
 axs[-1].set_xticklabels(couples, rotation=45, ha='right')
 axs[-1].set_xlabel('Couple (algoritm - optimization_function)')
 
-axs[-1].set_yscale("log")
+#axs[-1].set_yscale("log")
 
 fig.suptitle("Box Plots for RMSE_validation, RMSE_acceleration, and RMSE_model\nby Couple and Noise Level", fontsize=16)
 plt.tight_layout(rect=[0, 0, 1, 0.95])

@@ -135,6 +135,8 @@ if __name__ == "__main__":
     imported_qacc = sim_data['array4']
     imported_force = sim_data['array5']
 
+    print("debug mujoco :",np.sum(imported_qpos),np.sum(imported_qvel),np.sum(imported_qacc),np.sum(imported_force))
+
     #add noise
     imported_qpos+= rng.normal(loc=0,scale=args.noise_level,size=imported_qpos.shape)
     imported_qvel+= rng.normal(loc=0,scale=args.noise_level,size=imported_qvel.shape)
@@ -166,6 +168,8 @@ if __name__ == "__main__":
     ## Analysis of result
     
     result_name = f"result__{args.algorithm}__{args.noise_level:.1e}__{args.optimization_function}"
+
+    print("result_name :",result_name)
     simulation_dict[result_name] = {}
     simulation_dict[result_name]["algoritm"]=args.algorithm
     simulation_dict[result_name]["noise_level"]=args.noise_level
@@ -180,7 +184,8 @@ if __name__ == "__main__":
         model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1)
 
         model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,imported_qpos,imported_qvel,imported_force)
-        print("debug crade :",np.sum(model_acc)) # 2.782384e+21
+        print("debug crade :",np.sum(model_acc),np.sum(imported_qpos),np.sum(imported_qvel),np.sum(imported_force)) # 2.782384e+21
+        print("debug tres crade :",np.sum(solution))
         # Finally, select the columns of interest (e.g., every second column starting at index 1)
         model_acc = model_acc[:, 1::2]
 

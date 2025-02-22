@@ -200,10 +200,61 @@ if __name__ == "__main__":
     mujoco_phase[:,::2] = mujoco_qpos
     mujoco_phase[:,1::2] = mujoco_qvel
 
+    ##debug
+    exp_debug = simulation_dict["result__sindy__0.0e+00__lasso_regression"]
+    num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = xlsindy_component(mode=exp_debug["algoritm"],random_seed=exp_debug["random_seed"],sindy_catalog_len=exp_debug["catalog_len"])
 
+    debug_raw_sample_number=len(mujoco_time)
 
-    sim_key = [key for key in simulation_dict.keys() if key.startswith("result__")]
-    #sim_key=[]
+    debug_subsample = debug_raw_sample_number//3000
+    debug_start_truncation = 2
+
+    debug_mujoco_time = mujoco_time[debug_start_truncation::debug_subsample]
+    debug_mujoco_qpos = mujoco_qpos[debug_start_truncation::debug_subsample]
+    debug_mujoco_qvel = mujoco_qvel[debug_start_truncation::debug_subsample]
+    debug_mujoco_qacc = mujoco_qacc[debug_start_truncation::debug_subsample]
+    debug_force_vector = force_vector[debug_start_truncation::debug_subsample]
+
+    print("debug mujoco :",len(debug_mujoco_time),np.sum(debug_mujoco_qpos),np.sum(debug_mujoco_qvel),np.sum(debug_mujoco_qacc),np.sum(debug_force_vector))
+    
+
+    print(np.sum(exp_debug["solution"]))
+
+    model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(np.array(exp_debug["solution"]),catalog_repartition, symbols_matrix, time_sym,lambdify_module="jax")
+    print("ouille :",catalog_repartition)
+    model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function_RK4_env(model_acceleration_func) 
+    model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1)
+    model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(model_dynamics_system,debug_mujoco_qpos,debug_mujoco_qvel,debug_force_vector)
+    print("debug crade :",np.sum(model_acc),np.sum(debug_mujoco_qpos),np.sum(debug_mujoco_qvel),np.sum(debug_force_vector)) # -5318509.0 50339.30688502131 3109.270621773163 -3943.689611240574
+    fig, axs = plt.subplots(4, 1, sharex=True, figsize=(10, 8))
+
+    # Plot each time series
+    axs[0].plot(mujoco_time, mujoco_qpos, label='qpos', color='tab:blue')
+    axs[0].set_ylabel('qpos')
+    axs[0].legend(loc='upper right')
+
+    axs[1].plot(mujoco_time, mujoco_qvel, label='qvel', color='tab:orange')
+    axs[1].set_ylabel('qvel')
+    axs[1].legend(loc='upper right')
+
+    axs[2].plot(mujoco_time, mujoco_qacc, label='qacc', color='tab:green')
+    axs[2].set_ylabel('qacc')
+    axs[2].legend(loc='upper right')
+
+    axs[3].plot(mujoco_time, force_vector, label='force', color='tab:red')
+    axs[3].set_ylabel('force')
+    axs[3].set_xlabel('Time')
+    axs[3].legend(loc='upper right')
+
+    plt.tight_layout()
+    plt.show()
+    exit()
+
+    sim_key=[]
+    #end of DEBUg
+
+    #sim_key = [key for key in simulation_dict.keys() if key.startswith("result__")]
+    
 
 
     mujoco_exp = {}
@@ -276,7 +327,7 @@ if __name__ == "__main__":
 
     if args.plot:
 
-        fig, axs = plt.subplots(3*num_coordinates, 1, sharex=True, figsize=(10, 8))
+        fig, axs = plt.subplots(4*num_coordinates, 1, sharex=True, figsize=(10, 8))
 
         # Plot each time series
         for exp in exp_database:
@@ -304,6 +355,9 @@ if __name__ == "__main__":
             #axs[1].legend(loc='upper right')
 
             axs[num_coordinates*2+i].set_ylabel(f'$\\ddot{{q}}_{{{i}}}$',ha="right",rotation="horizontal")
+
+            axs[num_coordinates*3+i].plot(mujoco_time, force_vector[:,i],  c=exp_database["mujoco"]["color"],linestyle=exp_database["mujoco"]["line_style"]) #, color='tab:green')
+
             #axs[2].legend(loc='upper right')
 
         axs[-1].set_xlabel('Time')
