@@ -1,33 +1,43 @@
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "py-xl-sindy"
-requires-python = ">= 3.0"
-version =  "v1.0.2"
+version = "2.0.0"
 description = "Library Xl-Sindy simulations"
-authors = [{ name = "Eymeric Chauchat", email = "eymeric.chauchat@gmail.com" }]
-license = { text = "MIT" }
+authors = ["CHAUCHAT EYMERIC <chauchat.eymeric.r7@dc.tohoku.ac.jp>"]
+license = "MIT"
 readme = "README.md"
-dependencies = [
-"numpy>=2.1.3",
-"scipy>=1.14.1",
-"sympy>=1.13.3",
-"scikit-learn>=1.5.2",
-"matplotlib"
+packages = [
+    { include = "xlsindy"}
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest",              # For running tests
-    "sphinx",              # For documentation
-    "sphinx-rtd-theme",    # Theme for Sphinx
-    "black",               # Code formatting
-    "flake8",              # Linting
-    "mypy",                # Type checking
-    "matplotlib"           # Optional plotting for examples
-]
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^2.2.2"
+scipy = "^1.15.1"
+sympy = "^1.13.3"
+scikit-learn = "^1.6.1"
 
-[tool.setuptools.packages.find]
-include = ["xlsindy"]
+[tool.poetry.group.example]
+optional = true
+
+
+[tool.poetry.group.example.dependencies]
+matplotlib = "^3.10.0"
+jax = "^0.5.0"
+tyro = "^0.9.13"
+mujoco = "^3.2.7"
+pandas = "^2.2.3"
+opencv-python = "^4.11.0.86"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+sphinx = "^8.1.3"
+sphinx-rtd-theme = "^3.0.2"
+black = "^24.10.0"
+flake8 = "^7.1.1"
+mypy = "^1.14.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

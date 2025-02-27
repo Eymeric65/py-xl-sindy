@@ -1,3 +1,10 @@
+"""
+The first script of example for fitting XlSindy on double pendulum.
+
+This script is actually broken right now... Comparison are totally non sense. I will try to fix it later.
+
+"""
+
 
 import numpy as np
 from xlsindy.simulation import *
@@ -101,6 +108,8 @@ axs[0, 0].set_title("q0")
 axs[1, 0].set_title("q1")
 axs[0, 0].plot(time_values, theta_values[:, 0])
 axs[1, 0].plot(time_values, theta_values[:, 1])
+
+## This is totally wrong... Reformulating made me forgot some stuff
 
 if solution is not None:
     dynamics_system_validated = dynamics_function(acceleration_func, external_force_func)
