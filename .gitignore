@@ -6,3 +6,4 @@ temp/
 _build/
 *.pkl
 *.svg
+*.mp4

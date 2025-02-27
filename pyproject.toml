@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-xl-sindy"
-version = "1.0.3"
+version = "2.0.0"
 description = "Library Xl-Sindy simulations"
 authors = ["CHAUCHAT EYMERIC <chauchat.eymeric.r7@dc.tohoku.ac.jp>"]
 license = "MIT"
@@ -26,6 +26,7 @@ jax = "^0.5.0"
 tyro = "^0.9.13"
 mujoco = "^3.2.7"
 pandas = "^2.2.3"
+opencv-python = "^4.11.0.86"
 
 
 [tool.poetry.group.dev.dependencies]

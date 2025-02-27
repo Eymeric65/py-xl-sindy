@@ -14,6 +14,8 @@ df = pd.read_pickle("experiment_database.pkl")
 # Create a 'couple' column combining algoritm and optimization_function.
 df['couple'] = df['algoritm'] + " \n " + df['optimization_function'].apply(lambda x:" ".join(x.split("_")))
 
+print("number of system : ",len(df["filename"].unique()))
+
 # Get a sorted list of unique couples.
 couples = sorted(df['couple'].unique())
 

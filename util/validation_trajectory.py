@@ -12,6 +12,8 @@ import os
 import importlib
 
 import mujoco
+import cv2
+
 import numpy as np 
 import xlsindy
 
@@ -89,6 +91,8 @@ class Args:
     """if True, plot the different validation trajectories"""
     skip_already_done:bool = False
     """if true, skip the experiment if already present in the result file"""
+    record:bool = False
+    """if true, record the video of the experiment"""
 
 def convert_numbers(data):
     if isinstance(data, dict):
@@ -184,8 +188,38 @@ if __name__ == "__main__":
 
     # Viewer of the experiment
 
-    while mujoco_data.time < args.max_time:
-        mujoco.mj_step(mujoco_model, mujoco_data)
+    if args.record:
+
+        height=720
+        width=1280
+
+        camera = mujoco.MjvCamera()
+        camera.type = mujoco.mjtCamera.mjCAMERA_FIXED
+        camera.fixedcamid = 0  # use the first camera defined in the model
+
+        fps = 60
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video = cv2.VideoWriter("poster_figure/trajectory_validation.mp4", fourcc, fps, (width, height))
+        C=0
+        with mujoco.Renderer(mujoco_model,height,width) as renderer:
+
+            # Create scene and camera; force use of the first (fixed) camera from the model
+
+            while mujoco_data.time < args.max_time:
+                mujoco.mj_step(mujoco_model, mujoco_data)
+                # Update scene using the current simulation state and camera view
+                if C < mujoco_data.time * fps:
+                    renderer.update_scene(mujoco_data, 0)
+                    # Convert RGB to BGR for OpenCV and write the frame
+                    video.write(cv2.cvtColor(renderer.render(), cv2.COLOR_RGB2BGR))
+                    C+=1
+
+        video.release()
+
+    else:
+
+        while mujoco_data.time < args.max_time:
+            mujoco.mj_step(mujoco_model, mujoco_data)
 
 
     # turn the result into a numpy array
