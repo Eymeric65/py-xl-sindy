@@ -12,6 +12,7 @@ from sympy import latex
 
 from . import euler_lagrange
 
+
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     """
     Creates a symbolic matrix representing external forces and state variables for a number of coordinates.
@@ -38,8 +39,8 @@ def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     symbolic_matrix = np.zeros((4, coord_count), dtype=object)
     symbolic_matrix[0, :] = [sympy.Function(f"Fext_{i}")(t) for i in range(coord_count)]
     symbolic_matrix[1, :] = [sympy.Function(f"q_{i}")(t) for i in range(coord_count)]
-    #symbolic_matrix[2, :] = [sympy.Function(f"\\dot{{q_{i}}}")(t) for i in range(coord_count)]
-    #symbolic_matrix[3, :] = [sympy.Function(f"\\ddot{{q_{i}}}")(t) for i in range(coord_count)]
+    # symbolic_matrix[2, :] = [sympy.Function(f"\\dot{{q_{i}}}")(t) for i in range(coord_count)]
+    # symbolic_matrix[3, :] = [sympy.Function(f"\\ddot{{q_{i}}}")(t) for i in range(coord_count)]
     symbolic_matrix[2, :] = [sympy.Function(f"qd_{i}")(t) for i in range(coord_count)]
     symbolic_matrix[3, :] = [sympy.Function(f"qdd_{i}")(t) for i in range(coord_count)]
     return symbolic_matrix
@@ -62,7 +63,7 @@ def calculate_forces_vector(
     force_vector[:-1, :] -= force_vector[
         1:, :
     ]  # Offset forces in order to get local joint forces
-    #print(force_vector.shape)
+    # print(force_vector.shape)
     return np.transpose(
         np.reshape(force_vector, (1, -1))
     )  # Makes everything flat for rendering afterwards
@@ -165,23 +166,21 @@ def generate_full_catalog(
         catalog += _generate_combination_catalog(base_catalog, i + 1, 0, power, power)
     return catalog
 
-def cross_catalog(
-        catalog1:List[sympy.Expr],
-        catalog2:List[sympy.Expr]
-):
+
+def cross_catalog(catalog1: List[sympy.Expr], catalog2: List[sympy.Expr]):
     """
     Compute the outer product of two catalog and concatenate everything back (catalog1,catalog2,catalog1 X catalog2)
 
     Args:
         catalog1 (List[sympy.Expr]): First catalog
         catalog2 (List[sympy.Expr]): Second catalog
-    """    
+    """
     cross_catalog = np.outer(catalog1, catalog2)
-    return np.concatenate((cross_catalog.flatten(), catalog1, catalog2)) 
+    return np.concatenate((cross_catalog.flatten(), catalog1, catalog2))
+
 
 def classical_sindy_expand_catalog(
-        catalog:List[sympy.Expr],
-        expand_matrix:np.ndarray
+    catalog: List[sympy.Expr], expand_matrix: np.ndarray
 ) -> np.ndarray:
     """
     expand the catalog in the case of a classical SINDy experiment (for other forces in lagrangian case or full classical SINDy retrieval)
@@ -191,7 +190,7 @@ def classical_sindy_expand_catalog(
         expand_matrix (np.ndarray): the expand information matrix has shape (len(catalog),n) and if set to one at line i and row p means that the function i should be aplied in the equation of the p coordinate
 
     Returns:
-        np.ndarray: an array of shape (np.sum(expand_matrix),n) containing all the function 
+        np.ndarray: an array of shape (np.sum(expand_matrix),n) containing all the function
     """
     # Create the output array
     res = np.zeros((expand_matrix.sum(), expand_matrix.shape[1]), dtype=object)
@@ -202,7 +201,7 @@ def classical_sindy_expand_catalog(
 
     # Compute the product in a vectorized way
     prod = (expand_matrix * catalog[:, None]).ravel()
-    indices = np.argwhere(prod !=0)
+    indices = np.argwhere(prod != 0)
 
     # Create an array of column indices that match the row-major flattening order
     cols = np.tile(np.arange(expand_matrix.shape[1]), expand_matrix.shape[0])
@@ -212,28 +211,27 @@ def classical_sindy_expand_catalog(
 
     return res
 
+
 def lagrangian_sindy_expand_catalog(
-        catalog:List[sympy.Expr],
-        symbol_matrix: np.ndarray,
-        time_symbol: sympy.Symbol,
+    catalog: List[sympy.Expr],
+    symbol_matrix: np.ndarray,
+    time_symbol: sympy.Symbol,
 ) -> np.ndarray:
     """
     expand the catalog in the case of a XlSINDy experiment
-    
+
     Args:
         catalog (List[sympy.Expr]): the list of function to expand
         symbol_matrix (np.ndarray): The matrix of symbolic variables (external forces, positions, velocities, and accelerations).
         time_symbol (sp.Symbol): The symbolic variable representing time.
 
     Returns:
-        np.ndarray: an array of shape (len(catalog),n) containing all the function 
+        np.ndarray: an array of shape (len(catalog),n) containing all the function
     """
 
     num_coordinate = symbol_matrix.shape[1]
 
-    res=np.empty((len(catalog),num_coordinate),dtype=object)
-    
-
+    res = np.empty((len(catalog), num_coordinate), dtype=object)
 
     for i in range(num_coordinate):
 
@@ -245,14 +243,15 @@ def lagrangian_sindy_expand_catalog(
                 catalog,
             )
         )
-        res[:,i] = catalog_lagrange
+        res[:, i] = catalog_lagrange
 
     return res
 
+
 def expand_catalog(
-        catalog_repartition:List[tuple],
-        symbol_matrix: np.ndarray,
-        time_symbol: sympy.Symbol,
+    catalog_repartition: List[tuple],
+    symbol_matrix: np.ndarray,
+    time_symbol: sympy.Symbol,
 ):
     """
     create a global catalog for the regression system
@@ -263,26 +262,24 @@ def expand_catalog(
         time_symbol (sp.Symbol): The symbolic variable representing time.
     """
 
-    res=[]
+    res = []
 
     for catalog in catalog_repartition:
 
-        name,*args=catalog
+        name, *args = catalog
 
         if name == "lagrangian":
 
-            res+=[lagrangian_sindy_expand_catalog(*args,symbol_matrix,time_symbol)]
+            res += [lagrangian_sindy_expand_catalog(*args, symbol_matrix, time_symbol)]
 
         elif name == "classical":
 
-            res+=[classical_sindy_expand_catalog(*args)]
+            res += [classical_sindy_expand_catalog(*args)]
 
         else:
             raise ValueError("catalog not recognised")
-        
-        
-    return np.concatenate(res,axis=0)
 
+    return np.concatenate(res, axis=0)
 
 
 def create_solution_vector(
@@ -317,7 +314,7 @@ def create_solution_vector(
 
 
 def create_solution_expression(
-    solution_vector: np.ndarray, 
+    solution_vector: np.ndarray,
     catalog: List[sympy.Expr],
 ) -> sympy.Expr:
     """
@@ -337,21 +334,20 @@ def create_solution_expression(
 
     return model_expression
 
-def label_catalog(catalog,non_null_term):
-    """Convert the catalog into label"""
-    res=[]
-    for index in non_null_term[:,0]:
 
-        if index > len(catalog)-1:
-            res+=[f"fluid forces $v_{{{index-len(catalog)}}}$"]
+def label_catalog(catalog, non_null_term):
+    """Convert the catalog into label"""
+    res = []
+    for index in non_null_term[:, 0]:
+
+        if index > len(catalog) - 1:
+            res += [f"fluid forces $v_{{{index-len(catalog)}}}$"]
         else:
-            res += ["${}$".format(latex(catalog[index]).replace('qd', '\\dot{q}'))]
+            res += ["${}$".format(latex(catalog[index]).replace("qd", "\\dot{q}"))]
     return res
 
 
-def get_additive_equation_term( 
-        equation:sympy.Expr
-):
+def get_additive_equation_term(equation: sympy.Expr):
     """
     Extracts all additive terms from a SymPy expression and stores them
     in an array along with their coefficients.
@@ -374,6 +370,7 @@ def get_additive_equation_term(
 
     return extracted_terms
 
+
 def sindy_create_coefficient_matrices(lists):
     """
     Given a list of lists, where each inner list contains tuples of (coefficient, expression),
@@ -385,19 +382,19 @@ def sindy_create_coefficient_matrices(lists):
     """
     # Collect all expressions from all lists.
     all_exprs = [expr for sublist in lists for (_, expr) in sublist]
-    
+
     # Create a list of unique expressions. Sorting (here by string representation) ensures a reproducible order.
-    unique_exprs = np.array( sorted(list(set(all_exprs)), key=lambda expr: str(expr)) )
-    
+    unique_exprs = np.array(sorted(list(set(all_exprs)), key=lambda expr: str(expr)))
+
     num_exprs = len(unique_exprs)
     num_lists = len(lists)
-    
+
     # Create a mapping from expression to its row index.
     expr_to_index = {expr: i for i, expr in enumerate(unique_exprs)}
-    
+
     # Initialize coefficient matrix with zeros.
     coeff_matrix = np.zeros((num_exprs, num_lists))
-    
+
     # Fill in the coefficient matrix.
     for col, sublist in enumerate(lists):
         for coeff, expr in sublist:
@@ -415,7 +412,10 @@ def sindy_create_coefficient_matrices(lists):
 
     return unique_exprs, coeff_matrix, binary_matrix
 
-def translate_coeff_matrix(coeff_matrix: np.ndarray, expand_matrix: np.ndarray) -> np.ndarray:
+
+def translate_coeff_matrix(
+    coeff_matrix: np.ndarray, expand_matrix: np.ndarray
+) -> np.ndarray:
     """
     Translate the coefficient matrix into a column vector corresponding to the ordering
     of the expanded catalog matrix (as produced by classical_sindy_expand_catalog).
@@ -437,15 +437,16 @@ def translate_coeff_matrix(coeff_matrix: np.ndarray, expand_matrix: np.ndarray) 
     coeff_vector = coeff_flat.reshape(-1, 1)
     return coeff_vector
 
+
 def augment_catalog(
-        num_coordinates:int,
-        sup_catalog:List[sympy.Expr],
-        coeff_matrix:np.ndarray,
-        expand_matrix:np.ndarray,
-        base_catalog:np.ndarray,
-        requested_lenght:int,
-        random_seed:int
-)->Tuple[np.ndarray,np.ndarray,List[sympy.Expr]]:
+    num_coordinates: int,
+    sup_catalog: List[sympy.Expr],
+    coeff_matrix: np.ndarray,
+    expand_matrix: np.ndarray,
+    base_catalog: np.ndarray,
+    requested_lenght: int,
+    random_seed: int,
+) -> Tuple[np.ndarray, np.ndarray, List[sympy.Expr]]:
     """
     Extend a base catalog with another from requested_lenght-len(base_catalog) new term
 
@@ -464,28 +465,34 @@ def augment_catalog(
         np.ndarray : new catalog
 
     """
-    sup_catalog = sup_catalog[np.isin(sup_catalog,base_catalog,invert=True)] # Filter existing term
+    sup_catalog = sup_catalog[
+        np.isin(sup_catalog, base_catalog, invert=True)
+    ]  # Filter existing term
 
-
-    base_catalog = np.concatenate((base_catalog,sup_catalog))
-    coeff_matrix = np.concatenate((coeff_matrix,np.zeros((len(sup_catalog),num_coordinates))),axis=0)
-    expand_matrix = np.concatenate((expand_matrix,np.zeros((len(sup_catalog),num_coordinates),int)),axis=0)
+    base_catalog = np.concatenate((base_catalog, sup_catalog))
+    coeff_matrix = np.concatenate(
+        (coeff_matrix, np.zeros((len(sup_catalog), num_coordinates))), axis=0
+    )
+    expand_matrix = np.concatenate(
+        (expand_matrix, np.zeros((len(sup_catalog), num_coordinates), int)), axis=0
+    )
 
     zero_indices = np.argwhere(expand_matrix == 0)
-    
+
     additional_pick_number = int(requested_lenght - np.sum(expand_matrix))
     print(f"need to pick {additional_pick_number} more component")
     rng = np.random.default_rng(random_seed)
 
-    selected_indices = zero_indices[rng.choice(len(zero_indices), size=additional_pick_number, replace=False)]
+    selected_indices = zero_indices[
+        rng.choice(len(zero_indices), size=additional_pick_number, replace=False)
+    ]
 
     expand_matrix[tuple(selected_indices.T)] = 1
 
-    nonzero_lines = np.argwhere(np.sum(expand_matrix,axis=1)!=0).flatten()
+    nonzero_lines = np.argwhere(np.sum(expand_matrix, axis=1) != 0).flatten()
 
-
-    coeff_matrix = coeff_matrix[nonzero_lines,:]
-    expand_matrix = expand_matrix[nonzero_lines,:]
+    coeff_matrix = coeff_matrix[nonzero_lines, :]
+    expand_matrix = expand_matrix[nonzero_lines, :]
     base_catalog = base_catalog[nonzero_lines]
 
-    return coeff_matrix,expand_matrix,base_catalog
+    return coeff_matrix, expand_matrix, base_catalog

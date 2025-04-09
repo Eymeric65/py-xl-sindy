@@ -3,6 +3,7 @@ import sympy as sp
 
 import xlsindy
 
+
 def create_coefficient_matrices(lists):
     """
     Given a list of lists, where each inner list contains tuples of (coefficient, expression),
@@ -14,19 +15,19 @@ def create_coefficient_matrices(lists):
     """
     # Collect all expressions from all lists.
     all_exprs = [expr for sublist in lists for (_, expr) in sublist]
-    
+
     # Create a list of unique expressions. Sorting (here by string representation) ensures a reproducible order.
     unique_exprs = np.array(sorted(list(set(all_exprs)), key=lambda expr: str(expr)))
-    
+
     num_exprs = len(unique_exprs)
     num_lists = len(lists)
-    
+
     # Create a mapping from expression to its row index.
     expr_to_index = {expr: i for i, expr in enumerate(unique_exprs)}
-    
+
     # Initialize coefficient matrix with zeros.
     coeff_matrix = np.zeros((num_exprs, num_lists), dtype=object)
-    
+
     # Fill in the coefficient matrix.
     for col, sublist in enumerate(lists):
         for coeff, expr in sublist:
@@ -44,7 +45,10 @@ def create_coefficient_matrices(lists):
 
     return unique_exprs, coeff_matrix, binary_matrix
 
-def translate_coeff_matrix(coeff_matrix: np.ndarray, expand_matrix: np.ndarray) -> np.ndarray:
+
+def translate_coeff_matrix(
+    coeff_matrix: np.ndarray, expand_matrix: np.ndarray
+) -> np.ndarray:
     """
     Translate the coefficient matrix into a column vector corresponding to the ordering
     of the expanded catalog matrix (as produced by classical_sindy_expand_catalog).
@@ -66,8 +70,9 @@ def translate_coeff_matrix(coeff_matrix: np.ndarray, expand_matrix: np.ndarray) 
     coeff_vector = coeff_flat.reshape(-1, 1)
     return coeff_vector
 
+
 # Example usage:
-x, y, z = sp.symbols('x y z')
+x, y, z = sp.symbols("x y z")
 list1 = [(3, x), (5, y), (-2, z), (7, 1)]
 list2 = [(2, x), (0, y), (4, z)]
 list3 = [(1, x), (3, 1), (6, z)]  # an example additional list
@@ -82,10 +87,10 @@ print(coeff_matrix)
 print("\nBinary matrix:")
 print(binary_matrix)
 
-expand = xlsindy.catalog_gen.classical_sindy_expand_catalog(unique_exprs,binary_matrix)
+expand = xlsindy.catalog_gen.classical_sindy_expand_catalog(unique_exprs, binary_matrix)
 
-solution = translate_coeff_matrix(coeff_matrix,binary_matrix)
+solution = translate_coeff_matrix(coeff_matrix, binary_matrix)
 
-print("everyone shape :",expand.shape,solution.shape)
+print("everyone shape :", expand.shape, solution.shape)
 
-print("retrieved :",expand.T@solution)
+print("retrieved :", expand.T @ solution)

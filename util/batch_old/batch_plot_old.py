@@ -17,16 +17,16 @@ solution_norms = []  # will hold each solution norm as a NumPy array
 for filename in json_files:
     with open(filename, "r") as f:
         data = json.load(f)
-    
+
     # Extract experiment folder from the "input" section
     exp_folder = data["input"]["experiment_folder"]
     experiment_folders.append(exp_folder)
-    
+
     # Extract exploration volume and RMSE_model from the "result" section
     # Convert them to floats
     exp_vol = float(data["result"]["exploration_volumes"])
     rmse = float(data["result"]["RMSE_model"])
-    rmse_acceleration =  float(data["result"]["RMSE_acceleration"])
+    rmse_acceleration = float(data["result"]["RMSE_acceleration"])
     exploration_volumes.append(exp_vol)
     rmse_models.append(rmse)
     rmse_accelerations.append(rmse_acceleration)
@@ -38,8 +38,12 @@ for filename in json_files:
 
 # Create a scatter plot of exploration volumes vs RMSE_model
 plt.figure(figsize=(8, 6))
-plt.scatter(np.log10(exploration_volumes), np.log10(rmse_models), marker='o', color='blue')
-plt.scatter(np.log10(exploration_volumes), np.log10(rmse_accelerations), marker='o', color='red')
+plt.scatter(
+    np.log10(exploration_volumes), np.log10(rmse_models), marker="o", color="blue"
+)
+plt.scatter(
+    np.log10(exploration_volumes), np.log10(rmse_accelerations), marker="o", color="red"
+)
 plt.xlabel("Exploration Volumes")
 plt.ylabel("RMSE_model")
 plt.title("Scatter Plot of Exploration Volumes vs RMSE_model")

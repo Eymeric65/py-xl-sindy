@@ -4,8 +4,6 @@ This module enable user to launch nearly complete workflow in order to run Xl-Si
 
 """
 
-
-
 import numpy as np
 from .dynamics_modeling import *
 from .catalog_gen import *
@@ -23,7 +21,7 @@ def execute_regression(
     external_force: np.ndarray,
     hard_threshold: float = 1e-3,
     apply_normalization: bool = True,
-    regression_function:Callable=lasso_regression
+    regression_function: Callable = lasso_regression,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Executes regression for a dynamic system to estimate the system’s parameters.
@@ -44,10 +42,10 @@ def execute_regression(
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             Solution vector, experimental matrix, sampled time values, covariance matrix.
     """
-    
+
     num_coordinates = theta_values.shape[1]
 
-    catalog=expand_catalog(catalog_repartition,symbol_matrix,time_symbol)
+    catalog = expand_catalog(catalog_repartition, symbol_matrix, time_symbol)
 
     # Generate the experimental matrix from the catalog
     experimental_matrix = create_experiment_matrix(
@@ -61,16 +59,14 @@ def execute_regression(
         friction_order_one=True,
     )
 
-    external_force_vec = np.reshape(external_force.T,(-1,1))
+    external_force_vec = np.reshape(external_force.T, (-1, 1))
 
     covariance_matrix = None
     solution = None
 
     # Normalize experimental matrix if required
-    normalized_matrix, reduction_indices, variance_vector = (
-        normalize_experiment_matrix(
-            experimental_matrix, null_effect=apply_normalization
-        )
+    normalized_matrix, reduction_indices, variance_vector = normalize_experiment_matrix(
+        experimental_matrix, null_effect=apply_normalization
     )
 
     # Perform Lasso regression to obtain coefficients

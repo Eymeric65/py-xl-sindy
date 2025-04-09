@@ -10,3 +10,6 @@ xlsindy package
    xlsindy.optimization
    xlsindy.render
    xlsindy.simulation
+   xlsindy.result_formatting
+   xlsindy.utils
+   xlsindy.sindy_utils

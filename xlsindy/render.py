@@ -4,7 +4,6 @@ This module contain some render function for the basics experiment
 
 """
 
-
 import sys
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -56,7 +55,11 @@ def animate_single_pendulum(
 
 
 def animate_double_pendulum(
-    length1: float, length2: float, angle_array: np.ndarray, time_array: np.ndarray, fig= None
+    length1: float,
+    length2: float,
+    angle_array: np.ndarray,
+    time_array: np.ndarray,
+    fig=None,
 ):
     """
     Animates a double pendulum based on its segment lengths, angles, and time steps.
@@ -77,7 +80,6 @@ def animate_double_pendulum(
     if fig == None:
         fig = plt.figure(figsize=(5, 4))
 
-    
     ax = fig.add_subplot(
         autoscale_on=False,
         xlim=(-total_length, total_length),

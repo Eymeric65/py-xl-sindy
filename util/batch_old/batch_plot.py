@@ -12,14 +12,14 @@ records = []
 # List to hold each file's solution_norm vector (as a NumPy array)
 solution_norms = []
 
-id=0
+id = 0
 
-ideal_solutions_norm=[]
+ideal_solutions_norm = []
 
 for filename in json_files:
     with open(filename, "r") as f:
         data = json.load(f)
-    
+
     # Extract scalar values from the JSON. Many numeric values are stored as strings,
     # so we convert them as needed.
     experiment_folder = data["input"]["experiment_folder"]
@@ -35,10 +35,10 @@ for filename in json_files:
     catalog_len = int(data["environment"]["catalog_len"])
 
     forces_input = data["input"]["forces_scale_vector"]
-    forces_input = np.array(forces_input,dtype=float)
+    forces_input = np.array(forces_input, dtype=float)
 
     max_forces = np.sum(forces_input)
-    
+
     # Build a record (dictionary) of scalar inputs for this file
     record = {
         "filename": filename,
@@ -53,34 +53,43 @@ for filename in json_files:
         "forces_period_shift": forces_period_shift,
         "coordinate_number": coordinate_number,
         "catalog_len": catalog_len,
-        "id":id,
-        "max_forces":max_forces
+        "id": id,
+        "max_forces": max_forces,
     }
     records.append(record)
-    id+=1
-    
+    id += 1
+
     # Convert the solution_norm_nn string (which looks like a NumPy array) to an actual array
     sol_norm_str = data["result"]["solution_norm_nn"]
     sol_norm_array = np.fromstring(sol_norm_str.strip("[]"), sep=" ")
 
     ideal_solutions_norm_str = data["result"]["ideal_solution_norm_nn"]
-    ideal_solutions_norm_sarray = np.fromstring(ideal_solutions_norm_str.strip("[]"), sep=" ")
+    ideal_solutions_norm_sarray = np.fromstring(
+        ideal_solutions_norm_str.strip("[]"), sep=" "
+    )
 
-    solution_norms.append(sol_norm_array[ideal_solutions_norm_sarray!=0]) # Keep only non null term
-    ideal_solutions_norm.append(ideal_solutions_norm_sarray[ideal_solutions_norm_sarray!=0])
+    solution_norms.append(
+        sol_norm_array[ideal_solutions_norm_sarray != 0]
+    )  # Keep only non null term
+    ideal_solutions_norm.append(
+        ideal_solutions_norm_sarray[ideal_solutions_norm_sarray != 0]
+    )
 
 # Create a pandas DataFrame from the records
 df = pd.DataFrame(records)
-#print("Scalar data from JSON files:")
-#print(df)
+# print("Scalar data from JSON files:")
+# print(df)
 
-exp_names=df["experiment_folder"].unique()
+exp_names = df["experiment_folder"].unique()
 num_exp = len(exp_names)
 
 # Generate a scatter plot using two of the scalar columns from the DataFrame
-fig = plt.figure(figsize=(8,6),dpi=100,constrained_layout=True)
+fig = plt.figure(figsize=(8, 6), dpi=100, constrained_layout=True)
 
-gs = fig.add_gridspec(num_exp, 2,hspace=0.15,top=0.99,bottom=0.09,right=0.99,left=0.09)
+gs = fig.add_gridspec(
+    num_exp, 2, hspace=0.15, top=0.99, bottom=0.09, right=0.99, left=0.09
+)
+
 
 def make_ghost_ax(ax):
 
@@ -91,10 +100,10 @@ def make_ghost_ax(ax):
     ax.set_yticklabels([])
 
     # Hide spines (the border lines around the plot)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
 
     # Hide grid
     ax.grid(False)
@@ -102,32 +111,43 @@ def make_ghost_ax(ax):
     # Hide the plot frame
     ax.set_frame_on(False)
 
-ghost_axes= fig.add_subplot(gs[:num_exp,:])
+
+ghost_axes = fig.add_subplot(gs[:num_exp, :])
 
 make_ghost_ax(ghost_axes)
 
 
-ghost_axes.set_ylabel("RMSE% model",labelpad=20)
+ghost_axes.set_ylabel("RMSE% model", labelpad=20)
 
-#ghost_axes.set_title("Scatter Plot of Exploration Volumes vs RMSE_model")
+# ghost_axes.set_title("Scatter Plot of Exploration Volumes vs RMSE_model")
 
 for i in range(num_exp):
 
-    ax= fig.add_subplot(gs[i,:])
-    row_exp = df.loc[df["experiment_folder"]==exp_names[i]]
+    ax = fig.add_subplot(gs[i, :])
+    row_exp = df.loc[df["experiment_folder"] == exp_names[i]]
 
-    #ax.scatter(row_exp["max_forces"], row_exp["RMSE_model"], marker='o', label=exp_names[i])
-    ax.scatter(row_exp["exploration_volumes"], row_exp["RMSE_model"], marker='o', label=exp_names[i]) # Normal exploration plot
+    # ax.scatter(row_exp["max_forces"], row_exp["RMSE_model"], marker='o', label=exp_names[i])
+    ax.scatter(
+        row_exp["exploration_volumes"],
+        row_exp["RMSE_model"],
+        marker="o",
+        label=exp_names[i],
+    )  # Normal exploration plot
     ax.set_xscale("log")
 
-    #ax.set_yscale("log")
+    # ax.set_yscale("log")
 
     ax.legend()
     ax.grid(True)
 
-    spar_ax=ax.twinx()
-    spar_ax.scatter(row_exp["exploration_volumes"], row_exp["sparsity_difference"], marker='o',color='r', label=exp_names[i]) # Normal exploration plot
-
+    spar_ax = ax.twinx()
+    spar_ax.scatter(
+        row_exp["exploration_volumes"],
+        row_exp["sparsity_difference"],
+        marker="o",
+        color="r",
+        label=exp_names[i],
+    )  # Normal exploration plot
 
     ideal_solution = ideal_solutions_norm[row_exp["id"].iat[0]]
 
@@ -135,7 +155,7 @@ for i in range(num_exp):
     # ax.bar(np.arange(len(ideal_solution)), ideal_solution, width=1, label="True Model")
 
 
-ghost_axes.set_xlabel("Exploration Volumes",labelpad=20)
+ghost_axes.set_xlabel("Exploration Volumes", labelpad=20)
 
 plt.tight_layout()
 plt.show()
