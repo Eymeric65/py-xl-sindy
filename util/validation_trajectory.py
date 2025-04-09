@@ -12,11 +12,14 @@ import os
 import importlib
 
 import mujoco
+import cv2
+
 import numpy as np 
 import xlsindy
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.gridspec as gridspec
 
 import xlsindy.result_formatting
 
@@ -84,6 +87,10 @@ class Args:
     """the random seed to add for the force function (only used for force function)"""
     plot:bool = False
     """if True, plot the different validation trajectories"""
+    skip_already_done:bool = False
+    """if true, skip the experiment if already present in the result file"""
+    record:bool = False
+    """if true, record the video of the experiment"""
 
 def convert_numbers(data):
     if isinstance(data, dict):
@@ -179,8 +186,38 @@ if __name__ == "__main__":
 
     # Viewer of the experiment
 
-    while mujoco_data.time < args.max_time:
-        mujoco.mj_step(mujoco_model, mujoco_data)
+    if args.record:
+
+        height=720
+        width=1280
+
+        camera = mujoco.MjvCamera()
+        camera.type = mujoco.mjtCamera.mjCAMERA_FIXED
+        camera.fixedcamid = 0  # use the first camera defined in the model
+
+        fps = 60
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video = cv2.VideoWriter("poster_figure/trajectory_validation.mp4", fourcc, fps, (width, height))
+        C=0
+        with mujoco.Renderer(mujoco_model,height,width) as renderer:
+
+            # Create scene and camera; force use of the first (fixed) camera from the model
+
+            while mujoco_data.time < args.max_time:
+                mujoco.mj_step(mujoco_model, mujoco_data)
+                # Update scene using the current simulation state and camera view
+                if C < mujoco_data.time * fps:
+                    renderer.update_scene(mujoco_data, 0)
+                    # Convert RGB to BGR for OpenCV and write the frame
+                    video.write(cv2.cvtColor(renderer.render(), cv2.COLOR_RGB2BGR))
+                    C+=1
+
+        video.release()
+
+    else:
+
+        while mujoco_data.time < args.max_time:
+            mujoco.mj_step(mujoco_model, mujoco_data)
 
 
     # turn the result into a numpy array
@@ -199,17 +236,14 @@ if __name__ == "__main__":
     mujoco_phase[:,1::2] = mujoco_qvel
 
 
-
     sim_key = [key for key in simulation_dict.keys() if key.startswith("result__")]
-    #sim_key=[]
-
 
     mujoco_exp = {}
     mujoco_exp["time"] = mujoco_time
     mujoco_exp["qpos"] = mujoco_qpos
     mujoco_exp["qvel"] = mujoco_qvel
     mujoco_exp["qacc"] = mujoco_qacc
-    mujoco_exp["line_style"] = '--'
+    mujoco_exp["line_style"] =(0, (5, 10)) # loosely dashed
     mujoco_exp["color"] = 'black'
 
     exp_database = {}
@@ -218,7 +252,7 @@ if __name__ == "__main__":
 
         exp_dict=simulation_dict[sim]
 
-        if "solution" in exp_dict  and not "RMSE_trajectory" in exp_dict: # add this for not redundancy : and not "RMSE_trajectory" in exp_dict
+        if "solution" in exp_dict  and (not args.skip_already_done or not "RMSE_trajectory" in exp_dict ): # add this for not redundancy : and not "RMSE_trajectory" in exp_dict
             
 
             _, _, _, catalog_repartition, extra_info = xlsindy_component(mode=exp_dict["algoritm"],random_seed=exp_dict["random_seed"],sindy_catalog_len=exp_dict["catalog_len"])
@@ -240,7 +274,8 @@ if __name__ == "__main__":
             velocity_values = phase_values[:, 1::2]
 
             acceleration_values = np.gradient(velocity_values, time_values, axis=0, edge_order=1)
-            
+
+            exp_database[sim] = {}
             ## Add here the register in the simulation dictionnary the performance of it.
             if np.max(time_values) == args.max_time: # Means that it is successful
                 
@@ -252,10 +287,11 @@ if __name__ == "__main__":
 
                 RMSE_trajectory = xlsindy.result_formatting.relative_mse(phase_values,mujoco_phase_interp)
                 exp_dict["RMSE_trajectory"]=RMSE_trajectory
+                exp_database[sim]["RMSE"]=RMSE_trajectory
                 print("RMSE trajectory :",RMSE_trajectory)
 
 
-            exp_database[sim] = {}
+            
             exp_database[sim]["time"] = time_values
             exp_database[sim]["qpos"] = theta_values
             exp_database[sim]["qvel"] = velocity_values
@@ -269,6 +305,12 @@ if __name__ == "__main__":
 
     generate_colors_for_experiments(exp_database)
 
+    unique_combos = sorted(list(set((exp["algoritm"], exp["optimization_function"]) for exp in exp_database.values())))
+
+    reverse_unique_combos = {combo:i for i,combo in enumerate(unique_combos)}
+
+    exp_database = dict(sorted(exp_database.items(), key=lambda item: item[1]["noise_level"]))
+
     exp_database["mujoco"] = mujoco_exp
 
     simulation_dict = xlsindy.result_formatting.convert_to_strings(simulation_dict)
@@ -278,38 +320,107 @@ if __name__ == "__main__":
 
     if args.plot:
 
-        fig, axs = plt.subplots(3*num_coordinates, 1, sharex=True, figsize=(10, 8))
+        #fig, axs = plt.subplots(3*num_coordinates, 1+len(unique_combos), sharex=True, figsize=(10, 8))
+        fig = plt.figure(figsize=(26, 13))
+        gs = gridspec.GridSpec(nrows=3*num_coordinates, ncols=2+len(unique_combos), figure=fig,width_ratios=[3,0.14]+[1 for _ in range(len(unique_combos)) ],wspace=0.075,hspace=0.1)
+        axs = []
+        
 
+        for i in range(3*num_coordinates):
+            if i==0:
+                
+                axs+=[fig.add_subplot(gs[i,0])]
+            else:
+                axs+=[fig.add_subplot(gs[i,0],sharex=axs[0])]
+
+            if i<3*num_coordinates-1:
+                axs[i].tick_params(labelbottom=False)
+        
+        axs2 = np.empty((3*num_coordinates,len(unique_combos)),dtype=object)
+
+        for i in range(3*num_coordinates):
+
+            for j in range(len(unique_combos)):
+
+                if i==0:
+                    share_x=None
+                else:
+                    sharex=axs2[0,j]
+
+                if j==0:
+                    share_y=None
+                else:
+                    share_y=axs2[i,0]
+
+                axs2[i,j] = fig.add_subplot(gs[i,j+2],sharex=share_x,sharey=share_y)
+                axs2[i,j].grid(axis="y")
+                if i<3*num_coordinates-1:
+                    axs2[i,j].tick_params(labelbottom=False)
+                if j>0:
+                    axs2[i,j].tick_params(labelleft=False)
+        
         # Plot each time series
         for exp in exp_database:
 
             for i in range(num_coordinates):
 
+                if exp=="mujoco" and i==0:
+                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label="real system")
+                else:
+                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
+                axs[num_coordinates+i].plot(exp_database[exp]["time"], exp_database[exp]["qvel"][:,i],  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) 
+
                 if exp=="mujoco":
                     auto_zoom_viewport(axs[i], exp_database[exp]["time"], exp_database[exp]["qpos"][:,i])
                     auto_zoom_viewport(axs[num_coordinates+i], exp_database[exp]["time"], exp_database[exp]["qvel"][:,i])
                     auto_zoom_viewport(axs[num_coordinates*2+i], exp_database[exp]["time"], exp_database[exp]["qacc"][:,i])
+                else: # dependent plot
+                    
+                    combo_indice = reverse_unique_combos[(exp_database[exp]["algoritm"], exp_database[exp]["optimization_function"])]
 
-                if exp != "mujoco" and exp_database[exp]["noise_level"]==0 and i==0:
-                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=exp) #, color='tab:blue')
-                else:
-                    axs[i].plot(exp_database[exp]["time"], exp_database[exp]["qpos"][:,i], c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
-                axs[num_coordinates+i].plot(exp_database[exp]["time"], exp_database[exp]["qvel"][:,i],  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) #, color='tab:orange')
-                axs[num_coordinates*2+i].plot(exp_database[exp]["time"], exp_database[exp]["qacc"][:,i],  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) #, color='tab:green')
+                    mujoco_qpos_interp = np.interp(exp_database[exp]["time"],mujoco_time,mujoco_qpos[:,i])
+                    mujoco_qvel_interp = np.interp(exp_database[exp]["time"],mujoco_time,mujoco_qvel[:,i])
+                    mujoco_qacc_interp = np.interp(exp_database[exp]["time"],mujoco_time,mujoco_qacc[:,i])
+                    if i==0:
+                        if "RMSE" in exp_database[exp]:
+                            axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=f"n:{exp_database[exp]["noise_level"]:.0e} RMSE : {exp_database[exp]["RMSE"]:.1e}")
+                        else:
+                            axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"],label=f"n:{exp_database[exp]["noise_level"]}")
+                    else:
+                        axs2[i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qpos"][:,i]-mujoco_qpos_interp), c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"])
+                    axs2[num_coordinates+i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qvel"][:,i]-mujoco_qvel_interp),  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) 
+                    axs2[num_coordinates*2+i,combo_indice].plot(exp_database[exp]["time"], np.abs(exp_database[exp]["qacc"][:,i]-mujoco_qacc_interp),  c=exp_database[exp]["color"],linestyle=exp_database[exp]["line_style"]) 
+
+
 
         for i in range(num_coordinates):
 
-            axs[i].set_ylabel(f'$q_{{{i}}}$',ha="right",rotation="horizontal")
-            axs[i].legend(loc='upper right')
+            
+            axs[i].set_ylabel(f'$q_{{{i}}}$',ha="center",rotation="vertical")
+            axs[num_coordinates+i].set_ylabel(f'$\\dot{{q}}_{{{i}}}$',ha="center",rotation="vertical")
+            axs[num_coordinates*2+i].set_ylabel(f'$u_{{{i}}}$',ha="center",rotation="vertical")
+            axs[num_coordinates*2+i].plot(mujoco_time, force_vector[:,i],  c="red",linestyle="-") #, color='tab:green')
 
-            axs[num_coordinates+i].set_ylabel(f'$\\dot{{q}}_{{{i}}}$',ha="right",rotation="horizontal")
-            #axs[1].legend(loc='upper right')
+            axs2[i,0].set_ylabel(f'$| q_{{{i}}}- q^i_{{{i}}} |$',ha="center",rotation="vertical")
+            axs2[num_coordinates+i,0].set_ylabel(f'$| \\dot{{q}}_{{{i}}} - \\dot{{q^i}}_{{{i}}} |$',ha="center",rotation="vertical")
+            axs2[num_coordinates*2+i,0].set_ylabel(f'$| \\ddot{{q}}_{{{i}}} - \\ddot{{q^i}}_{{{i}}} |$',ha="center",rotation="vertical")
 
-            axs[num_coordinates*2+i].set_ylabel(f'$\\ddot{{q}}_{{{i}}}$',ha="right",rotation="horizontal")
-            #axs[2].legend(loc='upper right')
+            for j in range(len(unique_combos)):
 
-        axs[-1].set_xlabel('Time')
+                axs2[i,j].set_yscale("log")
+                axs2[num_coordinates+i,j].set_yscale("log")
+                axs2[num_coordinates*2+i,j].set_yscale("log")
+
+        for j in range(len(unique_combos)):
+            axs2[0,j].xaxis.set_label_position('top')  # Move the xlabel to the top
+            axs2[0,j].set_xlabel(f"{unique_combos[j][0]} - {" ".join(unique_combos[j][1].split("_"))}", labelpad=10)  # Top label with padding
+            axs2[0,j].legend(loc="lower right", fontsize=8)
+            axs2[-1,j].set_xlabel("Time (s)")
+
+        axs[0].legend()
+        axs[-1].set_xlabel("Time (s)")
             #axs[3].legend(loc='upper right')
 
-        plt.tight_layout()
+        #plt.tight_layout()
+        fig.savefig(f"poster_figure/trajectory_validation.svg", format="svg")
         plt.show()

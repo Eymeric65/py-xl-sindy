@@ -12,7 +12,9 @@ def darken_color(color, factor):
 df = pd.read_pickle("experiment_database.pkl")
 
 # Create a 'couple' column combining algoritm and optimization_function.
-df['couple'] = df['algoritm'] + " - " + df['optimization_function']
+df['couple'] = df['algoritm'] + " \n " + df['optimization_function'].apply(lambda x:" ".join(x.split("_")))
+
+print("number of system : ",len(df["filename"].unique()))
 
 # Get a sorted list of unique couples.
 couples = sorted(df['couple'].unique())
@@ -28,7 +30,7 @@ max_noise = df['noise_level'].max()
 metrics = ['RMSE_validation', 'RMSE_acceleration', 'RMSE_model',"RMSE_trajectory"]
 
 # Set up three subplots that share the same x-axis.
-fig, axs = plt.subplots(nrows=len(metrics), ncols=1, sharex=True, figsize=(12, 12))
+fig, axs = plt.subplots(nrows=len(metrics), ncols=1, sharex=True, figsize=(14, 12))
 plt.subplots_adjust(hspace=0.3)
 
 width = 0.8  # width available for each couple group
@@ -36,6 +38,10 @@ width = 0.8  # width available for each couple group
 # Loop over each metric and its corresponding subplot.
 for ax, metric in zip(axs, metrics):
     # For each couple, plot a box for each noise level.
+
+    tick_list=[]
+    tick_data=[]
+
     for i, couple in enumerate(couples):
         df_couple = df[df['couple'] == couple]
         # Get unique noise levels for this couple, sorted in ascending order.
@@ -47,10 +53,14 @@ for ax, metric in zip(axs, metrics):
             pos_list = [i]
         else:
             pos_list = np.linspace(i - width/2, i + width/2, n_levels)
+
+        tick_list+=list(pos_list)
         
         for pos, noise,i in zip(pos_list, noise_levels,range(len(pos_list))):
             # Use all non-NaN values for the current metric.
             data = df_couple[df_couple['noise_level'] == noise][metric].dropna().values
+            # Annotate with the count of data points.
+            tick_data+=[len(data)]
             if len(data) == 0:
                 continue  # Skip if there are no valid points.
             
@@ -74,21 +84,29 @@ for ax, metric in zip(axs, metrics):
             for median in bp['medians']:
                 median.set(color='black')
             
-            # Annotate with the count of data points.
-            count = len(data)
-            y_max = np.max(data)
-            ax.text(pos, -0.3, f"n={count}", ha='center', va='top', fontsize=8, color='black')
+            
+
+
+        sec2 = ax.secondary_xaxis(location=0)
+        sec2.set_xticks(tick_list, labels=[f"n={x}" for x in tick_data])
+        sec2.tick_params('x', length=0)
     
-    ax.set_ylabel(metric)
-    ax.set_title(metric)
+    #ax.set_ylabel(metric)
+    ax.set_title(" ".join(metric.split("_")))
+
+    ax.grid(axis="y")
 
 # Set the shared x-axis: one tick per couple.
+
 axs[-1].set_xticks(range(len(couples)))
-axs[-1].set_xticklabels(couples, rotation=45, ha='right')
+axs[-1].set_xticklabels(couples, rotation=0, ha='center')
+axs[-1].tick_params('x',pad=20)
+
 axs[-1].set_xlabel('Couple (algoritm - optimization_function)')
 
 axs[-1].set_yscale("log")
 
-fig.suptitle("Box Plots for RMSE_validation, RMSE_acceleration, and RMSE_model\nby Couple and Noise Level", fontsize=16)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+fig.savefig(f"poster_figure/model_comparison.svg", format="svg")
 plt.show()

@@ -88,6 +88,8 @@ if __name__ == "__main__":
     imported_qacc = sim_data['array4']
     imported_force = sim_data['array5']
 
+    #debug
+    print("debug mujoco :",len(imported_time),np.sum(imported_qpos),np.sum(imported_qvel),np.sum(imported_qacc),np.sum(imported_force))
     #add noise
     imported_qpos+= rng.normal(loc=0,scale=args.noise_level,size=imported_qpos.shape)
     imported_qvel+= rng.normal(loc=0,scale=args.noise_level,size=imported_qvel.shape)
