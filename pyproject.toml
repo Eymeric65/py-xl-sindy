@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-xl-sindy"
-version = "2.0.0"
+version = "2.0.1"
 description = "Library Xl-Sindy simulations"
 authors = ["CHAUCHAT EYMERIC <chauchat.eymeric.r7@dc.tohoku.ac.jp>"]
 license = "MIT"
@@ -16,13 +16,13 @@ scipy = "^1.15.1"
 sympy = "^1.13.3"
 jax = "^0.5.0"
 scikit-learn = "^1.6.1"
+matplotlib = "^3.10.0"
 
 [tool.poetry.group.example]
 optional = true
 
 
 [tool.poetry.group.example.dependencies]
-matplotlib = "^3.10.0"
 tyro = "^0.9.13"
 mujoco = "^3.2.7"
 pandas = "^2.2.3"
