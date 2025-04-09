@@ -42,29 +42,9 @@ python validation_trajectory.py \
 --random-seed 2
 
 python validation_trajectory.py \
---experiment-file "result/cart_pole_double__132_20250221_134011" \
+--experiment-file "result/cart_pole__120_20250221_135658" \
 --max-time 20 \
---plot
-
-python align_data.py \
---experiment-file "result/cart_pole_double__132_20250221_134011" \
---optimization-function ""lasso_regression"" \
---algorithm "sindy" \
---noise-level 0.0 \
---random-seed 1 \
---no-skip-already-done \
---no-validation-on-database
-
-python display_data.py \
---experiment-file "result/cart_pole_double__132_20250221_134011" \
---optimization-function ""lasso_regression"" \
---algorithm "sindy" \
---noise-level 0.0 \
---random-seed 1 
-
-python validation_trajectory.py \
---experiment-file "result/cart_pole__122_20250221_134001" \
---max-time 20 \
---plot \
 --random-seed 2
 
+
+cart_pole__120_20250221_135658
