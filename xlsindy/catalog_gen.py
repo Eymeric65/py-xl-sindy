@@ -1,6 +1,4 @@
 """
-
-
 This file is mainly to create and manage catalog of function that will be use in the xl-sindy algorithm afterward.
 """
 
@@ -374,11 +372,11 @@ def get_additive_equation_term(equation: sympy.Expr):
 def sindy_create_coefficient_matrices(lists):
     """
     Given a list of lists, where each inner list contains tuples of (coefficient, expression),
-    returns:
-      - unique_exprs: a sorted list of unique sympy expressions.
-      - coeff_matrix: a 2D numpy array (dtype=object) of shape (number of unique expressions, n)
-                      with the coefficient for the corresponding expression in each list.
-      - binary_matrix: a 2D numpy integer array with 1 if the corresponding coefficient is non-zero, 0 otherwise.
+
+    Returns:
+        unique_exprs: a sorted list of unique sympy expressions.
+        coeff_matrix: a 2D numpy array (dtype=object) of shape (number of unique expressions, n) with the coefficient for the corresponding expression in each list.
+        binary_matrix: a 2D numpy integer array with 1 if the corresponding coefficient is non-zero, 0 otherwise.
     """
     # Collect all expressions from all lists.
     all_exprs = [expr for sublist in lists for (_, expr) in sublist]
