@@ -24,8 +24,6 @@ import xlsindy.result_formatting
 from datetime import datetime
 import json
 
-from jax import vmap
-
 def auto_zoom_viewport(ax, x, y, margin=0.5):
     """
     Automatically zooms the viewport for a given plot.
@@ -228,12 +226,16 @@ if __name__ == "__main__":
             solution=np.array(exp_dict["solution"])
             #solution=np.array(exp_dict["ideal_solution"])
 
-            model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(solution,catalog_repartition, symbols_matrix, time_sym,lambdify_module="jax")
-
+            model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(solution,catalog_repartition, symbols_matrix, time_sym,lambdify_module="numpy")
+            if not valid_model:
+                print("-----------------------------------------------The model is not valid-------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+                
             model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_wrapper(forces_function)) 
-
-            time_values, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.1)
-
+            try:
+                time_values, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.1)
+            except Exception as e:
+                print(f"An error occurred on the RK45 integration: {e}")
+                continue
             theta_values = phase_values[:, ::2]
             velocity_values = phase_values[:, 1::2]
 
