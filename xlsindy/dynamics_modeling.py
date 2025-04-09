@@ -5,7 +5,7 @@ This module contain every function in order to integrate and generate the dynami
 
 
 import numpy as np
-from .render import print_progress
+from .utils import print_progress
 from scipy import interpolate
 from scipy.integrate import RK45
 from typing import List, Callable, Dict
