@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-xl-sindy"
-version = "2.0.0"
+version = "2.0.1"
 description = "Library Xl-Sindy simulations"
 authors = ["CHAUCHAT EYMERIC <chauchat.eymeric.r7@dc.tohoku.ac.jp>"]
 license = "MIT"
