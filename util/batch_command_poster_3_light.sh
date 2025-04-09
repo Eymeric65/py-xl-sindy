@@ -114,4 +114,9 @@ python batch_file_execute.py \
 --script_args "lasso_regression" "sindy" 0.01 \
 --random-seed 1
 
+cpulimit -l 500 -- python batch_file_execute.py \
+--script "validation_trajectory" \
+--script_args 20 \
+--random-seed 1
+
 python create_panda_database.py
