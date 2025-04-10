@@ -4,7 +4,6 @@ This module include every function in order to run the optimisation step for get
 
 """
 
-
 import numpy as np
 from sklearn.linear_model import Lasso, LassoCV
 from typing import Callable, Tuple, List
@@ -53,6 +52,7 @@ def optimal_sampling(theta_values: np.ndarray, distance_threshold: float) -> np.
             count += 1
 
     return selected_indices[:count]
+
 
 def normalize_experiment_matrix(
     exp_matrix: np.ndarray, null_effect: bool = False
@@ -129,10 +129,11 @@ def covariance_vector(
 
 ## Optimisation function
 
+
 def hard_threshold_sparse_regression(
     forces_vector: np.ndarray,
     exp_matrix: np.ndarray,
-    #catalog: np.ndarray,
+    # catalog: np.ndarray,
     condition_func: Callable = condition_value,
     threshold: float = 0.03,
 ) -> np.ndarray:
@@ -152,7 +153,7 @@ def hard_threshold_sparse_regression(
         exp_matrix, forces_vector, rcond=None
     )
 
-    #print("solution shape",solution.shape)
+    # print("solution shape",solution.shape)
 
     retained_solution = solution.copy()
     result_solution = np.zeros(solution.shape)
@@ -180,9 +181,9 @@ def hard_threshold_sparse_regression(
 
     result_solution[active_indices] = retained_solution
 
-    result_solution = np.reshape(result_solution,(-1,))# flatten
+    result_solution = np.reshape(result_solution, (-1,))  # flatten
 
-    return result_solution # model_fit, result_solution, reduction_count, steps # deprecated
+    return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
 
 
 def lasso_regression(

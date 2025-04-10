@@ -4,6 +4,7 @@ Utility function for XLsindy not related to the main functionnality.
 
 import sys
 
+
 def print_progress(
     iteration: int,
     total: int,

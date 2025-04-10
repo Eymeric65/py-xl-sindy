@@ -3,7 +3,6 @@ This module contain every function in order to integrate and generate the dynami
 
 """
 
-
 import numpy as np
 from .utils import print_progress
 from scipy import interpolate
@@ -18,6 +17,7 @@ from . import euler_lagrange
 from . import catalog_gen
 
 import time
+
 
 def generate_acceleration_function(
     regression_solution: np.ndarray,
@@ -51,12 +51,16 @@ def generate_acceleration_function(
     """
     num_coords = symbol_matrix.shape[1]
 
-    expanded_catalog=catalog_gen.expand_catalog(catalog_repartition,symbol_matrix,time_symbol)
+    expanded_catalog = catalog_gen.expand_catalog(
+        catalog_repartition, symbol_matrix, time_symbol
+    )
 
     dynamic_equations = regression_solution.T @ expanded_catalog
     dynamic_equations = dynamic_equations.flatten()
 
-    dynamic_equations -= np.array([symbol_matrix[0, i] for i in range(num_coords)],dtype=object) # Add external forces
+    dynamic_equations -= np.array(
+        [symbol_matrix[0, i] for i in range(num_coords)], dtype=object
+    )  # Add external forces
 
     valid = True
 
@@ -80,8 +84,8 @@ def generate_acceleration_function(
 
             force_vector[i, 0] = equation
 
-        system_func = sympy.lambdify([symbol_matrix], system_matrix,lambdify_module)
-        force_func = sympy.lambdify([symbol_matrix], force_vector,lambdify_module)
+        system_func = sympy.lambdify([symbol_matrix], system_matrix, lambdify_module)
+        force_func = sympy.lambdify([symbol_matrix], force_vector, lambdify_module)
 
         if lambdify_module == "jax":
 
@@ -96,12 +100,13 @@ def generate_acceleration_function(
                 system_eval = system_func(input_values)
                 force_eval = force_func(input_values)
                 return np.linalg.solve(system_eval, force_eval)
-        
+
         acc_func = acceleration_solver
 
-    else: # Fail
+    else:  # Fail
         acc_func = None
     return acc_func, valid
+
 
 def dynamics_function(
     acceleration_function: Callable[[np.ndarray], np.ndarray],
@@ -140,6 +145,7 @@ def dynamics_function(
 
     return func
 
+
 def dynamics_function_fixed_external(
     acceleration_function: Callable[[np.ndarray], np.ndarray],
 ) -> Callable[[np.ndarray], Callable[[float, np.ndarray], np.ndarray]]:
@@ -175,10 +181,11 @@ def dynamics_function_fixed_external(
             result[:, 0] = state[:, 1]
             result[:, 1] = acceleration_function(input_matrix)[:, 0]
             return np.reshape(result, (-1,))
-        
+
         return func
 
     return ret_func
+
 
 def dynamics_function_RK4_env(
     acceleration_function: Callable[[np.ndarray], np.ndarray],
@@ -197,17 +204,30 @@ def dynamics_function_RK4_env(
         function: return a function that take in input fixed force vector and forces and return a Dynamics function compatible with classical integration solver.
     """
 
-    def ret_func(state,forces):
+    def ret_func(state, forces):
 
-        state = jnp.reshape(state,(-1, 2))
+        state = jnp.reshape(state, (-1, 2))
 
         state_transposed = jnp.transpose(state)
-        input_matrix = jnp.concatenate([jnp.reshape(forces,(1,-1)),state_transposed,jnp.zeros((1,forces.shape[0]))],axis=0)
+        input_matrix = jnp.concatenate(
+            [
+                jnp.reshape(forces, (1, -1)),
+                state_transposed,
+                jnp.zeros((1, forces.shape[0])),
+            ],
+            axis=0,
+        )
 
-        result = jnp.concatenate([jnp.reshape(state[:, 1],(-1,1)),jnp.reshape(acceleration_function(input_matrix)[:, 0],(-1,1))],axis=1)
+        result = jnp.concatenate(
+            [
+                jnp.reshape(state[:, 1], (-1, 1)),
+                jnp.reshape(acceleration_function(input_matrix)[:, 0], (-1, 1)),
+            ],
+            axis=1,
+        )
 
-        return jnp.reshape(result, (-1,))       
-    
+        return jnp.reshape(result, (-1,))
+
     return ret_func
 
 
@@ -216,7 +236,7 @@ def run_rk45_integration(
     initial_state: np.ndarray,
     time_end: float,
     max_step: float = 0.05,
-    min_step:float = 1e-4
+    min_step: float = 1e-4,
 ) -> List[np.ndarray]:
     """
     Runs an RK45 integration on a dynamics model.
@@ -232,14 +252,23 @@ def run_rk45_integration(
     """
     initial_state_flat = np.reshape(initial_state, (-1,))
 
-    model = RK45(dynamics, 0, initial_state_flat, time_end, max_step, 0.001, np.e**-6,first_step=min_step*5) # TO INVESTIGATE
+    model = RK45(
+        dynamics,
+        0,
+        initial_state_flat,
+        time_end,
+        max_step,
+        0.001,
+        np.e**-6,
+        first_step=min_step * 5,
+    )  # TO INVESTIGATE
 
     time_values = [0]
     state_values = [initial_state_flat]
 
-    first_step_cursed = np.abs(np.sum(dynamics(0,initial_state_flat)))
+    first_step_cursed = np.abs(np.sum(dynamics(0, initial_state_flat)))
 
-    if np.isnan( first_step_cursed) or np.isinf(first_step_cursed):
+    if np.isnan(first_step_cursed) or np.isinf(first_step_cursed):
         print("Dynamics function fail on first step")
         time_values.append(model.t)
         state_values.append(model.y)
@@ -254,8 +283,7 @@ def run_rk45_integration(
                     time_values.append(model.t)
                     state_values.append(model.y)
 
-
-                    if (model.step_size is not None ) and (model.step_size < min_step):
+                    if (model.step_size is not None) and (model.step_size < min_step):
                         raise RuntimeError()
             print_progress(model.t, time_end)
 
@@ -299,7 +327,7 @@ def generate_random_force(
         period_initial,
         period_shift_initial,
         component_count,
-        random_gen
+        random_gen,
     )
 
     # Calculate period, shift, and variance for the current augmentation level
@@ -330,7 +358,7 @@ def optimized_force_generator(
     period: float,
     period_shift: float,
     augmentations: int = 50,
-    random_seed:List[int] =[20]
+    random_seed: List[int] = [20],
 ) -> Callable[[float], np.ndarray]:
     """
     Generates an optimized force function, applying a scale vector to the generated force.
@@ -352,7 +380,13 @@ def optimized_force_generator(
 
     # Generate the recursive force function
     base_force_function = generate_random_force(
-        time_end, 0, augmentations, period, period_shift, component_count,random_gen=rng
+        time_end,
+        0,
+        augmentations,
+        period,
+        period_shift,
+        component_count,
+        random_gen=rng,
     )
 
     def force_function(t: float) -> np.ndarray:
@@ -364,12 +398,8 @@ def optimized_force_generator(
 
     return force_function
 
-def vectorised_acceleration_generation(
-        dynamic_system:Callable,
-        qpos,
-        qvel,
-        force
-):
+
+def vectorised_acceleration_generation(dynamic_system: Callable, qpos, qvel, force):
     """
     Take a dynamic system function after being vectorised model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1) and return a batch of acceleration
     """

@@ -4,7 +4,6 @@ This module contain some render function for the basics experiment
 
 """
 
-
 import sys
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -56,7 +55,11 @@ def animate_single_pendulum(
 
 
 def animate_double_pendulum(
-    length1: float, length2: float, angle_array: np.ndarray, time_array: np.ndarray, fig= None
+    length1: float,
+    length2: float,
+    angle_array: np.ndarray,
+    time_array: np.ndarray,
+    fig=None,
 ):
     """
     Animates a double pendulum based on its segment lengths, angles, and time steps.
@@ -77,7 +80,6 @@ def animate_double_pendulum(
     if fig == None:
         fig = plt.figure(figsize=(5, 4))
 
-    
     ax = fig.add_subplot(
         autoscale_on=False,
         xlim=(-total_length, total_length),
@@ -107,35 +109,3 @@ def animate_double_pendulum(
         fig, update_frame, len(angle_array), interval=40, blit=True
     )
     plt.show()
-
-
-def print_progress(
-    iteration: int,
-    total: int,
-    prefix: str = "",
-    suffix: str = "",
-    decimals: int = 1,
-    bar_length: int = 100,
-):
-    """
-    Displays a progress bar in the terminal.
-
-    Parameters:
-        iteration (int): Current iteration.
-        total (int): Total number of iterations.
-        prefix (str, optional): Prefix for the progress bar.
-        suffix (str, optional): Suffix for the progress bar.
-        decimals (int, optional): Number of decimal places to show in the percentage.
-        bar_length (int, optional): Length of the progress bar in characters.
-    """
-    format_str = "{0:." + str(decimals) + "f}"
-    percentage_complete = format_str.format(100 * (iteration / float(total)))
-    filled_length = int(round(bar_length * iteration / float(total)))
-    bar = "*" * filled_length + "-" * (bar_length - filled_length)
-    sys.stdout.write(
-        "\r%s |%s| %s%s %s" % (prefix, bar, percentage_complete, "%", suffix)
-    ),
-    sys.stdout.flush()
-    if iteration == total:
-        sys.stdout.write("\n")
-        sys.stdout.flush()

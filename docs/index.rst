@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 py-xl-sindy documentation
-=====================
+=========================
 
 The python Xl-sindy library provides function in order to run Sparse Identification of Non linear DYnamics through lagrangian dynamics.
 
@@ -15,6 +15,14 @@ For a better understanding of the whole framework it is recommanded to read the 
 
 .. toctree::
    :maxdepth: 4
-   :caption: Contents:
+   :caption: Package content :
 
-   xlsindy
+   xlsindy.catalog_gen
+   xlsindy.dynamics_modeling
+   xlsindy.euler_lagrange
+   xlsindy.optimization
+   xlsindy.render
+   xlsindy.simulation
+   xlsindy.result_formatting
+   xlsindy.utils
+   xlsindy.sindy_utils

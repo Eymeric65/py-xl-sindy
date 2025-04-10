@@ -3,12 +3,12 @@
 This module primarly focus on symbolic variable and enable to do the different manipulation in order to get the experiment matrix
 
 """
+
 import numpy as np
 import sympy
 import time
 from typing import List, Callable, Dict, Tuple
 import jax.numpy as jnp
-
 
 
 def compute_euler_lagrange_equation(
@@ -45,11 +45,12 @@ def compute_euler_lagrange_equation(
 
     return dL_dq - time_derivative
 
+
 def newton_from_lagrangian(
-        lagrangian_expr:sympy.Expr,
-        symbol_matrix: np.ndarray,
-        time_symbol: sympy.Symbol,
-)-> List[sympy.Expr]:
+    lagrangian_expr: sympy.Expr,
+    symbol_matrix: np.ndarray,
+    time_symbol: sympy.Symbol,
+) -> List[sympy.Expr]:
     """
     Compute all the equation from the lagrangian in order to get newton system.
 
@@ -62,15 +63,20 @@ def newton_from_lagrangian(
         List[sympy.Expr]: The Newton equations of the system.
     """
 
-    n= symbol_matrix.shape[1]
+    n = symbol_matrix.shape[1]
 
-    res=[]
+    res = []
 
     for i in range(n):
 
-        res+=[compute_euler_lagrange_equation(lagrangian_expr,symbol_matrix,time_symbol,i)]
+        res += [
+            compute_euler_lagrange_equation(
+                lagrangian_expr, symbol_matrix, time_symbol, i
+            )
+        ]
 
     return res
+
 
 def create_experiment_matrix(
     num_coords: int,
@@ -80,7 +86,7 @@ def create_experiment_matrix(
     position_values: np.ndarray,
     velocity_values: np.ndarray,
     acceleration_values: np.ndarray,
-    friction_order_one:bool = False,
+    friction_order_one: bool = False,
 ) -> List[np.ndarray]:
     """
     Create the SINDy experiment matrix.
@@ -107,9 +113,7 @@ def create_experiment_matrix(
 
     catalog_lenght = catalogs.shape[0]
 
-    experiment_matrix = np.zeros(
-        ((sampled_steps) * num_coords, catalog_lenght)
-    )
+    experiment_matrix = np.zeros(((sampled_steps) * num_coords, catalog_lenght))
 
     q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
     q_matrix[1, :, :] = np.transpose(position_values)
@@ -121,7 +125,7 @@ def create_experiment_matrix(
         catalog_lambda = list(
             map(
                 lambda x: sympy.lambdify([symbol_matrix], x, modules="numpy"),
-                catalogs[:,i],
+                catalogs[:, i],
             )
         )
 
