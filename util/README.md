@@ -26,8 +26,8 @@ To give a clearer view of the different util script, I will give the different s
 #### Figure / result generation
 
 - `validation_trajectory.py` *parameter* `record` `plot`: **Generate** video record of a new *ideal validation trajectory* and plot the different **retrieved model deviation** with this new *ideal validation trajectory*
-[validation trajectory exemple](/util/exemple_figures/trajectory_validation.svg)
+![validation trajectory exemple](/util/exemple_figures/trajectory_validation.svg)
 - `method_comparison.py` (and `method_comparison_tiny.py`) : **Generate** a matrix plot that cross compare each method and noise level, *following* a choosen *metric*
-[validation trajectory exemple](/util/exemple_figures/method_comparison_RMSE_trajectory.svg)
+![validation trajectory exemple](/util/exemple_figures/method_comparison_RMSE_trajectory.svg)
 - `metric_comparison.py` : **Generate** a plot of each metric score depending on the method and noise level.
-[validation trajectory exemple](/util/exemple_figures/metric_comparison.svg)
+![validation trajectory exemple](/util/exemple_figures/metric_comparison.svg)

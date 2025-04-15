@@ -36,7 +36,7 @@ def run_command(cmd):
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout, result.stderr
 
-
+## Actually this function is DEPRECATED, it is not used anymore
 def mujoco_align_cmd_creator(exp, max_time, forces_scale, random_seeds):
 
     return [
