@@ -19,7 +19,7 @@ import xlsindy
 
 For extensive usage, it is strongly recommended to read the doc and the exemple file provided in this repository.
 
-For batch generation and a complete analysys framework can be found in [util](/util/)
+Batch generation and complete analysis framework can be found in [util](/util/)
 
 ## Citing this library
 
