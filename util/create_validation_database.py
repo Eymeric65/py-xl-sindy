@@ -6,7 +6,7 @@ import pandas as pd
 # Directories and file pattern
 filing_percentage = 0.5
 result_dir = "result"
-output_dir = "mujoco_align_data"
+
 pattern = os.path.join(result_dir, "*__*.npz")
 file_list = glob.glob(pattern)
 

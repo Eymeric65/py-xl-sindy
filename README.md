@@ -19,6 +19,8 @@ import xlsindy
 
 For extensive usage, it is strongly recommended to read the doc and the exemple file provided in this repository.
 
+Batch generation and complete analysis framework can be found in [util](/util/)
+
 ## Citing this library
 
 The following bibtex can be used to cite the library :
@@ -31,6 +33,8 @@ The following bibtex can be used to cite the library :
   note         = {Version 1.0.0, released on 2024-11-19},
 }
 ```
+
+Multiple research work are on-going and can be tracked in [research_work](/research_work/)
 
 ## Theorical background and DevBlog
 
