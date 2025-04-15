@@ -6,6 +6,6 @@
 
  A research has been made for the Tohoku University internal research seminar of second semester of 2024.
 
- ![research poster](/research_work/figures/poster_draft_rotated.svg)
+ ![research poster](/research_work/figures/poster.svg)
 
  All the ressources in order to reproduce the poster can be found in [util](/util/)
