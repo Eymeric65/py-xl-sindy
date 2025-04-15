@@ -1,4 +1,6 @@
 """ 
+(DEPRECATED) *this script has been deprecated and replaced by the whole framework presented in folder README.md*
+
 The goal of this script is to align xl_sindy algorithm with the Mujoco environment.
 The script takes in input :
 - the simulation folder containing the mujoco environment.xml file and the xlsindy_gen.py script

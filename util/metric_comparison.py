@@ -118,5 +118,5 @@ axs[-1].set_yscale("log")
 
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 
-fig.savefig(f"poster_figure/model_comparison.svg", format="svg")
+fig.savefig(f"poster_figure/metric_comparison.svg", format="svg")
 plt.show()

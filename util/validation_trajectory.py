@@ -67,14 +67,12 @@ def generate_colors_for_experiments(experiments):
     noise_attenuation = {lvl: 1 - (i / len(unique_noise_levels)) * 0.66 for i, lvl in enumerate(unique_noise_levels)}
 
     # Assign colors to experiments
-    experiment_colors = {}
     for exp_name, exp in experiments.items():
         base_color = np.array(base_colors[(exp["algoritm"], exp["optimization_function"])])
         attenuation_factor = noise_attenuation[exp["noise_level"]]
         darkened_color = base_color[:3] * attenuation_factor  # Apply attenuation to RGB only
         exp["color"] = (*darkened_color, base_color[3])  # Keep original alpha value
 
-    return experiment_colors
 
 
 @dataclass

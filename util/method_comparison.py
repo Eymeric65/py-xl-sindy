@@ -2,114 +2,135 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as mcolors
+import matplotlib.cm as cm
+import colorsys
 
+def get_text_color(rgb):
+    r, g, b = rgb
+    def adjust(c):
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    
+    L = 0.2126 * adjust(r) + 0.7152 * adjust(g) + 0.0722 * adjust(b)
+
+    return "black" if L > 0.179  else "white"
 
 # Helper function to darken a color by a given factor.
-# factor should be between 0 and 1 (1 returns the original color).
-def darken_color(color, factor):
-    rgb = mcolors.to_rgb(color)
-    return tuple(c * factor for c in rgb)
 
-
-# Load your DataFrame
+# Load the DataFrame.
 df = pd.read_pickle("experiment_database.pkl")
 
-# Filter: Only keep files that succeeded on every sub-experiment,
-# i.e. for each file, every RMSE_validation is not NaN.
-valid_files = df.groupby("filename")["RMSE_validation"].apply(lambda x: x.notna().all())
-valid_files = valid_files[valid_files].index  # filenames where all are True
-df = df[df["filename"].isin(valid_files)]
+#metric_checked = "RMSE_acceleration"
+#metric_checked = "RMSE_validation"
+#metric_checked = "RMSE_trajectory"
+metric_checked = "RMSE_model"
 
-# Create a column that identifies the (algoritm, optimization_function) couple.
-df["couple"] = df["algoritm"] + " - " + df["optimization_function"]
+# Group the DataFrame by the unique condition tuple.
+unique_groups = df[['algoritm', 'optimization_function', 'noise_level']].drop_duplicates()
 
-# Get a sorted list of unique couples (sorted alphabetically)
-couples = sorted(df["couple"].unique())
 
-# Set up a base color for each couple using the tab10 colormap.
-cmap = plt.cm.get_cmap("tab10")
-base_colors = {}
-for i, couple in enumerate(couples):
-    base_colors[couple] = cmap(i % 10)
 
-# Determine the maximum noise level in the dataset (for scaling darkening)
-max_noise = df["noise_level"].max()
 
-# Prepare the plot.
-fig, ax = plt.subplots(figsize=(12, 6))
-width = 0.8  # width available for each couple group
-legend_entries = {}
+grouped = df.groupby(['algoritm', 'optimization_function', 'noise_level'])[['filename', metric_checked]]
+# Convert to a list of tuples
 
-# For each couple, plot a box for each noise level.
-for i, couple in enumerate(couples):
-    # Filter data for this couple.
-    df_couple = df[df["couple"] == couple]
-    # Get unique noise levels for this couple (sorted in ascending order).
-    noise_levels = sorted(df_couple["noise_level"].unique())
-    n_levels = len(noise_levels)
+group_list = [x for x,_ in grouped]
 
-    # Compute x positions within the group.
-    if n_levels == 1:
-        pos_list = [i]
-    else:
-        pos_list = np.linspace(i - width / 2, i + width / 2, n_levels)
+group_list = sorted(group_list)
 
-    # Plot a box plot for each noise level.
-    for pos, noise in zip(pos_list, noise_levels):
-        # Select the RMSE_validation data for this noise level.
-        data = df_couple[df_couple["noise_level"] == noise]["RMSE_validation"].values
 
-        # Determine the color: noise==0 uses the base color, otherwise darken relative to max_noise.
-        base_color = base_colors[couple]
-        if noise == 0:
-            color = base_color
-        else:
-            # Darkening factor: noise 0 gives factor 1; max_noise gives factor ~0.5.
-            factor = 1 - (noise / max_noise * 0.5)
-            color = darken_color(base_color, factor)
 
-        # Create the boxplot for this noise level.
-        bp = ax.boxplot(
-            data,
-            positions=[pos],
-            widths=width / (n_levels + 1),
-            patch_artist=True,
-            showfliers=False,
-        )
-        for box in bp["boxes"]:
-            box.set(facecolor=color, alpha=0.7)
-        for whisker in bp["whiskers"]:
-            whisker.set(color=color)
-        for cap in bp["caps"]:
-            cap.set(color=color)
-        for median in bp["medians"]:
-            median.set(color="black")
+# Create an empty 2D grid (DataFrame) with groups as row and column labels
+double_entry_table_result = pd.DataFrame(index=group_list, columns=group_list, dtype=float)
+double_entry_table_count = pd.DataFrame(index=group_list, columns=group_list, dtype=float)
 
-        # Build a legend entry (one per couple and noise level combination).
-        label = f"{couple} (noise={noise})"
-        if label not in legend_entries:
-            legend_entries[label] = plt.Line2D(
-                [],
-                [],
-                color=color,
-                marker="s",
-                linestyle="None",
-                markersize=10,
-                label=label,
-            )
 
-# Set x-axis: one tick per couple.
-ax.set_xticks(range(len(couples)))
-ax.set_xticklabels(couples, rotation=45, ha="right")
-ax.set_ylabel("RMSE_validation")
-ax.set_title(
-    "Box Plot of RMSE_validation for each (algoritm, optimization_function) couple by noise level"
-)
-ax.legend(
-    legend_entries.values(),
-    legend_entries.keys(),
-    bbox_to_anchor=(1.05, 1),
-    loc="upper left",
-)
+group_num = len(grouped)
+
+
+
+# Example: Iterate over all groups
+for group_key1, group_df1 in grouped:
+
+    for group_key2, group_df2 in grouped:  
+
+        merged_df = pd.merge(group_df1, group_df2, on="filename", suffixes=('_df1', '_df2')).dropna()
+        merged_df["evolution"] = (merged_df[metric_checked+'_df1']-merged_df[metric_checked+'_df2'])/(merged_df[metric_checked+'_df1']+merged_df[metric_checked+'_df2'])
+
+        double_entry_table_result.at[group_key2,group_key1] = merged_df["evolution"].mean()*100
+        double_entry_table_count.at[group_key2,group_key1] = len(merged_df)
+
+
+
+
+# Assuming double_entry_table_result is a DataFrame
+fig, ax = plt.subplots(figsize=(16, 13))  # Increased size for better readability
+
+colormap=cm.RdYlGn
+
+cax = ax.matshow(double_entry_table_result, cmap=colormap, vmin=-100, vmax=100)
+
+# Add color bar
+plt.colorbar(cax)
+
+# Extract noise levels (assuming they are stored as third elements in tuples)
+noise_levels = [str(item[2]) for item in group_list]
+
+
+ax.set_xticks(np.arange(len(noise_levels)))
+ax.tick_params(bottom=True, labelbottom=True,top=False, labeltop=False)
+ax.set_xticklabels(noise_levels, rotation=0, fontsize=8)  # Rotated for readability
+
+#Extract main categories (first two elements)
+
+master_labels = [(item[0], item[1]) for item in group_list[::4]]
+
+# label the classes X axis:
+sec = ax.secondary_xaxis(location=0)
+position_label_tick = (np.arange(len(noise_levels)/4)+.5)*len(noise_levels)/4 -0.5
+sec.set_xticks(position_label_tick, labels=[f"\n \n {x[0]} \n {" ".join(x[1].split("_"))}" for x in master_labels[:4]],fontsize=10)
+sec.tick_params('x', length=0)
+
+sec2 = ax.secondary_xaxis(location=0)
+position_label_tick = (np.arange(len(noise_levels)/4+1))*len(noise_levels)/4 -0.5
+sec2.set_xticks(position_label_tick, labels=[])
+sec2.tick_params('x', length=40, width=1.5)
+
+# label the classes Y axis:
+sec3 = ax.secondary_yaxis(location=0)
+position_label_tick = (np.arange(len(noise_levels)/4)+.5)*len(noise_levels)/4 -0.5
+sec3.set_yticks(position_label_tick, labels=[f"{x[0]} \n {" ".join(x[1].split("_"))}" for x in master_labels[:4]],fontsize=10)
+sec3.tick_params('y', length=0,pad=30)
+
+sec4 = ax.secondary_yaxis(location=0)
+position_label_tick = (np.arange(len(noise_levels)/4+1))*len(noise_levels)/4 -0.5
+sec4.set_yticks(position_label_tick, labels=[])
+sec4.tick_params('y', length=40, width=1.5)
+
+
+# Set y-ticks
+ax.set_yticks(np.arange(len(noise_levels)))
+ax.set_yticklabels(noise_levels, fontsize=8)
+
+# Show values in the cells
+
+max_result = np.nanmax(double_entry_table_result.to_numpy())
+
+min_result = np.nanmin(double_entry_table_result.to_numpy())
+
+def normalise(point):
+    return (point+100)/200
+
+for i in range(len(group_list)):
+    for j in range(len(group_list)):
+        if np.isfinite(double_entry_table_result.iloc[i, j]):
+
+            text_color=get_text_color(colormap(normalise(double_entry_table_result.iloc[i, j]))[:3])
+
+            ax.text(j, i, f'{double_entry_table_result.iloc[i, j]:.0f}%', ha='center', va='bottom', color=text_color)
+            ax.text(j, i+0.05, f'{double_entry_table_count.iloc[i, j]:.0f}', ha='center', va='top', color=text_color,fontsize=8)
+
+plt.title(f"Cross comparison of algorithm and optimization function over {" ".join(metric_checked.split("_"))}")
 plt.tight_layout()
-plt.show()
+
+fig.savefig(f"poster_figure/method_comparison_{metric_checked}.svg", format="svg")
+#plt.show()
