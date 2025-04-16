@@ -43,6 +43,8 @@ class Args:
     """if true, skip the experiment if already present in the result file"""
     validation_on_database: bool = True
     """if true validate the model on the database file"""
+    biparted_graph: bool = False
+    """if true, plot the biparted graph in a svg file"""
 
 
 def extract_validation(database_pickle: str, training_filename: str):
@@ -174,6 +176,15 @@ if __name__ == "__main__":
         apply_normalization=True,
         regression_function=regression_function,
     )
+
+    if args.biparted_graph:
+
+        print(catalog_repartition)
+
+        print(xlsindy.catalog_gen.label_catalog(catalog_repartition))
+
+        exit()
+
 
     # DEBUG
     # solution = extra_info["ideal_solution_vector"]

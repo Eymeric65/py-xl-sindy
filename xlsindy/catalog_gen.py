@@ -333,8 +333,9 @@ def create_solution_expression(
     return model_expression
 
 
-def label_catalog(catalog, non_null_term):
-    """Convert the catalog into label"""
+def label_catalog_old(catalog, non_null_term):
+    """(DEPRECATED)
+    Convert the catalog into label"""
     res = []
     for index in non_null_term[:, 0]:
 
@@ -343,7 +344,6 @@ def label_catalog(catalog, non_null_term):
         else:
             res += ["${}$".format(latex(catalog[index]).replace("qd", "\\dot{q}"))]
     return res
-
 
 def get_additive_equation_term(equation: sympy.Expr):
     """
@@ -411,10 +411,11 @@ def sindy_create_coefficient_matrices(lists):
     return unique_exprs, coeff_matrix, binary_matrix
 
 
-def translate_coeff_matrix(
+def translate_coeff_matrix_dep(
     coeff_matrix: np.ndarray, expand_matrix: np.ndarray
 ) -> np.ndarray:
     """
+    (DEPRECATED) as been replaced by a more generalized version
     Translate the coefficient matrix into a column vector corresponding to the ordering
     of the expanded catalog matrix (as produced by classical_sindy_expand_catalog).
 
@@ -434,6 +435,67 @@ def translate_coeff_matrix(
     # Reshape into a column vector.
     coeff_vector = coeff_flat.reshape(-1, 1)
     return coeff_vector
+
+def translate_coeff_matrix(
+    coeff_matrix: np.ndarray, expand_matrix: np.ndarray
+) -> np.ndarray:
+    """
+    Translate the coefficient matrix into a column vector corresponding to the ordering
+    of the expanded catalog matrix (as produced by classical_sindy_expand_catalog).
+
+    Args:
+        coeff_matrix (np.ndarray): A matrix of shape (len(catalog), n) containing the coefficients.
+        expand_matrix (np.ndarray): A binary matrix of shape (len(catalog), n) that indicates
+                                    where each catalog function is applied (1 means applied).
+
+    Returns:
+        np.ndarray: A column vector of shape (expand_matrix.sum(), 1) containing the coefficients,
+                    in the order that matches the expanded catalog.
+    """
+    # Flatten the expand matrix in row-major order and find indices where its value is 1.
+    mask = expand_matrix.ravel() == 1
+
+    # Use boolean indexing to select corresponding coefficients (works for any dtype).
+    coeff_flat = coeff_matrix.ravel()[mask]
+
+    # Reshape into a column vector.
+    coeff_vector = coeff_flat.reshape(-1, 1)
+    return coeff_vector
+
+def label_catalog(catalog_repartition):
+    """
+    Convert the catalog into label
+
+    Args:
+        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
+
+    Returns:
+        List[str]: List of labels for the catalog.
+    """
+    res = []
+    for catalog in catalog_repartition:
+
+        name, *args = catalog
+
+        if name == "lagrangian":
+            res += ["${}$".format(latex(x).replace("qd", "\\dot{q}")) for x in args[0]]
+
+        elif name == "classical":
+
+            catalog = np.array(list(map(lambda x:latex(x).replace("qdd", "\\ddot{q}").replace("qd", "\\dot{q}"),args[0])))
+            expand_matrix = args[1]
+
+            #Create the label array
+            row_label = np.array([" on $q_{{}}$".format(i) for i in range(expand_matrix.shape[1])])
+
+            label = catalog[:, None] + row_label 
+
+            res += translate_coeff_matrix(label,expand_matrix)
+
+        else:
+            raise ValueError("catalog not recognised")
+
+    return res
 
 
 def augment_catalog(

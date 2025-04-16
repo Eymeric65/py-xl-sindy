@@ -17,6 +17,7 @@ sympy = "^1.13.3"
 jax = "^0.5.0"
 scikit-learn = "^1.6.1"
 matplotlib = "^3.10.0"
+networkx = "^3.4.2"
 
 [tool.poetry.group.example]
 optional = true

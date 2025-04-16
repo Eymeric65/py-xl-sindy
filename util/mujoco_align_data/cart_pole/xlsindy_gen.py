@@ -140,7 +140,7 @@ def xlsindy_component(
         # complete the catalog
 
         function_catalog_0 = [lambda x: symbols_matrix[3, x]]  # \ddot{x}
-        function_catalog_1 = [lambda x: symbols_matrix[2, x]]  # \ddot{x}
+        function_catalog_1 = [lambda x: symbols_matrix[2, x]]  # \dot{x}
         function_catalog_2 = [
             lambda x: sp.sin(symbols_matrix[1, x]),
             lambda x: sp.cos(symbols_matrix[1, x]),
