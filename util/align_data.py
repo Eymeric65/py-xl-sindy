@@ -179,9 +179,24 @@ if __name__ == "__main__":
 
     if args.biparted_graph:
 
-        print(catalog_repartition)
+        catalog_label = xlsindy.catalog_gen.label_catalog(catalog_repartition)
 
-        print(xlsindy.catalog_gen.label_catalog(catalog_repartition))
+        ground_truth_indices = np.argwhere( extra_info["ideal_solution_vector"].flatten() != 0).flatten()
+        
+        b_label = ["$q_{{{}}}$".format(i) for i in range(num_coordinates)]
+
+        print(len(catalog_label))
+
+        link = xlsindy.render.bipartite_link(exp_matrix, num_coordinates, catalog_label,b_label )
+
+        xlsindy.render.plot_bipartite_graph_svg(
+            catalog_label,
+            b_label,
+            link,
+            ground_truth_indices,
+            output_file=f"bipartite_graph_{args.algorithm}_{args.optimization_function}_{args.experiment_file.split('/')[-1]}_min.svg",
+            important_exclusive=True,
+        )
 
         exit()
 

@@ -11,7 +11,184 @@ import numpy as np
 import networkx as nx
 from matplotlib.patches import FancyBboxPatch
 
-def plot_bipartite_graph_svg(x_names, b_names, edges, x_sol_indices, output_file="fancy_bipartite_graph.svg"):
+def plot_bipartite_graph_svg(x_names, b_names, edges, x_sol_indices, output_file="fancy_bipartite_graph.svg", iterations=5,important_exclusive=False):
+    """
+    Plots a bipartite graph with custom node ordering and auto-sized node boxes.
+    
+    Improvements:
+      1. Custom node ordering:
+         - Uses a simple iterative barycenter approach that reorders nodes so that each is placed
+           closer to the average position of its connected nodes.
+         - x_nodes appear at x=0 and b_nodes at x=1, with y-positions assigned by the ordering.
+      2. Auto sizing for node boxes:
+         - Node widths are determined by the maximum label length (scaled by a factor); you can adjust
+           the scaling factor to suit your design needs.
+    
+    Parameters:
+      x_names (list of str): Names for x nodes.
+      b_names (list of str): Names for b nodes.
+      edges (list of tuple): Each tuple (x_name, b_name) represents an edge.
+      x_sol_indices (list of int): Indices (with respect to x_names) for important x nodes.
+      output_file (str): Filename for the output SVG.
+      iterations (int): Number of iterations to update barycenter orders.
+    """
+
+    # Determine the important x nodes.
+    important_x = {x_names[i] for i in x_sol_indices}
+
+    if important_exclusive:
+        # If important_exclusive is True, only keep important x nodes.
+        x_names = [x for x in x_names if x in important_x]
+    
+    # Build the graph.
+    G = nx.Graph()
+    for x in x_names:
+        G.add_node(x, bipartite=0)
+    for b in b_names:
+        G.add_node(b, bipartite=1)
+    for x, b in edges:
+        if x in x_names and b in b_names:
+            G.add_edge(x, b)
+        #else:
+            #raise ValueError(f"Edge {(x, b)} contains a node not provided in the node lists.")
+
+    # Build connection dictionaries for the barycenter calculation.
+    # For each x node, list the connected b nodes; similarly for b nodes.
+    x_connections = {x: [] for x in x_names}
+    b_connections = {b: [] for b in b_names}
+    for x, b in edges:
+        if x in x_names and b in b_names:
+            x_connections[x].append(b)
+            b_connections[b].append(x)
+
+    # Initialize orders with the given lists.
+    x_order = list(x_names)
+    b_order = list(b_names)
+    
+    # Iterate to compute barycenters and update orders.
+    for _ in range(iterations):
+        # Update x ordering based on positions of connected b nodes.
+        def barycenter_x(x):
+            if x_connections[x]:
+                # Average index of connected b nodes
+                return sum(b_order.index(b) for b in x_connections[x]) / len(x_connections[x])
+            return 0
+        x_order.sort(key=barycenter_x)
+        
+        # Update b ordering based on positions of connected x nodes.
+        def barycenter_b(b):
+            if b_connections[b]:
+                return sum(x_order.index(x) for x in b_connections[b]) / len(b_connections[b])
+            return 0
+        b_order.sort(key=barycenter_b)
+    
+    # Now assign positions: x nodes at x=0 and b nodes at x=1.
+    pos = {}
+    n_x = len(x_order)
+    n_b = len(b_order)
+
+    scale=max(n_x,20)
+
+    for i, node in enumerate(x_order):
+        # y positions equally spaced (inverted so that 0 is at the bottom and 1 at the top).
+        pos[node] = (0*scale, (1 - (i / (n_x - 1) if n_x > 1 else 0.5))*scale)
+    for i, node in enumerate(b_order):
+        pos[node] = (1*scale, (1 - (i / (n_b - 1) if n_b > 1 else 0.5))*scale)
+    
+
+    
+    # Separate edges into those from important x nodes and the rest.
+    important_edges = []
+    other_edges = []
+    for u, v in G.edges():
+        # Determine the x-node in the edge.
+        if u in x_names and v in b_names:
+            xnode = u
+        elif v in x_names and u in b_names:
+            xnode = v
+        else:
+            continue
+        if xnode in important_x:
+            important_edges.append((u, v))
+        else:
+            other_edges.append((u, v))
+    
+    # Create figure and axis.
+    fig, ax = plt.subplots(figsize=(scale/2, scale/2))
+    ax.set_facecolor("#f0f2f5")
+    
+    # Draw edges.
+    nx.draw_networkx_edges(G, pos,
+                           edgelist=important_edges,
+                           edge_color="#FF8A80",
+                           width=2,
+                           ax=ax)
+    nx.draw_networkx_edges(G, pos,
+                           edgelist=other_edges,
+                           edge_color="#B0BEC5",
+                           style="dashed",
+                           width=1,
+                           ax=ax)
+    
+    # --- Custom drawing of nodes ---
+    # Auto-size: compute maximum label lengths for scaling node widths.
+    max_label_len_x = max(len(label) for label in x_names) if x_names else 0
+    max_label_len_b = max(len(label) for label in b_names) if b_names else 0
+    
+    # Set base sizes and scale factors (tweak these as needed).
+    base_width = 20
+    width_x = base_width + max_label_len_x * 0.02
+    width_b = base_width + max_label_len_b * 0.02
+    height_node = 0.6  # You can also relate this to font size if required.
+    
+    # Define colors.
+    color_important_x = "#A8E6CF"  # Pastel green.
+    color_unsolved_x = "#FFD3B6"   # Pastel peach.
+    color_b = "#BBDEFB"           # Pastel blue.
+    
+    #node_offset = 10  # For subtle label alignment.
+    
+    # Draw x nodes (plain rectangles).
+    for node in x_names:
+        cx, cy = pos[node]
+        # For x nodes, apply a slight left offset.
+        cx_offset = cx - width_x/2
+        lower_left = (cx_offset - width_x/2, cy - height_node/2)
+        facecolor = color_important_x if node in important_x else color_unsolved_x
+        patch = FancyBboxPatch(lower_left, width_x, height_node,
+                               boxstyle="round,pad=0.2",
+                               linewidth=0.2,
+                               edgecolor="black", facecolor=facecolor,
+                               mutation_scale=0.5)
+        ax.add_patch(patch)
+        ax.text(cx_offset, cy, node, ha="center", va="center", fontsize=10, color="black")
+    
+    # Draw b nodes (rounded rectangles).
+    for node in b_names:
+        cx, cy = pos[node]
+        # For b nodes, apply a slight right offset.
+        cx_offset = cx + width_b/2
+        lower_left = (cx_offset - width_b/2, cy - height_node/2)
+        patch = FancyBboxPatch(lower_left, width_b, height_node,
+                               boxstyle="round,pad=0.2",
+                               linewidth=2,
+                               edgecolor="black", facecolor=color_b,
+                               mutation_scale=1.5)
+        ax.add_patch(patch)
+        ax.text(cx_offset, cy, node, ha="center", va="center", fontsize=10, color="black")
+    
+    # Title and final touches.
+    #plt.title("Fancy Bipartite Graph: Ordered Nodes and Auto-sized Boxes", fontsize=16, weight="bold", pad=20)
+    ax.set_axis_off()
+    ax.margins(0.05)
+    plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+    
+    # Save the SVG output.
+    plt.savefig(output_file, format="svg", bbox_inches="tight")
+    plt.close()
+    print(f"Graph saved as {output_file}")
+
+def plot_bipartite_graph_svg_dep(x_names, b_names, edges, x_sol_indices, output_file="fancy_bipartite_graph.svg"):
     """
     Plots a modern, fancy bipartite graph with custom node shapes and updated colors,
     then saves the plot as an SVG file.
@@ -44,7 +221,7 @@ def plot_bipartite_graph_svg(x_names, b_names, edges, x_sol_indices, output_file
             raise ValueError(f"Edge {edge} contains a node not provided in the node lists.")
     
     # Compute a bipartite layout.
-    pos = nx.bipartite_layout(G, x_names)
+    pos = nx.bipartite_layout(G, x_names,scale=1.5)
     
     # Determine the set of important (solved) x nodes.
     important_x = {x_names[i] for i in x_sol_indices}
@@ -65,7 +242,7 @@ def plot_bipartite_graph_svg(x_names, b_names, edges, x_sol_indices, output_file
             other_edges.append((u, v))
     
     # Create the figure and axis.
-    fig, ax = plt.subplots(figsize=(12, 10))
+    fig, ax = plt.subplots(figsize=(30, 30))
     ax.set_facecolor("#f0f2f5")  # Light modern background.
     
     # Draw edges first.
@@ -83,15 +260,15 @@ def plot_bipartite_graph_svg(x_names, b_names, edges, x_sol_indices, output_file
     
     # --- Custom drawing of nodes via patches ---
     # Define sizes for node patches (adjust if labels are very long).
-    width_x, height_x = 0.5, 0.12  # For x nodes (plain rectangles).
-    width_b, height_b = 0.45, 0.14  # For b nodes (rounded rectangles).
+    width_x, height_x = 0.2, 0.0003  # For x nodes (plain rectangles).
+    width_b, height_b = 0.1, 0.0003  # For b nodes (rounded rectangles).
     
     # Colors using a modern pastel palette.
     color_important_x = "#A8E6CF"  # Pastel green.
     color_unsolved_x = "#FFD3B6"   # Pastel peach.
     color_b = "#BBDEFB"           # Pastel blue.
     
-    node_offset = 0.2  # Offset for node labels.
+    node_offset = 0.1  # Offset for node labels.
 
     # Draw x nodes as plain rectangles.
     for node in x_names:
@@ -124,15 +301,28 @@ def plot_bipartite_graph_svg(x_names, b_names, edges, x_sol_indices, output_file
     plt.title("Fancy Bipartite Graph: x Variables and b Groups", fontsize=16, weight="bold", pad=20)
     ax.set_axis_off()
     # Increase margins so that nodes are not cut off.
-    ax.margins(0.1)
-    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+    ax.margins(0.05)
+    plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
     
     # Save the output as an SVG file.
     plt.savefig(output_file, format="svg", bbox_inches="tight")
     plt.close()
     print(f"Graph saved as {output_file}")
 
+def bipartite_link(exp_matrix,num_coordinate,x_names,b_names):
+    """
+    This function is used to create the list of edges for the bipartite graph
+    """
+    group_sums = np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1)
 
+    rooted_links = [
+    (x_names[i_idx], b_names[p_idx])
+    for p_idx in range(group_sums.shape[0])
+    for i_idx in range(group_sums.shape[1])
+    if group_sums[p_idx, i_idx] != 0
+    ]
+
+    return rooted_links
 
 def animate_single_pendulum(
     length: float, angle_array: np.ndarray, time_array: np.ndarray
