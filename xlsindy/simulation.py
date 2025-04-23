@@ -24,6 +24,7 @@ def execute_regression(
     regression_function: Callable = lasso_regression,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
+    (DEPRECATED) will be removed in the future, should use TODO
     Executes regression for a dynamic system to estimate the system’s parameters.
 
     Parameters:

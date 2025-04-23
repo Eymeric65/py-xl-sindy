@@ -309,21 +309,6 @@ def plot_bipartite_graph_svg_dep(x_names, b_names, edges, x_sol_indices, output_
     plt.close()
     print(f"Graph saved as {output_file}")
 
-def bipartite_link(exp_matrix,num_coordinate,x_names,b_names):
-    """
-    This function is used to create the list of edges for the bipartite graph
-    """
-    group_sums = np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1)
-
-    rooted_links = [
-    (x_names[i_idx], b_names[p_idx])
-    for p_idx in range(group_sums.shape[0])
-    for i_idx in range(group_sums.shape[1])
-    if group_sums[p_idx, i_idx] != 0
-    ]
-
-    return rooted_links
-
 def animate_single_pendulum(
     length: float, angle_array: np.ndarray, time_array: np.ndarray
 ):

@@ -187,7 +187,7 @@ if __name__ == "__main__":
 
         print(len(catalog_label))
 
-        link = xlsindy.render.bipartite_link(exp_matrix, num_coordinates, catalog_label,b_label )
+        link = xlsindy.optimization.bipartite_link(exp_matrix, num_coordinates, catalog_label,b_label )
 
         xlsindy.render.plot_bipartite_graph_svg(
             catalog_label,
