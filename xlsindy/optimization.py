@@ -127,7 +127,8 @@ def covariance_vector(
     return summed_covariance
 
 
-## Optimisation function
+## Optimisation function 
+## TODO maybe I could turn everything on jax...
 
 
 def hard_threshold_sparse_regression(
