@@ -82,28 +82,23 @@ def create_experiment_matrix(
     num_coords: int,
     catalogs: np.ndarray,
     symbol_matrix: np.ndarray,
-    time_symbol: sympy.Symbol,
     position_values: np.ndarray,
     velocity_values: np.ndarray,
     acceleration_values: np.ndarray,
-    friction_order_one: bool = False,
 ) -> List[np.ndarray]:
     """
     Create the SINDy experiment matrix.
 
-    For each function in the catalog (plus the friction term) create the times series of the euler-lagranged function for each coordinate.
+    For each function in the catalog create the times series of function for each coordinate.
     This matrix will afterward undergo the regression in order to retrieve the parse expression.
 
     Args:
         num_coords (int): Number of generalized coordinates.
         catalogs (list): array of catalog function of shape (p,n)
         symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
-        time_symbol (sp.Symbol): The symbol for the time
         position_values (np.array): Array of positions at each time step.
         velocity_values (np.array): Array of velocities.
         acceleration_values (np.array): Array of accelerations.
-        friction_order_one (bool): Whether to add frictional forces (default is False). Use the model of friction matrix in the first order
-
 
     Returns:
         np.array: Experiment matrix.

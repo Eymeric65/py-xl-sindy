@@ -4,6 +4,9 @@ User can choose :
 - the type of algorithm : Sindy, XLSindy
 - the regression algorithm : coordinate descent (scipy lasso), hard treshold
 - level of noise added to imported data
+
+Actually align_data.py is in developpement, Implicit explicit regression is under test
+
 """
 
 # tyro cly dependencies
@@ -41,10 +44,12 @@ class Args:
     """the random seed for the noise"""
     skip_already_done: bool = True
     """if true, skip the experiment if already present in the result file"""
-    validation_on_database: bool = True
+    validation_on_database: bool = False
     """if true validate the model on the database file"""
     biparted_graph: bool = False
     """if true, plot the biparted graph in a svg file"""
+    implicit_regression:bool = False
+    """if true, use the implicit regression function"""
 
 
 def extract_validation(database_pickle: str, training_filename: str):
@@ -164,18 +169,33 @@ if __name__ == "__main__":
     )
 
     ## XLSINDY dependent
-    solution, exp_matrix, _ = xlsindy.simulation.execute_regression(
-        theta_values=imported_qpos,
-        velocity_values=imported_qvel,
-        acceleration_values=imported_qacc,
-        time_symbol=time_sym,
-        symbol_matrix=symbols_matrix,
-        catalog_repartition=catalog_repartition,
-        external_force=imported_force,
-        hard_threshold=1e-3,
-        apply_normalization=True,
-        regression_function=regression_function,
-    )
+
+    if args.implicit_regression:
+
+        solution, exp_matrix, _ = xlsindy.simulation.regression_implicite(
+            theta_values=imported_qpos,
+            velocity_values=imported_qvel,
+            acceleration_values=imported_qacc,
+            time_symbol=time_sym,
+            symbol_matrix=symbols_matrix,
+            catalog_repartition=catalog_repartition,
+            hard_threshold=1e-3,
+            regression_function=regression_function,
+        )
+
+    else:
+
+        solution, exp_matrix, _ = xlsindy.simulation.regression_explicite(
+            theta_values=imported_qpos,
+            velocity_values=imported_qvel,
+            acceleration_values=imported_qacc,
+            time_symbol=time_sym,
+            symbol_matrix=symbols_matrix,
+            catalog_repartition=catalog_repartition,
+            external_force=imported_force,
+            hard_threshold=1e-3,
+            regression_function=regression_function,
+        )
 
     if args.biparted_graph:
 
@@ -236,13 +256,15 @@ if __name__ == "__main__":
     if valid_model:
 
         model_dynamics_system = vmap(model_dynamics_system, in_axes=(1, 1), out_axes=1)
+        print("omegamegaprout")
+
 
         model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(
             model_dynamics_system, imported_qpos, imported_qvel, imported_force
         )
         # Finally, select the columns of interest (e.g., every second column starting at index 1)
         model_acc = model_acc[:, 1::2]
-
+        print("omegamegaprout2")
         if args.validation_on_database:
 
             (

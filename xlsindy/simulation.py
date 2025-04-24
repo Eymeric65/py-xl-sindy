@@ -10,6 +10,10 @@ from .catalog_gen import *
 from .euler_lagrange import *
 from .optimization import *
 
+import jax
+import jax.numpy as jnp
+from jax import lax
+
 
 def execute_regression(
     theta_values: np.ndarray,
@@ -110,7 +114,6 @@ def regression_explicite(
     catalog_repartition: np.ndarray,
     external_force: np.ndarray,
     hard_threshold: float = 1e-3,
-    apply_normalization: bool = True,
     regression_function: Callable = lasso_regression,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -143,11 +146,9 @@ def regression_explicite(
         num_coordinates,
         catalog,
         symbol_matrix,
-        time_symbol,
         theta_values,
         velocity_values,
         acceleration_values,
-        friction_order_one=True,
     )
 
     external_force_vec = np.reshape(external_force.T, (-1, 1))
@@ -181,7 +182,32 @@ def regression_explicite(
     )
     covariance_matrix *= sigma_squared
 
-    return solution, experimental_matrix, covariance_matrix
+    return np.reshape(solution,shape=(-1,1)), experimental_matrix, covariance_matrix
+
+# def _build_A_star(A, k):
+#     # Build A without the k-th column using dynamic slicing
+#     left = lax.dynamic_slice(A, (0, 0), (A.shape[0], k))
+#     right = lax.dynamic_slice(A, (0, k+1), (A.shape[0], A.shape[1] - k - 1))
+#     return jnp.concatenate([left, right], axis=1)
+
+def _build_A_star(A, k):
+    n = A.shape[1]
+    
+    if k == 0:
+        # Remove first column
+        return A[:, 1:]
+    elif k == n - 1:
+        # Remove last column
+        return A[:, :-1]
+    else:
+        # Remove middle column
+        return np.concatenate([A[:, :k], A[:, k+1:]], axis=1)
+
+def _insert_zero(x_k, k, n):
+    x_full = np.zeros(n)
+    x_full[:k] = x_k[:k]
+    x_full[k+1:] = x_k[k:]
+    return x_full
 
 def regression_implicite(
     theta_values: np.ndarray,
@@ -193,6 +219,7 @@ def regression_implicite(
     hard_threshold: float = 1e-3,
     apply_normalization: bool = True,
     regression_function: Callable = lasso_regression,
+    sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Executes regression for a dynamic system to estimate the system’s parameters. 
@@ -214,3 +241,68 @@ def regression_implicite(
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             Solution vector, experimental matrix, sampled time values, covariance matrix.
     """
+
+    num_coordinates = theta_values.shape[1]
+
+    catalog = expand_catalog(catalog_repartition, symbol_matrix, time_symbol)
+
+    # Generate the experimental matrix from the catalog
+    ## TODO Jax this
+    experimental_matrix = create_experiment_matrix(
+        num_coordinates,
+        catalog,
+        symbol_matrix,
+        theta_values,
+        velocity_values,
+        acceleration_values,
+    )
+
+    m, n = experimental_matrix.shape
+
+    def solve_k(k):
+        
+        A_k = np.reshape(experimental_matrix[:, k].T, (-1, 1))
+        A_star_k = _build_A_star(experimental_matrix, k)
+        print("OmegaProut",A_k.shape,A_star_k.shape)
+        x_k = regression_function(A_k,A_star_k )
+        print("lourdProut",x_k)
+        x_full = _insert_zero(x_k, k, n)  # Put zero at the kth position
+        print("TartProut")
+        return x_full
+
+    #x_all = jax.vmap(solve_k)(jnp.arange(n)) # not jit regression function
+
+    x_all = []
+
+    for k in range(n):
+        print("solved k", k)
+        x_all.append(solve_k(k))
+
+    x_all = np.stack(x_all)
+
+
+    # Step 1 : Hardtresholding
+    max_val = np.max(np.abs(x_all))
+    threshold = max_val * hard_threshold
+    x_all = np.where(np.abs(x_all) < threshold, 0.0, x_all)
+
+    # Step 2: compute sparsity = number of non-zeros per x
+    sparsity = np.sum(x_all != 0, axis=1)
+    min_sparsity = np.min(sparsity[sparsity > 0])
+
+    print("min_sparsity", min_sparsity)
+    print("sparsity", sparsity)
+
+    max_allowed_sparsity = min_sparsity * sparsity_coefficient
+
+    # Step 3: mask valid sparse solutions
+    valid_mask = ( sparsity <= max_allowed_sparsity )& (sparsity > 0)
+
+    print("valid_mask", valid_mask)
+    print("x_all shape", x_all.shape)
+    valid_solutions = x_all[valid_mask]
+
+    # Step 4: average valid solutions
+    x_final = np.mean(valid_solutions, axis=0)
+
+    return np.reshape(x_final,shape=(-1,1)), experimental_matrix, None # covariance matrix not computed in this case

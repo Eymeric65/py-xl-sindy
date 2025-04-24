@@ -51,7 +51,7 @@ class Args:
 
 if __name__ == "__main__":
 
-    os.environ["MUJOCO_GL"] = "egl"
+    #os.environ["MUJOCO_GL"] = "egl"
 
     args = tyro.cli(Args)
 
@@ -181,6 +181,7 @@ if __name__ == "__main__":
                 if C < mujoco_data.time * fps:
                     renderer.update_scene(mujoco_data, 0)
                     # Convert RGB to BGR for OpenCV and write the frame
+                    print("C",C)
                     video.write(cv2.cvtColor(renderer.render(), cv2.COLOR_RGB2BGR))
                     C += 1
 
@@ -231,3 +232,5 @@ if __name__ == "__main__":
 
     with open(filename + ".json", "w") as file:
         json.dump(simulation_dict, file, indent=4)
+
+        print(" Simulation data saved to", filename + ".json")

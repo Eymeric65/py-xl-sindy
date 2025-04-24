@@ -165,6 +165,9 @@ def hard_threshold_sparse_regression(
     Returns:
         np.ndarray: solution vector. shape (-1,)
     """
+
+    forces_vector,exp_matrix =np.array(forces_vector),np.array(exp_matrix)
+
     solution, residuals, rank, _ = np.linalg.lstsq(
         exp_matrix, forces_vector, rcond=None
     )
@@ -204,7 +207,7 @@ def hard_threshold_sparse_regression(
 
 def lasso_regression(
     forces_vector: np.ndarray,
-    normalized_exp_matrix: np.ndarray,
+    exp_matrix: np.ndarray,
     max_iterations: int = 10**4,
     tolerance: float = 1e-5,
     eps: float = 5e-4,
@@ -214,7 +217,7 @@ def lasso_regression(
 
     Parameters:
         forces_vector (np.ndarray): Dependent variable vector.
-        normalized_exp_matrix (np.ndarray): Normalized experimental matrix.
+        exp_matrix (np.ndarray): Normalized experimental matrix.
         max_iterations (int): Maximum number of iterations.
         tolerance (float): Convergence tolerance.
         eps (float): Regularization parameter.
@@ -222,14 +225,17 @@ def lasso_regression(
     Returns:
         np.ndarray: Coefficients of the fitted model. shape (-1,)
     """
+
+    forces_vector,exp_matrix =np.array(forces_vector),np.array(exp_matrix)
+
     y = forces_vector[:, 0]
     model_cv = LassoCV(
         cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance
     )
-    model_cv.fit(normalized_exp_matrix, y)
+    model_cv.fit(exp_matrix, y)
     best_alpha = model_cv.alpha_
 
     lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance)
-    lasso_model.fit(normalized_exp_matrix, y)
+    lasso_model.fit(exp_matrix, y)
 
     return lasso_model.coef_
