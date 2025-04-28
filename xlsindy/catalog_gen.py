@@ -245,6 +245,27 @@ def lagrangian_sindy_expand_catalog(
 
     return res
 
+def external_forces_expand_catalog(
+    symbol_matrix: np.ndarray,
+) -> np.ndarray:
+    """
+    Add the external forces in the experiment matrix
+
+    Returns:
+        np.ndarray: an array of shape (1,n) containing all the function
+    """
+
+    num_coordinate = symbol_matrix.shape[1]
+
+    res = np.empty((1, num_coordinate), dtype=object)
+
+    for i in range(num_coordinate):
+        res[0, i] = symbol_matrix[0,i]
+
+    return res
+
+
+
 
 def expand_catalog(
     catalog_repartition: List[tuple],
@@ -273,6 +294,10 @@ def expand_catalog(
         elif name == "classical":
 
             res += [classical_sindy_expand_catalog(*args)]
+
+        elif name == "external_forces":
+
+            res += [external_forces_expand_catalog(symbol_matrix)]
 
         else:
             raise ValueError("catalog not recognised")

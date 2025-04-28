@@ -57,11 +57,9 @@ def execute_regression(
         num_coordinates,
         catalog,
         symbol_matrix,
-        time_symbol,
         theta_values,
         velocity_values,
         acceleration_values,
-        friction_order_one=True,
     )
 
     external_force_vec = np.reshape(external_force.T, (-1, 1))
@@ -138,27 +136,32 @@ def regression_explicite(
 
     num_coordinates = theta_values.shape[1]
 
+    # Extend experiment matrix with external forces
+    catalog_repartition = [("external_forces",None)]+catalog_repartition
+
     catalog = expand_catalog(catalog_repartition, symbol_matrix, time_symbol)
 
     # Generate the experimental matrix from the catalog
     ## TODO Jax this
-    experimental_matrix = create_experiment_matrix(
+    experimental_matrix = jax_create_experiment_matrix(
         num_coordinates,
         catalog,
         symbol_matrix,
         theta_values,
         velocity_values,
         acceleration_values,
+        external_force,
     )
-
-    external_force_vec = np.reshape(external_force.T, (-1, 1))
 
     covariance_matrix = None
     solution = None
 
     # Perform Lasso regression to obtain coefficients
     ## TODO Jax every regression_function
-    solution = regression_function(external_force_vec, experimental_matrix)
+    
+    solution = regression_function(experimental_matrix,0) # Mask the first one that is the external forces
+
+    solution = np.reshape(solution,shape=(-1,1))
 
     solution[np.abs(solution) < np.max(np.abs(solution)) * hard_threshold] = 0
 
@@ -217,7 +220,6 @@ def regression_implicite(
     symbol_matrix: np.ndarray,
     catalog_repartition: np.ndarray,
     hard_threshold: float = 1e-3,
-    apply_normalization: bool = True,
     regression_function: Callable = lasso_regression,
     sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

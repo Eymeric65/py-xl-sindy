@@ -139,6 +139,8 @@ if __name__ == "__main__":
         xlsindy_component(mode=args.algorithm, random_seed=random_seed)
     )
 
+
+
     regression_function = eval(f"xlsindy.optimization.{args.optimization_function}")
 
     sim_data = np.load(args.experiment_file + ".npz")
@@ -256,7 +258,6 @@ if __name__ == "__main__":
     if valid_model:
 
         model_dynamics_system = vmap(model_dynamics_system, in_axes=(1, 1), out_axes=1)
-        print("omegamegaprout")
 
 
         model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(
@@ -264,7 +265,7 @@ if __name__ == "__main__":
         )
         # Finally, select the columns of interest (e.g., every second column starting at index 1)
         model_acc = model_acc[:, 1::2]
-        print("omegamegaprout2")
+
         if args.validation_on_database:
 
             (

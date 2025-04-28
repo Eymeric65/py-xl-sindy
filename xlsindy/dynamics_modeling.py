@@ -413,8 +413,7 @@ def vectorised_acceleration_generation(dynamic_system: Callable, qpos, qvel, for
     base_vectors = np.stack((qpos, qvel), axis=2)  # shape: (1001, 4, 2)
     base_vectors = base_vectors.reshape(T, 2 * n)  # shape: (1001, 8)
 
-    print("omegaproutingcompetitionb",base_vectors.shape,base_vectors.dtype)
     base_vectors = jnp.array(base_vectors)
-    print("omegaproutingcompetition")
+
 
     return dynamic_system(base_vectors.T, force.T).T

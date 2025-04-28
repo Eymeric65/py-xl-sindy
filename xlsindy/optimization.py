@@ -143,7 +143,7 @@ def covariance_vector(
 
 
 ## Optimisation function 
-## TODO maybe I could turn everything on jax...
+## TODO maybe I could turn everything on jax... 
 
 
 def hard_threshold_sparse_regression(
@@ -239,3 +239,82 @@ def lasso_regression(
     lasso_model.fit(exp_matrix, y)
 
     return lasso_model.coef_
+
+# Optimisation in Jax Framework
+
+"""
+So the goal is to use the jax framework in order to run the optimisation step, parallesing if multiple regression are run.
+Instead of going into a constrained optimisation problem like suggested in the original SINDy-PI paper,
+I prefer to go for a masked regression. This enable to run a simpler version of regression algorithm.
+
+In order to be able to run normal regression we should merge maybe the experimental matrix with the forces vector ?
+It may imply that it break the unify catalog formalism... As a whole it may be better to keep the catalog formalism
+and add the forces vector as a new column in the experiment matrix and in the catalog...
+
+After thinking about it, it would be clearly the best thing to add ? everything will be put inside a only matrix and retrieval is done with it.
+If multiple function need to be put aside for a regression they can be easily merged by spcifying the mask.
+In addition, if the experiment matrix is made through jax, it could be easily parallelized.
+
+Input are the following :
+- exp_matrix (n_sample,function): experimental matrix 
+- mask (k): the mask to apply
+"""
+
+def jax_hard_treshold(
+    exp_matrix: np.ndarray,
+    mask: int,
+    condition_func: Callable = condition_value,
+    threshold: float = 0.03,
+) -> np.ndarray:
+    """
+    Performs sparse regression with a hard threshold to select significant features.
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix.
+        mask (k): the mask to apply
+        condition_func (Callable): Function to calculate condition values.
+        threshold (float): Threshold for feature selection.
+
+    Returns:
+        np.ndarray: solution vector. shape (-1,)
+    """
+
+    b_vector = exp_matrix[:, mask]
+
+    exp_matrix
+
+    solution, residuals, rank, _ = np.linalg.lstsq(
+        exp_matrix, forces_vector, rcond=None
+    )
+
+    # print("solution shape",solution.shape)
+
+    retained_solution = solution.copy()
+    result_solution = np.zeros(solution.shape)
+    active_indices = np.arange(len(solution))
+    steps = []
+
+    prev_num_indices = len(solution) + 1
+    current_num_indices = len(solution)
+
+    while current_num_indices < prev_num_indices:
+        prev_num_indices = current_num_indices
+        condition_values = condition_func(exp_matrix, retained_solution)
+        steps.append((retained_solution, condition_values, active_indices))
+
+        significant_indices = np.argwhere(
+            condition_values / np.max(condition_values) > threshold
+        ).flatten()
+        active_indices = active_indices[significant_indices]
+        exp_matrix = exp_matrix[:, significant_indices]
+
+        retained_solution, residuals, rank, _ = np.linalg.lstsq(
+            exp_matrix, forces_vector, rcond=None
+        )
+        current_num_indices = len(active_indices)
+
+    result_solution[active_indices] = retained_solution
+
+    result_solution = np.reshape(result_solution, (-1,))  # flatten
+
+    return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
