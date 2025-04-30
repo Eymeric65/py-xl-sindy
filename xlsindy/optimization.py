@@ -73,6 +73,7 @@ def normalize_experiment_matrix(
     exp_matrix: np.ndarray, null_effect: bool = False
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
+    (Deprecated) Clearly not in use for a long time...
     Normalizes an experimental matrix by its variance and mean.
 
     Parameters:
@@ -101,6 +102,7 @@ def unnormalize_experiment(
     exp_matrix: np.ndarray,
 ) -> np.ndarray:
     """
+    (Deprecated) Clearly not in use for a long time...
     Reverts normalization of a solution vector.
 
     Parameters:
@@ -143,10 +145,46 @@ def covariance_vector(
 
 
 ## Optimisation function 
+
+
+def amputate_experiment_matrix(
+        experiment_matrix: np.ndarray, 
+        mask: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Simple function to split the experiment matrix into an reduced experiment matrix and an external vector.
+
+    Can be used to split experiment matrix in the case of implicit or explicit regression
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix.
+        mask (int): the column to erase
+
+    Returns:   
+        np.ndarray : Reduced experiment matrix .
+        np.ndarray : Left Hand Side vector (forces vector)
+    """
+
+    LHS = experiment_matrix[:, mask].reshape(-1,1)
+
+    experiment_matrix = np.delete(experiment_matrix, mask, axis=1)
+
+    return experiment_matrix,LHS
+
+def populate_solution(
+        solution: np.ndarray,
+        mask:int,
+) -> np.ndarray:
+    """
+    Opposite of amputate_experiment_matrix add a -1 in the solution where the mask should have been. (Because Left Hand Side is -1 )
+    """
+
+    return np.insert(solution, mask, -1 ,axis=0)
+
 ## TODO maybe I could turn everything on jax... 
 
 
-def hard_threshold_sparse_regression(
+def hard_threshold_sparse_regression_old(
     forces_vector: np.ndarray,
     exp_matrix: np.ndarray,
     # catalog: np.ndarray,
@@ -154,6 +192,7 @@ def hard_threshold_sparse_regression(
     threshold: float = 0.03,
 ) -> np.ndarray:
     """
+    (DEPRECATED) should use the new formalism for regression function (experiment_matrix, position of b vector (mask))
     Performs sparse regression with a hard threshold to select significant features.
 
     Parameters:
@@ -204,8 +243,106 @@ def hard_threshold_sparse_regression(
 
     return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
 
+def hard_threshold_sparse_regression(
+    whole_exp_matrix: np.ndarray,
+    mask:int,
+    condition_func: Callable = condition_value,
+    threshold: float = 0.03,
+) -> np.ndarray:
+    """
+    Performs sparse regression with a hard threshold to select significant features.
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix.
+        mask (int): the forces column
+        condition_func (Callable): Function to calculate condition values.
+        threshold (float): Threshold for feature selection.
+
+    Returns:
+        np.ndarray: solution vector. shape (-1,1)
+    """
+
+    exp_matrix,forces_vector =amputate_experiment_matrix(whole_exp_matrix,mask)
+
+    solution, residuals, rank, _ = np.linalg.lstsq(
+        exp_matrix, forces_vector, rcond=None
+    )
+
+    retained_solution = solution.copy()
+    result_solution = np.zeros(solution.shape)
+    active_indices = np.arange(len(solution))
+    steps = []
+
+    prev_num_indices = len(solution) + 1
+    current_num_indices = len(solution)
+
+    while current_num_indices < prev_num_indices:
+        prev_num_indices = current_num_indices
+        condition_values = condition_func(exp_matrix, retained_solution)
+        steps.append((retained_solution, condition_values, active_indices))
+
+        significant_indices = np.argwhere(
+            condition_values / np.max(condition_values) > threshold
+        ).flatten()
+        active_indices = active_indices[significant_indices]
+        exp_matrix = exp_matrix[:, significant_indices]
+
+        retained_solution, residuals, rank, _ = np.linalg.lstsq(
+            exp_matrix, forces_vector, rcond=None
+        )
+        current_num_indices = len(active_indices)
+
+    result_solution[active_indices] = retained_solution
+
+    result_solution = np.reshape(result_solution, (-1,1)) 
+
+    result_solution = populate_solution(result_solution,mask)
+
+    return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
 
 def lasso_regression(
+    whole_exp_matrix: np.ndarray,
+    mask:int,
+    max_iterations: int = 10**4,
+    tolerance: float = 1e-5,
+    eps: float = 5e-4,
+) -> np.ndarray:
+    """
+    (DEPRECATED) should use the new formalism for regression function (experiment_matrix, position of b vector (mask))
+    Performs Lasso regression to select sparse features.
+
+    Parameters:
+        exp_matrix (np.ndarray): Experimental matrix.
+        mask (int): the forces column
+        max_iterations (int): Maximum number of iterations.
+        tolerance (float): Convergence tolerance.
+        eps (float): Regularization parameter.
+
+    Returns:
+        np.ndarray: Coefficients of the fitted model. shape (-1,)
+    """
+
+    exp_matrix,forces_vector = amputate_experiment_matrix(whole_exp_matrix,mask)
+
+    y = forces_vector[:, 0]
+    model_cv = LassoCV(
+        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance
+    )
+    model_cv.fit(exp_matrix, y)
+    best_alpha = model_cv.alpha_
+
+    lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance)
+    lasso_model.fit(exp_matrix, y)
+
+    result_solution = np.reshape(lasso_model.coef_, (-1,1)) 
+
+    result_solution = populate_solution(result_solution,mask)
+
+    return result_solution
+
+
+
+def lasso_regression_old(
     forces_vector: np.ndarray,
     exp_matrix: np.ndarray,
     max_iterations: int = 10**4,
@@ -213,6 +350,7 @@ def lasso_regression(
     eps: float = 5e-4,
 ) -> np.ndarray:
     """
+    (DEPRECATED) should use the new formalism for regression function (experiment_matrix, position of b vector (mask))
     Performs Lasso regression to select sparse features.
 
     Parameters:
@@ -258,6 +396,10 @@ In addition, if the experiment matrix is made through jax, it could be easily pa
 Input are the following :
 - exp_matrix (n_sample,function): experimental matrix 
 - mask (k): the mask to apply
+
+Since now the experiment matrix contain also the external forces vector, every regression function should stick with these input.
+
+
 """
 
 def jax_hard_treshold(

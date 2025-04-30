@@ -135,15 +135,11 @@ def regression_explicite(
     """
 
     num_coordinates = theta_values.shape[1]
-
-    # Extend experiment matrix with external forces
-    catalog_repartition = [("external_forces",None)]+catalog_repartition
+    external_forces_mask = 0 # super bad ## need to automate the finding process
 
     catalog = expand_catalog(catalog_repartition, symbol_matrix, time_symbol)
 
-    # Generate the experimental matrix from the catalog
-    ## TODO Jax this
-    experimental_matrix = jax_create_experiment_matrix(
+    whole_experimental_matrix = jax_create_experiment_matrix(
         num_coordinates,
         catalog,
         symbol_matrix,
@@ -153,22 +149,21 @@ def regression_explicite(
         external_force,
     )
 
-    covariance_matrix = None
-    solution = None
+    whole_solution = regression_function(whole_experimental_matrix,external_forces_mask) # Mask the first one that is the external forces
+    whole_solution = np.reshape(whole_solution,shape=(-1,1))
+    whole_solution[np.abs(whole_solution) < np.max(np.abs(whole_solution)) * hard_threshold] = 0
 
-    # Perform Lasso regression to obtain coefficients
-    ## TODO Jax every regression_function
-    
-    solution = regression_function(experimental_matrix,0) # Mask the first one that is the external forces
+    ## Regression data, residual, covariance matrix,.... everything need to be done on the truncated again matrix 
 
-    solution = np.reshape(solution,shape=(-1,1))
+    exp_matrix,forces_vector = amputate_experiment_matrix(whole_experimental_matrix,external_forces_mask)
+    solution = np.delete(whole_solution,external_forces_mask,axis=0)
 
-    solution[np.abs(solution) < np.max(np.abs(solution)) * hard_threshold] = 0
 
     # Estimate covariance matrix based on Ordinary Least Squares (OLS)
+
     solution_flat = solution.flatten()
     nonzero_indices = np.nonzero(np.abs(solution_flat) > 0)[0]
-    reduced_experimental_matrix = experimental_matrix[:, nonzero_indices]
+    reduced_experimental_matrix = exp_matrix[:, nonzero_indices]
     covariance_reduced = np.cov(reduced_experimental_matrix.T)
 
     covariance_matrix = np.zeros((solution.shape[0], solution.shape[0]))
@@ -176,16 +171,17 @@ def regression_explicite(
         covariance_reduced
     )
 
-    residuals = external_force_vec - experimental_matrix @ solution
+    residuals = forces_vector - exp_matrix @ solution
+
     sigma_squared = (
         1
-        / (experimental_matrix.shape[0] - experimental_matrix.shape[1])
+        / (exp_matrix.shape[0] - exp_matrix.shape[1])
         * residuals.T
         @ residuals
     )
     covariance_matrix *= sigma_squared
 
-    return np.reshape(solution,shape=(-1,1)), experimental_matrix, covariance_matrix
+    return whole_solution, whole_experimental_matrix, residuals, covariance_matrix
 
 # def _build_A_star(A, k):
 #     # Build A without the k-th column using dynamic slicing
@@ -265,14 +261,9 @@ def regression_implicite(
         
         A_k = np.reshape(experimental_matrix[:, k].T, (-1, 1))
         A_star_k = _build_A_star(experimental_matrix, k)
-        print("OmegaProut",A_k.shape,A_star_k.shape)
         x_k = regression_function(A_k,A_star_k )
-        print("lourdProut",x_k)
         x_full = _insert_zero(x_k, k, n)  # Put zero at the kth position
-        print("TartProut")
         return x_full
-
-    #x_all = jax.vmap(solve_k)(jnp.arange(n)) # not jit regression function
 
     x_all = []
 
@@ -282,29 +273,32 @@ def regression_implicite(
 
     x_all = np.stack(x_all)
 
+    # I should stop the regression implicite now and implement more way to decide the solution.
 
-    # Step 1 : Hardtresholding
-    max_val = np.max(np.abs(x_all))
-    threshold = max_val * hard_threshold
-    x_all = np.where(np.abs(x_all) < threshold, 0.0, x_all)
+    return x_all,experimental_matrix,None
 
-    # Step 2: compute sparsity = number of non-zeros per x
-    sparsity = np.sum(x_all != 0, axis=1)
-    min_sparsity = np.min(sparsity[sparsity > 0])
+    # # Step 1 : Hardtresholding
+    # max_val = np.max(np.abs(x_all))
+    # threshold = max_val * hard_threshold
+    # x_all = np.where(np.abs(x_all) < threshold, 0.0, x_all)
 
-    print("min_sparsity", min_sparsity)
-    print("sparsity", sparsity)
+    # # Step 2: compute sparsity = number of non-zeros per x
+    # sparsity = np.sum(x_all != 0, axis=1)
+    # min_sparsity = np.min(sparsity[sparsity > 0])
 
-    max_allowed_sparsity = min_sparsity * sparsity_coefficient
+    # print("min_sparsity", min_sparsity)
+    # print("sparsity", sparsity)
 
-    # Step 3: mask valid sparse solutions
-    valid_mask = ( sparsity <= max_allowed_sparsity )& (sparsity > 0)
+    # max_allowed_sparsity = min_sparsity * sparsity_coefficient
 
-    print("valid_mask", valid_mask)
-    print("x_all shape", x_all.shape)
-    valid_solutions = x_all[valid_mask]
+    # # Step 3: mask valid sparse solutions
+    # valid_mask = ( sparsity <= max_allowed_sparsity )& (sparsity > 0)
 
-    # Step 4: average valid solutions
-    x_final = np.mean(valid_solutions, axis=0)
+    # print("valid_mask", valid_mask)
+    # print("x_all shape", x_all.shape)
+    # valid_solutions = x_all[valid_mask]
 
-    return np.reshape(x_final,shape=(-1,1)), experimental_matrix, None # covariance matrix not computed in this case
+    # # Step 4: average valid solutions
+    # x_final = np.mean(valid_solutions, axis=0)
+
+    # return np.reshape(x_final,shape=(-1,1)), experimental_matrix, None # covariance matrix not computed in this case

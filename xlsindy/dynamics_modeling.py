@@ -58,9 +58,10 @@ def generate_acceleration_function(
     dynamic_equations = regression_solution.T @ expanded_catalog
     dynamic_equations = dynamic_equations.flatten()
 
-    dynamic_equations -= np.array(
-        [symbol_matrix[0, i] for i in range(num_coords)], dtype=object
-    )  # Add external forces
+    # dynamic_equations -= np.array(
+    #     [symbol_matrix[0, i] for i in range(num_coords)], dtype=object
+    # )  # Add external forces 
+    # maybe not necessary now !! (Added when fusing the experiment matrix and forces function through the function catalog) To test 
 
     valid = True
 

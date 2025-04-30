@@ -305,7 +305,7 @@ def expand_catalog(
     return np.concatenate(res, axis=0)
 
 
-def create_solution_vector(
+def create_lagrangian_solution_vector(
     expression: sympy.Expr,
     catalog: List[Union[int, float]],
 ) -> np.ndarray:
@@ -557,3 +557,42 @@ def augment_catalog(
     base_catalog = base_catalog[nonzero_lines]
 
     return coeff_matrix, expand_matrix, base_catalog
+
+def create_solution_vector(
+    catalog: List[tuple],
+    solution_data:List[tuple],
+)-> np.ndarray:
+    """
+    Create an unique solution vector from the catalog and the solution data.
+    Args:
+        catalog (List[tuple]): the catalog of function composed of different paradigm [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
+        solution_data (List[tuple]): the solution data composed of the different information to build the solution vector, each one dependend of the paradigm used [(Lagrangian,substitution),...,(coeff_matrix, binary_matrix)]
+
+    Returns:
+        np.ndarray: the solution vector
+    """
+
+    solution = []
+
+    # print("gros debug",catalog,solution_data)
+
+    # exit()
+
+    for (name,*args),data in zip(catalog,solution_data):
+        
+        if name == "lagrangian":
+            lagrangian_catalog = args[0]
+            
+            (lagrangian, substitutions) = data
+            solution += [create_lagrangian_solution_vector(sympy.expand_trig(lagrangian.subs(substitutions)), lagrangian_catalog).reshape(-1, 1)]
+        elif name == "classical":
+            (coeff_matrix, binary_matrix) = data
+            solution += [translate_coeff_matrix(coeff_matrix, binary_matrix).reshape(-1, 1)]
+        elif name == "external_forces":
+            solution += [np.array(-1).reshape(-1, 1)]
+        else:
+            raise ValueError("catalog not recognised")
+
+    
+    return np.concatenate(solution, axis=0)
+
