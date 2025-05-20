@@ -262,6 +262,8 @@ def external_forces_expand_catalog(
     for i in range(num_coordinate):
         res[0, i] = symbol_matrix[0,i]
 
+    #res[0,0] -= symbol_matrix[0,1]
+
     return res
 
 

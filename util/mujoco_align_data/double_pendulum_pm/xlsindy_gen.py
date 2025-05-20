@@ -195,9 +195,9 @@ def xlsindy_component(
             random_seed,
         )
 
-        solution = xlsindy.catalog_gen.translate_coeff_matrix(
-            coeff_matrix, binary_matrix
-        )
+        # solution = xlsindy.catalog_gen.translate_coeff_matrix(
+        #     coeff_matrix, binary_matrix
+        # )
 
         catalog_repartition = [("external_forces", None),("classical", catalog_need, binary_matrix)]
 
