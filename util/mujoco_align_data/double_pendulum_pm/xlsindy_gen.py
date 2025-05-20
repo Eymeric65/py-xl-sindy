@@ -109,21 +109,25 @@ def xlsindy_component(
         )  # Contain only \dot{q}_1 \dot{q}_2
         expand_matrix = np.ones((len(friction_catalog), num_coordinates), dtype=int)
         catalog_repartition = [
+            ("external_forces", None),
             ("lagrangian", lagrange_catalog),
             ("classical", friction_catalog, expand_matrix),
         ]
         # give a reference lagrangian for the system analysed (optional) through the extra_info dictionary
-
+        ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
+        catalog_repartition,
+        [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
+        )
         # Generate solution vector
-        ideal_lagrangian_vector = xlsindy.catalog_gen.create_solution_vector(
-            sp.expand_trig(Lagrangian.subs(substitutions)), lagrange_catalog
-        )
-        ideal_friction_vector = np.reshape(friction_forces, (-1, 1))
+        # ideal_lagrangian_vector = xlsindy.catalog_gen.create_solution_vector(
+        #     sp.expand_trig(Lagrangian.subs(substitutions)), lagrange_catalog
+        # )
+        # ideal_friction_vector = np.reshape(friction_forces, (-1, 1))
 
-        ideal_solution_vector = np.concatenate(
-            (ideal_lagrangian_vector, ideal_friction_vector), axis=0
-        )
-        catalog_len = len(lagrange_catalog) + np.sum(expand_matrix)
+        # ideal_solution_vector = np.concatenate(
+        #     (ideal_lagrangian_vector, ideal_friction_vector), axis=0
+        # )
+        catalog_len = len(ideal_solution_vector)
 
     elif mode == "sindy":
 
@@ -195,9 +199,14 @@ def xlsindy_component(
             coeff_matrix, binary_matrix
         )
 
-        catalog_repartition = [("classical", catalog_need, binary_matrix)]
-        ideal_solution_vector = solution
-        catalog_len = np.sum(binary_matrix)
+        catalog_repartition = [("external_forces", None),("classical", catalog_need, binary_matrix)]
+
+        ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
+        catalog_repartition,
+        [(None),(coeff_matrix,binary_matrix)]
+        )
+        #ideal_solution_vector = solution
+        catalog_len = len(ideal_solution_vector)
 
     # Create the extra_info dictionnary
     extra_info = {
