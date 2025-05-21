@@ -246,6 +246,7 @@ def lagrangian_sindy_expand_catalog(
     return res
 
 def external_forces_expand_catalog(
+    forces_correlation: List[List[int]],
     symbol_matrix: np.ndarray,
 ) -> np.ndarray:
     """
@@ -259,10 +260,23 @@ def external_forces_expand_catalog(
 
     res = np.empty((1, num_coordinate), dtype=object)
 
-    for i in range(num_coordinate):
-        res[0, i] = symbol_matrix[0,i]
+    # new way
+    for i,additive in enumerate(forces_correlation):
 
-    #res[0,0] -= symbol_matrix[0,1]
+        for index in additive:
+
+            if res[0,i] is None :
+
+                res[0,i] = np.sign(index)*symbol_matrix[0,np.abs(index)-1]
+
+            else:
+                
+                res[0,i] += np.sign(index)*symbol_matrix[0,np.abs(index)-1]
+
+    #Dumb way 
+    # for i in range(num_coordinate): 
+    #     res[0, i] = symbol_matrix[0,i]
+
 
     return res
 
@@ -299,7 +313,7 @@ def expand_catalog(
 
         elif name == "external_forces":
 
-            res += [external_forces_expand_catalog(symbol_matrix)]
+            res += [external_forces_expand_catalog(*args,symbol_matrix)]
 
         else:
             raise ValueError("catalog not recognised")

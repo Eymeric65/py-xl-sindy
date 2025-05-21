@@ -87,10 +87,6 @@ if __name__ == "__main__":
         except AttributeError:
             mujoco_transform = None
 
-        try:
-            forces_wrapper = xlsindy_gen.forces_wrapper
-        except AttributeError:
-            forces_wrapper = None
 
         num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = (
             xlsindy_component(mode=args.algorithm, random_seed=args.random_seed)
@@ -174,7 +170,7 @@ if __name__ == "__main__":
         lambdify_module="numpy"
         )
 
-        model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_wrapper(forces_function)) 
+        model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
         print("INFO : Theorical initialized")
         try:
             simulation_time, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.05)
@@ -193,6 +189,10 @@ if __name__ == "__main__":
     print( f"Raw simulation len {raw_sample_number}")
 
     subsample = raw_sample_number // args.sample_number
+
+    if subsample == 0 :
+        subsample =1
+
     start_truncation = 2
 
     simulation_time = simulation_time[start_truncation::subsample]

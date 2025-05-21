@@ -75,11 +75,6 @@ if __name__ == "__main__":
         except AttributeError:
             mujoco_transform = None
 
-        try:
-            forces_wrapper = xlsindy_gen.forces_wrapper
-        except AttributeError:
-            forces_wrapper = None
-
         num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = (
             xlsindy_component(random_seed=args.random_seed)
         )
@@ -170,10 +165,10 @@ if __name__ == "__main__":
     if not valid_model:
         print("-----------------------------------------------The model is not valid-------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-    model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_wrapper(forces_function)) 
+    model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
 
     try:
-        time_values, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.1)
+        time_values, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.01)
     except Exception as e:
         print(f"An error occurred on the RK45 integration: {e}")
 
@@ -189,13 +184,18 @@ if __name__ == "__main__":
     fig.suptitle("Mujoco Experiment Results")
 
     axs[0,0].plot(mujoco_time, mujoco_qpos, label="Mujoco Position")
-    axs[1,0].plot(mujoco_time, mujoco_qvel, label="Mujoco Position")
-    axs[2,0].plot(mujoco_time, mujoco_qacc, label="Mujoco Position")
-    axs[3,0].plot(mujoco_time, force_vector, label="Mujoco Position")
+    axs[1,0].plot(mujoco_time, mujoco_qvel, label="Mujoco Velocity")
+    axs[2,0].plot(mujoco_time, mujoco_qacc, label="Mujoco Acceleration")
+    axs[3,0].plot(mujoco_time, force_vector, label="Forces")
 
-    axs[0,0].plot(time_values, theta_values, label="Mujoco Position")
-    axs[1,0].plot(time_values, velocity_values, label="Mujoco Position")
-    axs[2,0].plot(time_values, acceleration_values, label="Mujoco Position")
+    axs[0,0].plot(time_values, theta_values, label="Theorical Position")
+    axs[1,0].plot(time_values, velocity_values, label="Theorical Velocity")
+    axs[2,0].plot(time_values, acceleration_values, label="Theorical Acceleration")
+
+    axs[0,0].legend()
+    axs[1,0].legend()
+    axs[2,0].legend()
+    axs[3,0].legend()
 
     # Interpolate the “other” signals onto mujoco_time
 
@@ -217,6 +217,11 @@ if __name__ == "__main__":
     axs[0,1].plot(mujoco_time, pos_diff, label="Position Δ")
     axs[1,1].plot(mujoco_time, vel_diff, label="Velocity Δ")
     axs[2,1].plot(mujoco_time, acc_diff, label="Acceleration Δ")
+
+    axs[0,1].legend()
+    axs[1,1].legend()
+    axs[2,1].legend()
+
 
     fig.savefig("mujoco_th_comp.svg")
 

@@ -167,3 +167,57 @@ python single_test.py \
     --noise-level 0.0 \
     --no-implicit-regression \
     --no-mujoco-generation
+
+python mujoco_ideal_comparison.py \
+    --random-seed 12 \
+    --experiment-folder "mujoco_align_data/double_pendulum_pm" \
+    --max-time 100 \
+    --forces-scale-vector 8 8 \
+    --forces-period 3 \
+    --forces-period-shift 0.5
+
+## Test alignment 
+
+python mujoco_ideal_comparison.py \
+    --random-seed 12 \
+    --experiment-folder "mujoco_align_data/double_pendulum_pm" \
+    --max-time 20 \
+    --forces-scale-vector 5 5 \
+    --forces-period 3 \
+    --forces-period-shift 0.5
+
+python mujoco_ideal_comparison.py \
+    --random-seed 12 \
+    --experiment-folder "mujoco_align_data/cart_pole" \
+    --max-time 20 \
+    --forces-scale-vector 5 5 \
+    --forces-period 3 \
+    --forces-period-shift 0.5
+
+python mujoco_ideal_comparison.py \
+    --random-seed 12 \
+    --experiment-folder "mujoco_align_data/cart_pole_double" \
+    --max-time 20 \
+    --forces-scale-vector 5 5 5 \
+    --forces-period 3 \
+    --forces-period-shift 0.5
+
+#    Everything is aligned 
+# now why it isn't aligned during regression ??
+
+# AHHHHHHHHHHHH 
+# I forgot the forces transformer during inferences :clown:
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/double_pendulum_pm" \
+    --max-time 30 \
+    --forces-scale-vector 3 3 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 1000 \
+    --optimization-function "hard_threshold_sparse_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --no-implicit-regression \
+    --no-mujoco-generation

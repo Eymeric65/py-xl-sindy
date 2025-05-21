@@ -81,6 +81,7 @@ def xlsindy_component(
     )
 
     if mode == "xlsindy":
+        
         # Create the catalog (Mandatory part)
         function_catalog_1 = [lambda x: symbols_matrix[2, x]]
         function_catalog_2 = [
@@ -102,14 +103,15 @@ def xlsindy_component(
 
         lagrange_catalog = np.concatenate(
             (cross_catalog.flatten(), catalog_part1, catalog_part2)
-        )  # Maybe not ?
+        ) 
 
         friction_catalog = (
             friction_function.flatten()
         )  # Contain only \dot{q}_1 \dot{q}_2
+
         expand_matrix = np.ones((len(friction_catalog), num_coordinates), dtype=int)
         catalog_repartition = [
-            ("external_forces", None),
+            ("external_forces", [[1,-2],[2]]),
             ("lagrangian", lagrange_catalog),
             ("classical", friction_catalog, expand_matrix),
         ]
@@ -118,15 +120,7 @@ def xlsindy_component(
         catalog_repartition,
         [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
         )
-        # Generate solution vector
-        # ideal_lagrangian_vector = xlsindy.catalog_gen.create_solution_vector(
-        #     sp.expand_trig(Lagrangian.subs(substitutions)), lagrange_catalog
-        # )
-        # ideal_friction_vector = np.reshape(friction_forces, (-1, 1))
 
-        # ideal_solution_vector = np.concatenate(
-        #     (ideal_lagrangian_vector, ideal_friction_vector), axis=0
-        # )
         catalog_len = len(ideal_solution_vector)
 
     elif mode == "sindy":
@@ -195,17 +189,13 @@ def xlsindy_component(
             random_seed,
         )
 
-        # solution = xlsindy.catalog_gen.translate_coeff_matrix(
-        #     coeff_matrix, binary_matrix
-        # )
-
-        catalog_repartition = [("external_forces", None),("classical", catalog_need, binary_matrix)]
+        catalog_repartition = [("external_forces", [[1,-2],[2]]),("classical", catalog_need, binary_matrix)]
 
         ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
         catalog_repartition,
         [(None),(coeff_matrix,binary_matrix)]
         )
-        #ideal_solution_vector = solution
+
         catalog_len = len(ideal_solution_vector)
 
     # Create the extra_info dictionnary
@@ -236,16 +226,3 @@ def mujoco_transform(pos, vel, acc, forces):
     forces[:, :-1] -= forces[:, 1:]
 
     return pos, vel, acc, forces
-
-
-def forces_wrapper(fun):
-
-    def wrapper(*args, **kwargs):
-
-        forces = fun(*args, **kwargs)
-
-        forces[:-1] -= forces[1:]
-
-        return forces
-
-    return wrapper
