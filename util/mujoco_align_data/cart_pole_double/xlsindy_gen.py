@@ -44,7 +44,6 @@ def xlsindy_component(
     mass2 = 0.5
 
     friction_coeff = [-1.5, -1.8, -1.2]
-    # friction_coeff = [-0.0,-0.0, -0.0]
 
     friction_forces = np.array(
         [
@@ -124,7 +123,7 @@ def xlsindy_component(
         expand_matrix = np.ones((len(friction_catalog), num_coordinates), dtype=int)
 
         catalog_repartition = [
-            ("external_forces", None),
+            ("external_forces", [[1],[2,-3],[3]]),
             ("lagrangian", lagrange_catalog),
             ("classical", friction_catalog, expand_matrix),
         ]
@@ -134,15 +133,6 @@ def xlsindy_component(
         [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
         )
 
-        # # Generate solution vector
-        # ideal_lagrangian_vector = xlsindy.catalog_gen.create_solution_vector(
-        #     sp.expand_trig(Lagrangian.subs(substitutions)), lagrange_catalog
-        # )
-        # ideal_friction_vector = np.reshape(friction_forces, (-1, 1))
-
-        # ideal_solution_vector = np.concatenate(
-        #     (ideal_lagrangian_vector, ideal_friction_vector), axis=0
-        # )
         catalog_len = len(ideal_solution_vector)
 
     elif mode == "sindy":
@@ -153,8 +143,6 @@ def xlsindy_component(
         newton_system = []
 
         newton_equations += (friction_function @ friction_forces).flatten()
-
-        # print(newton_equations)
 
         for i in range(num_coordinates):
 
@@ -209,13 +197,17 @@ def xlsindy_component(
             random_seed,
         )
 
-        solution = xlsindy.catalog_gen.translate_coeff_matrix(
-            coeff_matrix, binary_matrix
+        catalog_repartition = [
+            ("external_forces", [[1],[2,-3],[3]]),
+            ("classical", catalog_need, binary_matrix)
+            ]
+        
+        ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
+        catalog_repartition,
+        [(None),(coeff_matrix,binary_matrix)],
         )
 
-        catalog_repartition = [("classical", catalog_need, binary_matrix)]
-        ideal_solution_vector = solution
-        catalog_len = np.sum(binary_matrix)
+        catalog_len = np.sum(ideal_solution_vector)
 
     # Create the extra_info dictionnary
     extra_info = {
@@ -236,25 +228,11 @@ def xlsindy_component(
     )  # extra_info is optionnal and should be set to None if not in use
 
 
-def mujoco_transform(pos, vel, acc, forces):
+def mujoco_transform(pos, vel, acc):
 
     pos[:, 1:] = np.cumsum(pos[:, 1:], axis=1) - mujoco_angle_offset
     vel[:, 1:] = np.cumsum(vel[:, 1:], axis=1)
     acc[:, 1:] = np.cumsum(acc[:, 1:], axis=1)
 
-    forces[:, 1] -= forces[:, 2]
+    return -pos, -vel, -acc
 
-    return -pos, -vel, -acc, forces
-
-
-def forces_wrapper(fun):
-
-    def wrapper(*args, **kwargs):
-
-        forces = fun(*args, **kwargs)
-
-        forces[1] -= forces[2]
-
-        return forces
-
-    return wrapper

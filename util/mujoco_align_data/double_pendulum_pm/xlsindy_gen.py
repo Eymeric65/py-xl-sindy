@@ -81,7 +81,7 @@ def xlsindy_component(
     )
 
     if mode == "xlsindy":
-        
+
         # Create the catalog (Mandatory part)
         function_catalog_1 = [lambda x: symbols_matrix[2, x]]
         function_catalog_2 = [
@@ -217,12 +217,10 @@ def xlsindy_component(
     )  # extra_info is optionnal and should be set to None if not in use
 
 
-def mujoco_transform(pos, vel, acc, forces):
+def mujoco_transform(pos, vel, acc):
 
     pos = -np.cumsum(pos, axis=1) + mujoco_angle_offset
     vel = -np.cumsum(vel, axis=1)
     acc = -np.cumsum(acc, axis=1)
 
-    forces[:, :-1] -= forces[:, 1:]
-
-    return pos, vel, acc, forces
+    return pos, vel, acc

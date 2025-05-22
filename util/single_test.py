@@ -16,7 +16,6 @@ import sys
 import os 
 import importlib
 
-
 import mujoco
 import numpy as np
 import xlsindy
@@ -156,8 +155,8 @@ if __name__ == "__main__":
         simulation_qacc = np.array(simulation_qacc)
         force_vector = np.array(force_vector)
 
-        simulation_qpos, simulation_qvel, simulation_qacc, force_vector = mujoco_transform(
-            simulation_qpos, simulation_qvel, simulation_qacc, force_vector
+        simulation_qpos, simulation_qvel, simulation_qacc = mujoco_transform(
+            simulation_qpos, simulation_qvel, simulation_qacc
         )
 
     else: # Theorical generation
@@ -173,7 +172,7 @@ if __name__ == "__main__":
         model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
         print("INFO : Theorical initialized")
         try:
-            simulation_time, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.05)
+            simulation_time, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.005)
         except Exception as e:
             print(f"An error occurred on the RK45 integration: {e}")
         print("INFO : Theorical simulation done")
@@ -193,13 +192,13 @@ if __name__ == "__main__":
     if subsample == 0 :
         subsample =1
 
-    start_truncation = 2
+    truncation = 20
 
-    simulation_time = simulation_time[start_truncation::subsample]
-    simulation_qpos = simulation_qpos[start_truncation::subsample]
-    simulation_qvel = simulation_qvel[start_truncation::subsample]
-    simulation_qacc = simulation_qacc[start_truncation::subsample]
-    force_vector = force_vector[start_truncation::subsample]
+    simulation_time = simulation_time[truncation:-truncation:subsample]
+    simulation_qpos = simulation_qpos[truncation:-truncation:subsample]
+    simulation_qvel = simulation_qvel[truncation:-truncation:subsample]
+    simulation_qacc = simulation_qacc[truncation:-truncation:subsample]
+    force_vector = force_vector[truncation:-truncation:subsample]
 
 ### --------------------------- Part 2, Regresssion on the Data using xlsindy ------------------------
 
@@ -265,13 +264,21 @@ if __name__ == "__main__":
 
     print("forces difference",np.linalg.norm(forces_vector.flatten()-force_vector.T.flatten()))
 
-    ideal_residuals = forces_vector- exp_matrix_amp @ ideal_solution_amp
-    print("Ideal Residuals : ", np.linalg.norm(ideal_residuals)/np.linalg.norm(forces_vector))
+    LHS = exp_matrix_amp @ ideal_solution_amp
+    RHS = forces_vector
+
+    ideal_residuals = RHS - LHS
+
+    ideal_residuals_norm = np.linalg.norm(ideal_residuals)/np.linalg.norm(forces_vector)
+    print("Ideal Residuals : ", ideal_residuals_norm )
+
+    # Correlate in order to verify no offset 
+    correlate =  np.correlate(LHS.flatten(),RHS.flatten(),"full")
+    print("max overlap :", np.argmax(correlate) - (len(RHS) - 1))
 
     # Residuals
-    print("Residuals : ", np.linalg.norm(residuals)/np.linalg.norm(forces_vector))
-
-
+    residuals_norm = np.linalg.norm(residuals)/np.linalg.norm(forces_vector)
+    print("Residuals : ", residuals_norm)
 
     # Sparsity of the model 
     sparsity_reference = np.count_nonzero(extra_info["ideal_solution_vector"])
@@ -310,14 +317,13 @@ if __name__ == "__main__":
 ### ----------------------------------------- Part 4, Render -----------------------------------------
 
     # Function catalog rendering
-    fig, axs = plt.subplots(4, 1,figsize=(10, 10))
+    fig, axs = plt.subplots(3, 1,figsize=(10, 10))
     fig.suptitle("Experiment Results")
 
     graph = {
         "model_comp":axs[0],
         "residuals":axs[1],
-        "ideal_residuals":axs[2],
-        "debug":axs[3]
+        "ideal_residuals":axs[2]
     }
 
     graph["model_comp"].set_title("Model Comparison")
@@ -337,7 +343,7 @@ if __name__ == "__main__":
         label="True Model",
     )
 
-    graph["model_comp"].legend()
+    graph["model_comp"].legend(loc="upper right")
 
     graph["residuals"].set_title("Residuals")
 
@@ -357,15 +363,33 @@ if __name__ == "__main__":
             label=f"Ideal Residuals q{i}",
         )
 
+    graph["model_comp"].text(0.01, 0.05, f"RMSE model comparison : {RMSE_model:.2e}",
+        transform=graph["model_comp"].transAxes,
+        fontsize=12,
+        verticalalignment='bottom',
+        horizontalalignment='left',
+        bbox=dict(facecolor='white', alpha=0.7))
 
+    graph["residuals"].text(0.01, 0.05, f"Residuals : {ideal_residuals_norm:.2e}",
+        transform=graph["residuals"].transAxes,
+        fontsize=12,
+        verticalalignment='bottom',
+        horizontalalignment='left',
+        bbox=dict(facecolor='white', alpha=0.7))
+    
+    graph["ideal_residuals"].text(0.01, 0.05, f"Ideals residuals : {residuals_norm:.2e}",
+        transform=graph["ideal_residuals"].transAxes,
+        fontsize=12,
+        verticalalignment='bottom',
+        horizontalalignment='left',
+        bbox=dict(facecolor='white', alpha=0.7))
 
-    graph["residuals"].legend()
-    graph["ideal_residuals"].legend()
+    #graph["debug"].plot(correlate)
 
-    graph["debug"].plot(forces_vector)
-    graph["debug"].plot(force_vector.T.flatten())
+    graph["residuals"].legend(loc="upper right")
+    graph["ideal_residuals"].legend(loc="upper right")
 
-    fig.savefig("experiment_result.svg")
+    fig.savefig(f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}.svg")
     plt.show()
 
 

@@ -103,11 +103,10 @@ def xlsindy_component(
         expand_matrix = np.ones((len(friction_catalog), num_coordinates), dtype=int)
 
         catalog_repartition = [
-            ("external_forces", None),
+            ("external_forces", [[1],[2]]),
             ("lagrangian", lagrange_catalog),
             ("classical", friction_catalog, expand_matrix),
         ]
-
 
         # Generate solution vector
 
@@ -116,17 +115,6 @@ def xlsindy_component(
             [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
         )
 
-        #DEPRECATED 
-        # ideal_lagrangian_vector = xlsindy.catalog_gen.create_solution_vector(
-        #     sp.expand_trig(Lagrangian.subs(substitutions)), lagrange_catalog
-        # )
-        # ideal_friction_vector = np.reshape(friction_forces, (-1, 1))
-
-        # ideal_solution_vector = np.concatenate(
-        #     (ideal_lagrangian_vector, ideal_friction_vector), axis=0
-        # )
-
-        # catalog_len = len(lagrange_catalog) + np.sum(expand_matrix)
         catalog_len = len(ideal_solution_vector)
 
     elif mode == "sindy":
@@ -191,21 +179,18 @@ def xlsindy_component(
             random_seed,
         )
 
-        catalog_repartition = [("external_forces",None),("classical", catalog_need, binary_matrix)]
+        catalog_repartition = [
+            ("external_forces", [[1],[2]]),
+            ("classical", catalog_need, binary_matrix)
+            ]
 
         ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
             catalog_repartition,
             [(None),(coeff_matrix,binary_matrix)]
         )
 
-        
-
         catalog_len = len(ideal_solution_vector)
 
-        #DEPRECATED
-        # solution = xlsindy.catalog_gen.translate_coeff_matrix(
-        #     coeff_matrix, binary_matrix
-        # )
 
     # Create the extra_info dictionnary
     extra_info = {
@@ -225,22 +210,9 @@ def xlsindy_component(
         extra_info,
     )  # extra_info is optionnal and should be set to None if not in use
 
+def mujoco_transform(pos, vel, acc):
 
-def mujoco_transform(pos, vel, acc, forces):
-
-    return -pos, -vel, -acc, forces
-
-
-def forces_wrapper(fun):
-
-    def wrapper(*args, **kwargs):
-
-        forces = fun(*args, **kwargs)
-
-        return forces
-
-    return wrapper
-
+    return -pos, -vel, -acc
 
 if __name__ == "__main__":
 
