@@ -214,6 +214,12 @@ def mujoco_transform(pos, vel, acc):
 
     return -pos, -vel, -acc
 
+def inverse_mujoco_transform(pos, vel, acc):
+    if acc is not None:
+        return -pos, -vel, -acc
+    else:
+        return -pos, -vel, None
+
 if __name__ == "__main__":
 
     num_coordinates, time_sym, symbols_matrix, catalog_repartition, extra_info = (

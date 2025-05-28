@@ -236,3 +236,38 @@ def mujoco_transform(pos, vel, acc):
 
     return -pos, -vel, -acc
 
+def inverse_mujoco_transform(tpos, tvel, tacc):
+    # undo the negation
+    pos_t = -tpos
+    vel_t = -tvel
+    if tacc is not None:
+        acc_t = -tacc
+
+    # prep outputs
+    pos = np.empty_like(pos_t)
+    vel = np.empty_like(vel_t)
+    if tacc is not None:
+        acc = np.empty_like(acc_t)
+
+    # column 0 is direct copy
+    pos[:, 0] = pos_t[:, 0]
+    vel[:, 0] = vel_t[:, 0]
+    if tacc is not None:
+        acc[:, 0] = acc_t[:, 0]
+
+    # rebuild the cumulative sums
+    S_pos = pos_t[:, 1:] + mujoco_angle_offset
+    S_vel = vel_t[:, 1:]
+    if tacc is not None:
+        S_acc = acc_t[:, 1:]
+
+    # now invert via np.diff, prepending the first element so shapes match
+    pos[:, 1:] = np.diff(S_pos, axis=1, prepend=np.zeros((S_pos.shape[0],1)))
+    vel[:, 1:] = np.diff(S_vel, axis=1, prepend=np.zeros((S_pos.shape[0],1)))
+    if tacc is not None:
+        acc[:, 1:] = np.diff(S_acc, axis=1, prepend=np.zeros((S_pos.shape[0],1)))
+
+    if tacc is not None:
+        return pos, vel, acc
+    else:
+        return pos, vel, None

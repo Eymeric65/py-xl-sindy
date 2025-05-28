@@ -14,6 +14,7 @@ import jax
 import jax.numpy as jnp
 from jax import lax
 
+import cvxpy as cp
 
 def execute_regression(
     theta_values: np.ndarray,
@@ -216,8 +217,9 @@ def regression_implicite(
     symbol_matrix: np.ndarray,
     catalog_repartition: np.ndarray,
     hard_threshold: float = 1e-3,
-    regression_function: Callable = lasso_regression,
-    sparsity_coefficient: float = 1.5,
+    l1_lambda = 1e-2,
+    #regression_function: Callable = lasso_regression,
+    #sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Executes regression for a dynamic system to estimate the system’s parameters. 
@@ -255,50 +257,16 @@ def regression_implicite(
         acceleration_values,
     )
 
-    m, n = experimental_matrix.shape
+    A = experimental_matrix
 
-    def solve_k(k):
-        
-        A_k = np.reshape(experimental_matrix[:, k].T, (-1, 1))
-        A_star_k = _build_A_star(experimental_matrix, k)
-        x_k = regression_function(A_k,A_star_k )
-        x_full = _insert_zero(x_k, k, n)  # Put zero at the kth position
-        return x_full
+    m, n = A.shape
 
-    x_all = []
+    X = cp.Variable((n,n))
 
-    for k in range(n):
-        print("solved k", k)
-        x_all.append(solve_k(k))
-
-    x_all = np.stack(x_all)
-
-    # I should stop the regression implicite now and implement more way to decide the solution.
-
-    return x_all,experimental_matrix,None
-
-    # # Step 1 : Hardtresholding
-    # max_val = np.max(np.abs(x_all))
-    # threshold = max_val * hard_threshold
-    # x_all = np.where(np.abs(x_all) < threshold, 0.0, x_all)
-
-    # # Step 2: compute sparsity = number of non-zeros per x
-    # sparsity = np.sum(x_all != 0, axis=1)
-    # min_sparsity = np.min(sparsity[sparsity > 0])
-
-    # print("min_sparsity", min_sparsity)
-    # print("sparsity", sparsity)
-
-    # max_allowed_sparsity = min_sparsity * sparsity_coefficient
-
-    # # Step 3: mask valid sparse solutions
-    # valid_mask = ( sparsity <= max_allowed_sparsity )& (sparsity > 0)
-
-    # print("valid_mask", valid_mask)
-    # print("x_all shape", x_all.shape)
-    # valid_solutions = x_all[valid_mask]
-
-    # # Step 4: average valid solutions
-    # x_final = np.mean(valid_solutions, axis=0)
-
-    # return np.reshape(x_final,shape=(-1,1)), experimental_matrix, None # covariance matrix not computed in this case
+    obj = cp.Minimize(
+        cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X)
+    )
+    prob = cp.Problem(obj, [cp.diag(X) == 0])
+    prob.solve(verbose=True)
+    
+    return X.value, experimental_matrix, None, None

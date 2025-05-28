@@ -1,0 +1,31 @@
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/double_pendulum_pm" \
+    --max-time 20 \
+    --forces-scale-vector 0 0 \
+    --initial-position 0.2 0 0.2 0 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 3000 \
+    --optimization-function "hard_threshold_sparse_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --implicit-regression \
+    --no-mujoco-generation
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/double_pendulum_pm" \
+    --max-time 10 \
+    --forces-scale-vector 0 0 \
+    --initial-position 0.0 0 0.0 0 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 3000 \
+    --optimization-function "hard_threshold_sparse_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --implicit-regression \
+    --no-mujoco-generation \
+    --batch-number 10 \
+    --initial-condition-randomness 1.5

@@ -224,3 +224,25 @@ def mujoco_transform(pos, vel, acc):
     acc = -np.cumsum(acc, axis=1)
 
     return pos, vel, acc
+
+def inverse_mujoco_transform(tpos, tvel, tacc):
+    """
+    Given outputs of mujoco_transform (tpos, tvel, tacc),
+    recover the original pos, vel, acc (all shape (batch, n)).
+    """
+    # Undo the negated cumsum (and offset for angles)
+    S_pos = -(tpos - mujoco_angle_offset)
+    S_vel = -tvel
+    if tacc is not None:
+        S_acc = -tacc
+
+    # invert cumulative sum by taking differences (with zero prepended)
+    pos = np.diff(S_pos, axis=1, prepend=np.zeros((S_pos.shape[0],1)))
+    vel = np.diff(S_vel, axis=1, prepend=np.zeros((S_vel.shape[0],1)))
+    if tacc is not None:
+        acc = np.diff(S_acc, axis=1, prepend=np.zeros((S_acc.shape[0],1)))
+
+    if tacc is not None:
+        return pos, vel, acc
+    else:
+        return pos, vel, None

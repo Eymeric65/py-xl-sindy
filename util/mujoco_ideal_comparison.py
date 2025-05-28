@@ -30,6 +30,8 @@ class Args:
     ## Data generation
     experiment_folder: str = "None"
     """the folder where the experiment data is stored : the mujoco environment.xml file and the xlsindy_gen.py script"""
+    initial_position: List[float] = field(default_factory=lambda: [])
+    """the initial position of the system"""
     max_time: float = 10.0
     """the maximum time for the simulation"""
     forces_scale_vector: List[float] = field(default_factory=lambda: [])
@@ -75,6 +77,12 @@ if __name__ == "__main__":
         except AttributeError:
             mujoco_transform = None
 
+        try:
+            inverse_mujoco_transform = xlsindy_gen.inverse_mujoco_transform
+        except AttributeError:
+            inverse_mujoco_transform = None
+
+
         num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = (
             xlsindy_component(random_seed=args.random_seed)
         )
@@ -95,6 +103,9 @@ if __name__ == "__main__":
         random_seed=args.random_seed,
     )
 
+    # initial condition
+    initial_condition = np.array(args.initial_position).reshape(num_coordinates,2) + extra_info["initial_condition"]
+
     # initialize Mujoco environment and controller
 
     mujoco_model = mujoco.MjModel.from_xml_path(mujoco_xml)
@@ -105,6 +116,13 @@ if __name__ == "__main__":
     mujoco_qvel = []
     mujoco_qacc = []
     force_vector = []
+
+    initial_qpos,initial_qvel = initial_condition[:,0].reshape(1,-1),initial_condition[:,1].reshape(1,-1)
+
+    initial_qpos,initial_qvel,_ = inverse_mujoco_transform(initial_qpos,initial_qvel,None)
+
+    mujoco_data.qpos = initial_qpos
+    mujoco_data.qvel = initial_qvel
 
     def random_controller(forces_function):
 
@@ -136,8 +154,8 @@ if __name__ == "__main__":
     mujoco_qacc = np.array(mujoco_qacc)
     force_vector = np.array(force_vector)
 
-    mujoco_qpos, mujoco_qvel, mujoco_qacc, force_vector = mujoco_transform(
-        mujoco_qpos, mujoco_qvel, mujoco_qacc, force_vector
+    mujoco_qpos, mujoco_qvel, mujoco_qacc = mujoco_transform(
+        mujoco_qpos, mujoco_qvel, mujoco_qacc
     )
 
     ## No need this part
@@ -168,7 +186,7 @@ if __name__ == "__main__":
     model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
 
     try:
-        time_values, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, extra_info["initial_condition"], args.max_time, max_step=0.01)
+        time_values, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, initial_condition, args.max_time, max_step=0.01)
     except Exception as e:
         print(f"An error occurred on the RK45 integration: {e}")
 
