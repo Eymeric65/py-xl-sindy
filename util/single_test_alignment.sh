@@ -1,3 +1,6 @@
+# This scripts runs a series of tests that should match the result in single_test_result_alignment folder.
+
+
 # Double pendulum pm
 python single_test.py \
     --random-seed 12 14 \

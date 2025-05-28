@@ -590,15 +590,10 @@ def create_solution_vector(
 
     solution = []
 
-    # print("gros debug",catalog,solution_data)
-
-    # exit()
-
     for (name,*args),data in zip(catalog,solution_data):
         
         if name == "lagrangian":
             lagrangian_catalog = args[0]
-            
             (lagrangian, substitutions) = data
             solution += [create_lagrangian_solution_vector(sympy.expand_trig(lagrangian.subs(substitutions)), lagrangian_catalog).reshape(-1, 1)]
         elif name == "classical":
@@ -609,6 +604,5 @@ def create_solution_vector(
         else:
             raise ValueError("catalog not recognised")
 
-    
     return np.concatenate(solution, axis=0)
 

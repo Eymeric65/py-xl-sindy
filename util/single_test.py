@@ -197,7 +197,7 @@ if __name__ == "__main__":
             force_vector_m = np.array(force_vector_m)
 
             # Concatenate the data
-            simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m), axis=0)
+            simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m+np.max(simulation_time_g)), axis=0)
             simulation_qpos_g = np.concatenate((simulation_qpos_g, simulation_qpos_m), axis=0)
             simulation_qvel_g = np.concatenate((simulation_qvel_g, simulation_qvel_m), axis=0)
             simulation_qacc_g = np.concatenate((simulation_qacc_g, simulation_qacc_m), axis=0)
@@ -230,6 +230,8 @@ if __name__ == "__main__":
 
             force_vector_m = forces_function(simulation_time_m.T).T
 
+            if len(simulation_qvel_g) >0:
+                simulation_time_m += np.max(simulation_time_g)
             # Concatenate the data
             simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m.reshape(-1, 1)), axis=0)
             simulation_qpos_g = np.concatenate((simulation_qpos_g, simulation_qpos_m), axis=0)
@@ -283,6 +285,8 @@ if __name__ == "__main__":
             l1_lambda=1e0
         )
 
+        
+
     else:
         
         solution, exp_matrix, residuals,covariange_matrix = xlsindy.simulation.regression_explicite(
@@ -319,18 +323,18 @@ if __name__ == "__main__":
 
         col_max = np.max(np.abs(solution_matrix),axis=0)
         col_max[col_max == 0] = 1.0
-        solution_matrix=solution_matrix / col_max
+        solution_matrix_normalised=solution_matrix / col_max
 
-        solution_matrix[np.abs(solution_matrix)<1e-3] = 0.0
+        solution_matrix_normalised[np.abs(solution_matrix)<1e-3] = 0.0
 
-        sparsity_solution_matrix = np.where(solution_matrix!=0,1,0)
+        sparsity_solution_matrix = np.where(solution_matrix_normalised!=0,1,0)
         sparsity_solution = np.where(extra_info["ideal_solution_vector"]!=0,1,0)
 
         sparsisty_analysis = np.where(sparsity_solution+sparsity_solution_matrix==2,1,0) + \
                              np.where(sparsity_solution_matrix-sparsity_solution==-1,-1,0) + \
                              np.where(sparsity_solution-sparsity_solution_matrix==-1,-1,0)
 
-        compare_matrix = np.abs(solution_matrix) - np.abs(extra_info["ideal_solution_vector"])/np.max(np.abs(extra_info["ideal_solution_vector"]))
+        compare_matrix = np.abs(solution_matrix_normalised) - np.abs(extra_info["ideal_solution_vector"])/np.max(np.abs(extra_info["ideal_solution_vector"]))
 
         graph["solution_matrix"].set_title("Solution Matrix")
         graph["solution_matrix"].imshow(np.abs(compare_matrix), aspect="equal", cmap="viridis")
@@ -351,8 +355,11 @@ if __name__ == "__main__":
         graph["position"].set_title("Position") 
         graph["position"].plot(simulation_time_g,simulation_qpos_g)
 
-        fig.savefig(f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{'implicit' if args.implicit_regression else 'explicit' }_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}.svg")
+        filename = f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{'implicit' if args.implicit_regression else 'explicit' }_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}"
 
+        fig.savefig(filename+".svg")
+        np.save(filename+".npy", solution_matrix)
+        np.save(filename+"_ideal_solution.npy", extra_info["ideal_solution_vector"])
 
         exit() # exit because the implicit regression is not compatible with the rest of the code
     #End of temporary code 
