@@ -7,6 +7,29 @@ from typing import List, Union
 import numpy as np
 from .. import euler_lagrange
 
+from ..catalog import CatalogCategory
+
+class Lagrange(CatalogCategory):
+    """
+    Lagrange based catalog. 
+
+    Args:
+        interlink_list (List[List[int]]) : Presence of the forces on each of the coordinate, 1-indexed can be negative for retroactive forces.
+        symbol_matrix (np.ndarray) : Symbolic variable matrix for the system.
+    """
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def create_solution_vector(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def expand_catalog(self):
+        raise NotImplementedError
+
+    def label(self):
+        raise NotImplementedError
+
+
 def _create_solution_vector(
     expression: sympy.Expr,
     catalog: List[Union[int, float]],

@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
     if args.biparted_graph:
 
-        catalog_label = xlsindy.catalog_gen.label_catalog(catalog_repartition)
+        catalog_label = xlsindy.symbolic_util.label_catalog(catalog_repartition)
 
         ground_truth_indices = np.argwhere( extra_info["ideal_solution_vector"].flatten() != 0).flatten()
         

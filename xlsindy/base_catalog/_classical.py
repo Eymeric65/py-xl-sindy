@@ -1,0 +1,80 @@
+"""
+Contains the function responsible for the classical part of the catalog.
+"""
+
+import sympy 
+from typing import List
+import numpy as np
+
+from ..catalog import CatalogCategory
+
+class Classical(CatalogCategory):
+    """
+    Classical newtonnian catalog. 
+
+    Args:
+        symbolic_catalog (np.ndarray) : the catalog listing every symbolic function of the catalog (k,)
+        binary_matrix (np.ndarray) : the matrix of repartition of the symbolic function (k,num_coordinate)
+    """
+
+    def __init__(self, 
+        symbolic_catalog:np.ndarray, 
+        binary_matrix:np.ndarray
+        ):
+
+        self.symbolic_catalog = symbolic_catalog
+        self.binary_matrix = binary_matrix
+
+        self.symbolic_catalog_length = self.binary_matrix.shape[0]
+
+        # Required variable 
+        self.catalog_length = self.binary_matrix.sum()
+        self.num_coordinate = self.binary_matrix.shape[1]
+
+    def create_solution_vector(self,
+        coeff_matrix:np.ndarray
+        ):
+        """
+        Args:
+            coeff_matrix (np.ndarray) : a matrix of size (symbolic_catalog_length,num_coordinate) which coefficient represent the ideal solution coefficient
+        """
+
+        # Flatten the expand matrix in row-major order and find indices where its value is 1.
+        mask = self.binary_matrix.ravel() == 1
+
+        # Use boolean indexing to select corresponding coefficients (works for any dtype).
+        coeff_flat = coeff_matrix.ravel()[mask]
+
+        # Reshape into a column vector.
+        coeff_vector = coeff_flat.reshape(-1, 1)
+        return coeff_vector
+        
+
+    def expand_catalog(self):
+        # Create the output array
+        res = np.zeros((self.catalog_lenght, self.num_coordinate), dtype=object)
+
+        # Compute the cumulative row indices (flattened order, then reshaped)
+        line_count = np.cumsum(self.binary_matrix.ravel()) - 1
+        line_count = line_count.reshape(self.binary_matrix.shape)
+
+        # Compute the product in a vectorized way
+        prod = (self.binary_matrix * self.symbolic_catalog[:, None]).ravel()
+        indices = np.argwhere(prod != 0)
+
+        # Create an array of column indices that match the row-major flattening order
+        cols = np.tile(np.arange(self.num_coordinate), self.binary_matrix.shape[0])
+
+        # Use fancy indexing to assign the values
+        res[line_count.ravel()[indices], cols[indices]] = prod[indices]
+
+        return res
+        
+    def label(self):
+        raise NotImplementedError
+
+if __name__ == "__main__" :
+
+    print("prout")
+
+    

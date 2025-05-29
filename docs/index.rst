@@ -17,7 +17,8 @@ For a better understanding of the whole framework it is recommanded to read the 
    :maxdepth: 4
    :caption: Package content :
 
-   xlsindy.catalog_gen
+   xlsindy.catalog
+   xlsindy.symbolic_util
    xlsindy.dynamics_modeling
    xlsindy.euler_lagrange
    xlsindy.optimization
@@ -26,3 +27,9 @@ For a better understanding of the whole framework it is recommanded to read the 
    xlsindy.result_formatting
    xlsindy.utils
    xlsindy.sindy_utils
+
+.. toctree::
+   :maxdepth: 4
+   :caption: Base catalog content :
+
+   xlsindy.base_catalog

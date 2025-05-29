@@ -6,7 +6,7 @@ This module enable user to launch nearly complete workflow in order to run Xl-Si
 
 import numpy as np
 from .dynamics_modeling import *
-from .catalog_gen import *
+from .symbolic_util import *
 from .euler_lagrange import *
 from .optimization import *
 

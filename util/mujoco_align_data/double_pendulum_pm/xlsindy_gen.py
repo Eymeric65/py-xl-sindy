@@ -32,7 +32,7 @@ def xlsindy_component(
 
     num_coordinates = 2
 
-    symbols_matrix = xlsindy.catalog_gen.generate_symbolic_matrix(
+    symbols_matrix = xlsindy.symbolic_util.generate_symbolic_matrix(
         num_coordinates, time_sym
     )
 
@@ -90,12 +90,12 @@ def xlsindy_component(
         ]
 
         catalog_part1 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_1, num_coordinates, 2
             )
         )
         catalog_part2 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_2, num_coordinates, 2
             )
         )
@@ -116,7 +116,7 @@ def xlsindy_component(
             ("classical", friction_catalog, expand_matrix),
         ]
         # give a reference lagrangian for the system analysed (optional) through the extra_info dictionary
-        ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
+        ideal_solution_vector = xlsindy.symbolic_util.create_solution_vector(
         catalog_repartition,
         [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
         )
@@ -137,13 +137,13 @@ def xlsindy_component(
         for i in range(num_coordinates):
 
             newton_system += [
-                xlsindy.catalog_gen.get_additive_equation_term(
+                xlsindy.symbolic_util.get_additive_equation_term(
                     sp.expand_trig(newton_equations[i])
                 )
             ]
 
         catalog_need, coeff_matrix, binary_matrix = (
-            xlsindy.catalog_gen.sindy_create_coefficient_matrices(newton_system)
+            xlsindy.symbolic_util.sindy_create_coefficient_matrices(newton_system)
         )
 
         # complete the catalog
@@ -156,30 +156,30 @@ def xlsindy_component(
         ]
 
         catalog_part0 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_0, num_coordinates, 1
             )
         )
         catalog_part1 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_1, num_coordinates, 2
             )
         )
         catalog_part2 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_2, num_coordinates, 2
             )
         )
 
-        lagrange_catalog = xlsindy.catalog_gen.cross_catalog(
+        lagrange_catalog = xlsindy.symbolic_util.cross_catalog(
             catalog_part1, catalog_part2
         )
-        lagrange_catalog = xlsindy.catalog_gen.cross_catalog(
+        lagrange_catalog = xlsindy.symbolic_util.cross_catalog(
             lagrange_catalog, catalog_part0
         )
         # --------------------
 
-        coeff_matrix, binary_matrix, catalog_need = xlsindy.catalog_gen.augment_catalog(
+        coeff_matrix, binary_matrix, catalog_need = xlsindy.symbolic_util.augment_catalog(
             num_coordinates,
             lagrange_catalog,
             coeff_matrix,
@@ -191,7 +191,7 @@ def xlsindy_component(
 
         catalog_repartition = [("external_forces", [[1,-2],[2]]),("classical", catalog_need, binary_matrix)]
 
-        ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
+        ideal_solution_vector = xlsindy.symbolic_util.create_solution_vector(
         catalog_repartition,
         [(None),(coeff_matrix,binary_matrix)]
         )

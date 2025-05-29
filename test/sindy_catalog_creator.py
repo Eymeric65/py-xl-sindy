@@ -87,7 +87,7 @@ print(coeff_matrix)
 print("\nBinary matrix:")
 print(binary_matrix)
 
-expand = xlsindy.catalog_gen.classical_sindy_expand_catalog(unique_exprs, binary_matrix)
+expand = xlsindy.symbolic_util.classical_sindy_expand_catalog(unique_exprs, binary_matrix)
 
 solution = translate_coeff_matrix(coeff_matrix, binary_matrix)
 

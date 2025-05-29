@@ -12,9 +12,9 @@ from typing import List, Callable, Tuple
 
 from sympy import latex
 
-import _catalog_category._external_forces
-import _catalog_category._lagrangian
-import _catalog_category._classical
+import xlsindy.base_catalog._external_forces
+import xlsindy.base_catalog._lagrangian
+import xlsindy.base_catalog._classical
 
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     """

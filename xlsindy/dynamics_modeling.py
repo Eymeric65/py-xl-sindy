@@ -14,7 +14,7 @@ import sympy
 from typing import Tuple
 
 from . import euler_lagrange
-from . import catalog_gen
+from . import symbolic_util
 
 import time
 
@@ -51,7 +51,7 @@ def generate_acceleration_function(
     """
     num_coords = symbol_matrix.shape[1]
 
-    expanded_catalog = catalog_gen.expand_catalog(
+    expanded_catalog = symbolic_util.expand_catalog(
         catalog_repartition, symbol_matrix, time_symbol
     )
 
