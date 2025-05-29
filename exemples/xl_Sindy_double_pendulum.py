@@ -3,6 +3,7 @@ The first script of example for fitting XlSindy on double pendulum.
 
 This script is actually broken right now... Comparison are totally non sense. I will try to fix it later.
 
+DEPRECATED: some function have been deleted.
 """
 
 import numpy as np
