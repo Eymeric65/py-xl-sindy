@@ -122,15 +122,37 @@ def xlsindy_component(
         )  # Contain only \dot{q}_1 \dot{q}_2
         expand_matrix = np.ones((len(friction_catalog), num_coordinates), dtype=int)
 
-        catalog_repartition = [
-            ("external_forces", [[1],[2,-3],[3]]),
-            ("lagrangian", lagrange_catalog),
-            ("classical", friction_catalog, expand_matrix),
-        ]
+        # catalog_repartition = [
+        #     ("external_forces", [[1],[2,-3],[3]]),
+        #     ("lagrangian", lagrange_catalog),
+        #     ("classical", friction_catalog, expand_matrix),
+        # ]
 
-        ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
-        catalog_repartition,
-        [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
+        # ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
+        # catalog_repartition,
+        # [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
+        # )
+
+        catalog_repartition = xlsindy.catalog.CatalogRepartition(
+            [
+                xlsindy.catalog_base.ExternalForces(
+                    [[1], [2,-3],[3]], symbols_matrix
+                ),
+                xlsindy.catalog_base.Lagrange(
+                    lagrange_catalog, symbols_matrix, time_sym
+                ),
+                xlsindy.catalog_base.Classical(
+                    friction_catalog, expand_matrix
+                ),
+            ]
+        )
+
+        ideal_solution_vector = catalog_repartition.create_solution_vector(
+            [
+                ([]),
+                ([Lagrangian.subs(substitutions)]),
+                ([friction_forces]),
+            ]
         )
 
         catalog_len = len(ideal_solution_vector)
@@ -197,14 +219,31 @@ def xlsindy_component(
             random_seed,
         )
 
-        catalog_repartition = [
-            ("external_forces", [[1],[2,-3],[3]]),
-            ("classical", catalog_need, binary_matrix)
-            ]
+        # catalog_repartition = [
+        #     ("external_forces", [[1],[2,-3],[3]]),
+        #     ("classical", catalog_need, binary_matrix)
+        #     ]
         
-        ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
-        catalog_repartition,
-        [(None),(coeff_matrix,binary_matrix)],
+        # ideal_solution_vector = xlsindy.catalog_gen.create_solution_vector(
+        # catalog_repartition,
+        # [(None),(coeff_matrix,binary_matrix)],
+        # )
+        catalog_repartition = xlsindy.catalog.CatalogRepartition(
+            [
+                xlsindy.catalog_base.ExternalForces(
+                    [[1], [2,-3],[3]], symbols_matrix
+                ),
+                xlsindy.catalog_base.Classical(
+                    catalog_need, binary_matrix
+                ),
+            ]
+        )
+
+        ideal_solution_vector = catalog_repartition.create_solution_vector(
+            [
+                ([]),
+                ([coeff_matrix]),
+            ]
         )
 
         catalog_len = np.sum(ideal_solution_vector)
