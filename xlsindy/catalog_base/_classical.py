@@ -28,8 +28,8 @@ class Classical(CatalogCategory):
         self.symbolic_catalog_length = self.binary_matrix.shape[0]
 
         # Required variable 
-        self.catalog_length = self.binary_matrix.sum()
-        self.num_coordinate = self.binary_matrix.shape[1]
+        self.catalog_length = int(self.binary_matrix.sum())
+        self.num_coordinate = int(self.binary_matrix.shape[1])
 
     def create_solution_vector(self,
         coeff_matrix:np.ndarray
@@ -52,7 +52,7 @@ class Classical(CatalogCategory):
 
     def expand_catalog(self):
         # Create the output array
-        res = np.zeros((self.catalog_lenght, self.num_coordinate), dtype=object)
+        res = np.zeros((self.catalog_length, self.num_coordinate), dtype=object)
 
         # Compute the cumulative row indices (flattened order, then reshaped)
         line_count = np.cumsum(self.binary_matrix.ravel()) - 1

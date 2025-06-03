@@ -18,10 +18,12 @@ from . import symbolic_util
 
 import time
 
+from .catalog import CatalogRepartition
+
 
 def generate_acceleration_function(
     regression_solution: np.ndarray,
-    catalog_repartition: List[tuple],
+    catalog_repartition: CatalogRepartition,
     symbol_matrix: np.ndarray,
     time_symbol: sympy.Symbol,
     lambdify_module: str = "numpy",
@@ -51,9 +53,7 @@ def generate_acceleration_function(
     """
     num_coords = symbol_matrix.shape[1]
 
-    expanded_catalog = symbolic_util.expand_catalog(
-        catalog_repartition, symbol_matrix, time_symbol
-    )
+    expanded_catalog = catalog_repartition.expand_catalog()
 
     dynamic_equations = regression_solution.T @ expanded_catalog
     dynamic_equations = dynamic_equations.flatten()

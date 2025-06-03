@@ -40,11 +40,11 @@ class ExternalForces(CatalogCategory):
 
                 if res[0,i] is None :
 
-                    res[0,i] = np.sign(index)*self.symbol_matrix[0,np.abs(index)-1]
+                    res[0,i] = np.sign(index)*self.symbolic_matrix[0,np.abs(index)-1]
 
                 else:
                     
-                    res[0,i] += np.sign(index)*self.symbol_matrix[0,np.abs(index)-1]
+                    res[0,i] += np.sign(index)*self.symbolic_matrix[0,np.abs(index)-1]
 
         return res
 

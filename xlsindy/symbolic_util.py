@@ -12,9 +12,6 @@ from typing import List, Callable, Tuple
 
 from sympy import latex
 
-import xlsindy.base_catalog._external_forces
-import xlsindy.base_catalog._lagrangian
-import xlsindy.base_catalog._classical
 
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     """
@@ -243,41 +240,6 @@ def sindy_create_coefficient_matrices(lists):
 
     return unique_exprs, coeff_matrix, binary_matrix
 
-def label_catalog(catalog_repartition):
-    """
-    WARNING : This function is not 
-    Convert the catalog into label
-
-    Args:
-        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
-
-    Returns:
-        List[str]: List of labels for the catalog.
-    """
-    res = []
-    for catalog in catalog_repartition:
-
-        name, *args = catalog
-
-        if name == "lagrangian":
-            res += ["${}$".format(latex(x).replace("qd", "\\dot{q}")) for x in args[0]]
-
-        elif name == "classical":
-
-            catalog = np.array(list(map(lambda x:"${}$".format(latex(x).replace("qdd", "\\ddot{q}").replace("qd", "\\dot{q}")),args[0])))
-            expand_matrix = args[1]
-
-            #Create the label array
-            row_label = np.array([" on $q_{{{}}}$".format(i) for i in range(expand_matrix.shape[1])])
-
-            label = catalog[:, None] + row_label 
-            
-            res +=  list(_catalog_category._lagrangian._expand_catalog(label,expand_matrix).flatten())
-
-        else:
-            raise ValueError("catalog not recognised")
-
-    return res
 
 
 def augment_catalog(
@@ -341,72 +303,4 @@ def augment_catalog(
 
 # Should be inside a class....
 
-def expand_catalog(
-    catalog_repartition: List[tuple],
-    symbol_matrix: np.ndarray,
-    time_symbol: sympy.Symbol,
-):
-    """
-    create a global catalog for the regression system
-
-    Args:
-        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
-        symbol_matrix (np.ndarray): The matrix of symbolic variables (external forces, positions, velocities, and accelerations).
-        time_symbol (sp.Symbol): The symbolic variable representing time.
-    """
-
-    res = []
-
-    for catalog in catalog_repartition:
-
-        name, *args = catalog
-
-        if name == "lagrangian":
-
-            res += [_catalog_category._lagrangian._expand_catalog(*args, symbol_matrix, time_symbol)]
-
-        elif name == "classical":
-
-            res += [_catalog_category._classical._expand_catalog(*args)]
-
-        elif name == "external_forces":
-
-            res += [_catalog_category._external_forces._expand_catalog(*args,symbol_matrix)]
-
-        else:
-            raise ValueError("catalog not recognised")
-
-    return np.concatenate(res, axis=0)
-
-def create_solution_vector(
-    catalog: List[tuple],
-    solution_data:List[tuple],
-)-> np.ndarray:
-    """
-    Create an unique solution vector from the catalog and the solution data.
-    Args:
-        catalog (List[tuple]): the catalog of function composed of different paradigm [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
-        solution_data (List[tuple]): the solution data composed of the different information to build the solution vector, each one dependend of the paradigm used [(Lagrangian,substitution),...,(coeff_matrix, binary_matrix)]
-
-    Returns:
-        np.ndarray: the solution vector
-    """
-
-    solution = []
-
-    for (name,*args),data in zip(catalog,solution_data):
-        
-        if name == "lagrangian":
-            lagrangian_catalog = args[0]
-            (lagrangian, substitutions) = data
-            solution += [_catalog_category._lagrangian._create_solution_vector(sympy.expand_trig(lagrangian.subs(substitutions)), lagrangian_catalog).reshape(-1, 1)]
-        elif name == "classical":
-            (coeff_matrix, binary_matrix) = data
-            solution += [_catalog_category._lagrangian._create_solution_vector(coeff_matrix, binary_matrix).reshape(-1, 1)]
-        elif name == "external_forces":
-            solution += [_catalog_category._lagrangian._create_solution_vector()]
-        else:
-            raise ValueError("catalog not recognised")
-
-    return np.concatenate(solution, axis=0)
 

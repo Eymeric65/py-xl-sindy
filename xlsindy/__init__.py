@@ -11,4 +11,4 @@ from . import simulation
 from . import result_formatting
 from . import utils
 from . import catalog
-from . import base_catalog
+from . import catalog_base

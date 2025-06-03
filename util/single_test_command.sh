@@ -537,3 +537,90 @@ python single_test.py \
     --algorithm "sindy" \
     --noise-level 0.0 \
     --no-implicit-regression 
+
+# New class paradigm
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/cart_pole" \
+    --max-time 20 \
+    --forces-scale-vector 3.049855884605056 1.639574110558981 \
+    --forces-period 3 \
+    --initial-position 0.0 0 0.0 0 \
+    --forces-period-shift 0.5 \
+    --sample-number 1000 \
+    --optimization-function "hard_threshold_sparse_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --no-implicit-regression
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/cart_pole" \
+    --max-time 20 \
+    --forces-scale-vector 3.049855884605056 1.639574110558981 \
+    --forces-period 3 \
+    --initial-position 0.0 0 0.0 0 \
+    --forces-period-shift 0.5 \
+    --sample-number 1000 \
+    --optimization-function "hard_threshold_sparse_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --no-implicit-regression \
+    --no-mujoco-generation
+
+
+#some try after the classification add for the catalog 
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/cart_pole" \
+    --max-time 120 \
+    --forces-scale-vector 3 3 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 4000 \
+    --optimization-function "lasso_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --no-implicit-regression \
+    --no-mujoco-generation
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/cart_pole" \
+    --max-time 120 \
+    --forces-scale-vector 3 3 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 4000 \
+    --optimization-function "lasso_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --no-implicit-regression 
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/cart_pole" \
+    --max-time 120 \
+    --forces-scale-vector 3 3 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 4000 \
+    --optimization-function "lasso_regression" \
+    --algorithm "sindy" \
+    --noise-level 0.0 \
+    --no-implicit-regression \
+    --no-mujoco-generation
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/cart_pole" \
+    --max-time 120 \
+    --forces-scale-vector 3 3 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 4000 \
+    --optimization-function "lasso_regression" \
+    --algorithm "sindy" \
+    --noise-level 0.0 \
+    --no-implicit-regression 

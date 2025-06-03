@@ -9,8 +9,10 @@ from abc import ABC,abstractmethod,ABCMeta
 import functools
 
 import numpy as np
-# Trick in order to get concatenated docstring for child of abstract class ! great explanation here :https://stackoverflow.com/questions/100003/what-are-metaclasses-in-python
 
+from typing import List
+
+# Trick in order to get concatenated docstring for child of abstract class ! great explanation here :https://stackoverflow.com/questions/100003/what-are-metaclasses-in-python
 class _CatalogMetaClass(ABCMeta):
     def __new__(mcs, name, bases, namespace):
         cls = super().__new__(mcs, name, bases, namespace)
@@ -155,3 +157,94 @@ class CatalogCategory(ABC,metaclass=_CatalogMetaClass):
         pass
 
     ## Additionnal (but not optionnal) method to manage catalog
+
+class CatalogRepartition:
+    """
+    A class that manage the repartition of the catalog. It is used to create a global catalog from different part of the catalog.
+    """
+
+    def __init__(self, catalog_repartition: List[CatalogCategory]):
+        """
+        Initialisation of the CatalogRepartition class.
+
+        Args:
+            catalog_repartition (List[CatalogCategory]): a listing of the different part of the catalog used. list of catalog class.
+        """
+        self.catalog_repartition = catalog_repartition
+
+    def expand_catalog(self):
+        """
+        create a global catalog for the regression system
+
+        Returns:
+            np.ndarray: a global catalog of shape (catalog_length,num_coordinate) containing all the function
+        """
+        res = []
+
+        for catalog in self.catalog_repartition:
+
+            res += [catalog.expand_catalog()]
+
+        return np.concatenate(res, axis=0)
+
+    def create_solution_vector(
+        self,
+        solution_data:List[tuple],
+    )-> np.ndarray:
+        """
+        Create an unique solution vector from the catalog and the solution data.
+        Args:
+            solution_data (List[tuple]): the solution data composed of the different information to build the solution vector, each one dependend of the paradigm used [(Lagrangian,substitution),...,(coeff_matrix, binary_matrix)]
+
+        Returns:
+            np.ndarray: the solution vector
+        """
+
+        solution = []
+
+        for catalog,data in zip(self.catalog_repartition,solution_data):
+            
+            solution += [catalog.create_solution_vector(*data)]
+
+            #solution += [_catalog_category._lagrangian._create_solution_vector(sympy.expand_trig(lagrangian.subs(substitutions)), lagrangian_catalog).reshape(-1, 1)] # keep here for debug
+
+
+        return np.concatenate(solution, axis=0)
+    
+    def label_catalog(catalog_repartition):
+        """
+        WARNING : NOT IMPLEMENTED YET
+        Convert the catalog into label
+
+        Args:
+            catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
+
+        Returns:
+            List[str]: List of labels for the catalog.
+        """
+        raise NotImplementedError("label_catalog is not implemented yet, please use the label method of each catalog class instead")
+
+        res = []
+        for catalog in catalog_repartition:
+
+            name, *args = catalog
+
+            if name == "lagrangian":
+                res += ["${}$".format(latex(x).replace("qd", "\\dot{q}")) for x in args[0]]
+
+            elif name == "classical":
+
+                catalog = np.array(list(map(lambda x:"${}$".format(latex(x).replace("qdd", "\\ddot{q}").replace("qd", "\\dot{q}")),args[0])))
+                expand_matrix = args[1]
+
+                #Create the label array
+                row_label = np.array([" on $q_{{{}}}$".format(i) for i in range(expand_matrix.shape[1])])
+
+                label = catalog[:, None] + row_label 
+                
+                res +=  list(_catalog_category._lagrangian._expand_catalog(label,expand_matrix).flatten())
+
+            else:
+                raise ValueError("catalog not recognised")
+
+        return res

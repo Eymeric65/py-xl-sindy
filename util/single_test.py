@@ -121,6 +121,9 @@ if __name__ == "__main__":
 
     rng = np.random.default_rng(args.random_seed)
 
+    if len(args.initial_position)==0:
+        args.initial_position = np.zeros((num_coordinates,2))
+
     # Batch generation
     for i in range(args.batch_number):
         # Initial condition
@@ -159,9 +162,6 @@ if __name__ == "__main__":
             mujoco_data.qpos = initial_qpos
             mujoco_data.qvel = initial_qvel
 
-            if len(args.initial_position) > 0:
-
-                mujoco_data.qpos[:] = args.initial_position
 
             def random_controller(forces_function):
 
@@ -196,8 +196,11 @@ if __name__ == "__main__":
             simulation_time_m = np.array(simulation_time_m).reshape(-1, 1)
             force_vector_m = np.array(force_vector_m)
 
+            if len(simulation_qvel_g) >0:
+                simulation_time_m += np.max(simulation_time_g)
+
             # Concatenate the data
-            simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m+np.max(simulation_time_g)), axis=0)
+            simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m), axis=0)
             simulation_qpos_g = np.concatenate((simulation_qpos_g, simulation_qpos_m), axis=0)
             simulation_qvel_g = np.concatenate((simulation_qvel_g, simulation_qvel_m), axis=0)
             simulation_qacc_g = np.concatenate((simulation_qacc_g, simulation_qacc_m), axis=0)

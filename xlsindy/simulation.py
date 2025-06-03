@@ -16,6 +16,8 @@ from jax import lax
 
 import cvxpy as cp
 
+from .catalog import CatalogRepartition
+
 def execute_regression(
     theta_values: np.ndarray,
     velocity_values: np.ndarray,
@@ -110,7 +112,7 @@ def regression_explicite(
     acceleration_values: np.ndarray,
     time_symbol: sympy.Symbol,
     symbol_matrix: np.ndarray,
-    catalog_repartition: np.ndarray,
+    catalog_repartition: CatalogRepartition,
     external_force: np.ndarray,
     hard_threshold: float = 1e-3,
     regression_function: Callable = lasso_regression,
@@ -138,7 +140,7 @@ def regression_explicite(
     num_coordinates = theta_values.shape[1]
     external_forces_mask = 0 # super bad ## need to automate the finding process
 
-    catalog = expand_catalog(catalog_repartition, symbol_matrix, time_symbol)
+    catalog = catalog_repartition.expand_catalog()
 
     whole_experimental_matrix = jax_create_experiment_matrix(
         num_coordinates,
@@ -215,7 +217,7 @@ def regression_implicite(
     acceleration_values: np.ndarray,
     time_symbol: sympy.Symbol,
     symbol_matrix: np.ndarray,
-    catalog_repartition: np.ndarray,
+    catalog_repartition: CatalogRepartition,
     hard_threshold: float = 1e-3,
     l1_lambda = 1e-2,
     #regression_function: Callable = lasso_regression,
@@ -244,7 +246,7 @@ def regression_implicite(
 
     num_coordinates = theta_values.shape[1]
 
-    catalog = expand_catalog(catalog_repartition, symbol_matrix, time_symbol)
+    catalog = catalog_repartition.expand_catalog()
 
     # Generate the experimental matrix from the catalog
     ## TODO Jax this
