@@ -72,6 +72,33 @@ class Classical(CatalogCategory):
         
     def label(self):
         raise NotImplementedError
+    
+    def separate_by_mask(self, mask):
+
+        flat_binary_matrix = self.binary_matrix.flatten()
+
+        one_indices = np.flatnonzero(flat_binary_matrix)
+
+        binary_matrix_masked = flat_binary_matrix.copy()
+        binary_matrix_masked[one_indices] = mask
+        binary_matrix_masked = binary_matrix_masked.reshape(self.binary_matrix.shape)
+
+        symbolic_mask = np.flatnonzero(binary_matrix_masked.sum(axis=1) )
+
+        binary_matrix_anti_masked = flat_binary_matrix.copy()
+        binary_matrix_anti_masked[one_indices] = ~mask
+        binary_matrix_anti_masked = binary_matrix_anti_masked.reshape(self.binary_matrix.shape)
+
+        symbolic_anti_mask = np.flatnonzero(binary_matrix_anti_masked.sum(axis=1) )
+
+        return Classical(
+            symbolic_catalog=self.symbolic_catalog[symbolic_mask],
+            binary_matrix=binary_matrix_masked[symbolic_mask]
+        ), Classical(
+            symbolic_catalog=self.symbolic_catalog[symbolic_anti_mask],
+            binary_matrix=binary_matrix_anti_masked[symbolic_anti_mask]
+        )
+    
 
 if __name__ == "__main__" :
 

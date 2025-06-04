@@ -158,6 +158,23 @@ class CatalogCategory(ABC,metaclass=_CatalogMetaClass):
 
     ## Additionnal (but not optionnal) method to manage catalog
 
+    #maybe I should test the input thanks to the metaclass
+    @abstractmethod
+    def separate_by_mask(self, mask: np.ndarray) -> tuple:
+        """
+        Separate the catalog by a mask. The mask is a boolean array of shape (catalog_length,).
+
+        Args:
+            mask (np.ndarray): a boolean array of shape (catalog_length,) to separate the catalog.
+
+        Returns:
+            CatalogCategory: a new CatalogCategory with the masked data.
+            CatalogCategory: a new CatalogCategory with the remaining data.
+        """
+        pass
+
+    #actually separate_by mask can be used to do random reduction of the catalog and any reduction method, maybe only need to implement add and it will be the end.
+
 class CatalogRepartition:
     """
     A class that manage the repartition of the catalog. It is used to create a global catalog from different part of the catalog.
@@ -171,6 +188,8 @@ class CatalogRepartition:
             catalog_repartition (List[CatalogCategory]): a listing of the different part of the catalog used. list of catalog class.
         """
         self.catalog_repartition = catalog_repartition
+        
+        self.catalog_length = sum(catalog.catalog_length for catalog in self.catalog_repartition)
 
     def expand_catalog(self):
         """
@@ -206,8 +225,6 @@ class CatalogRepartition:
             
             solution += [catalog.create_solution_vector(*data)]
 
-            #solution += [_catalog_category._lagrangian._create_solution_vector(sympy.expand_trig(lagrangian.subs(substitutions)), lagrangian_catalog).reshape(-1, 1)] # keep here for debug
-
 
         return np.concatenate(solution, axis=0)
     
@@ -224,27 +241,26 @@ class CatalogRepartition:
         """
         raise NotImplementedError("label_catalog is not implemented yet, please use the label method of each catalog class instead")
 
-        res = []
-        for catalog in catalog_repartition:
+    def separate_by_mask(self, mask: np.ndarray) -> tuple:
+        """
+        Separate the catalog by a mask. The mask is a boolean array of shape (catalog_length,).
 
-            name, *args = catalog
+        Args:
+            mask (np.ndarray): a boolean array of shape (catalog_length,) to separate the catalog.
 
-            if name == "lagrangian":
-                res += ["${}$".format(latex(x).replace("qd", "\\dot{q}")) for x in args[0]]
+        Returns:
+            tuple: two CatalogRepartition with the masked data and the remaining data.
+        """
+        masked_catalogs = []
+        remaining_catalogs = []
 
-            elif name == "classical":
+        remainer = 0
 
-                catalog = np.array(list(map(lambda x:"${}$".format(latex(x).replace("qdd", "\\ddot{q}").replace("qd", "\\dot{q}")),args[0])))
-                expand_matrix = args[1]
+        for catalog in self.catalog_repartition:
+            masked, remaining = catalog.separate_by_mask(mask[remainer:remainer + catalog.catalog_length])
+            masked_catalogs.append(masked)
+            remaining_catalogs.append(remaining)
 
-                #Create the label array
-                row_label = np.array([" on $q_{{{}}}$".format(i) for i in range(expand_matrix.shape[1])])
+            remainer += catalog.catalog_length
 
-                label = catalog[:, None] + row_label 
-                
-                res +=  list(_catalog_category._lagrangian._expand_catalog(label,expand_matrix).flatten())
-
-            else:
-                raise ValueError("catalog not recognised")
-
-        return res
+        return CatalogRepartition(masked_catalogs), CatalogRepartition(remaining_catalogs)

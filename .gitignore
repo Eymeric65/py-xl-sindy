@@ -6,3 +6,4 @@ _build/
 *.svg
 *.mp4
 .*/
+.env

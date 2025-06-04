@@ -50,4 +50,14 @@ class ExternalForces(CatalogCategory):
 
     def label(self):
         raise NotImplementedError
+    
+    # externl forces are not separable by mask
+    def separate_by_mask(self, mask):
+        return ExternalForces(
+            interlink_list=self.interlink_list,
+            symbol_matrix=self.symbolic_matrix
+        ),ExternalForces(
+            interlink_list=self.interlink_list,
+            symbol_matrix=self.symbolic_matrix
+        )
 

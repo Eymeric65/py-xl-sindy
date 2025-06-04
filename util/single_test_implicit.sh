@@ -29,3 +29,42 @@ python single_test.py \
     --no-mujoco-generation \
     --batch-number 20 \
     --initial-condition-randomness 1.5
+
+# add the restriction 
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/double_pendulum_pm" \
+    --max-time 5 \
+    --forces-scale-vector 0 0 \
+    --initial-position 0.0 0 0.0 0 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 2000 \
+    --optimization-function "hard_threshold_sparse_regression" \
+    --algorithm "xlsindy" \
+    --noise-level 0.0 \
+    --implicit-regression \
+    --no-mujoco-generation \
+    --batch-number 60 \
+    --initial-condition-randomness 0.4 \
+    --catalog-restriction -1
+
+python single_test.py \
+    --random-seed 12 14 \
+    --experiment-folder "mujoco_align_data/double_pendulum_pm" \
+    --max-time 5 \
+    --forces-scale-vector 0 0 \
+    --initial-position 0.0 0 0.0 0 \
+    --forces-period 3 \
+    --forces-period-shift 0.5 \
+    --sample-number 2000 \
+    --optimization-function "hard_threshold_sparse_regression" \
+    --algorithm "sindy" \
+    --noise-level 0.0 \
+    --implicit-regression \
+    --no-mujoco-generation \
+    --batch-number 60 \
+    --initial-condition-randomness 0.4 \
+    --catalog-restriction -1
+
+# enforce minimal catalog

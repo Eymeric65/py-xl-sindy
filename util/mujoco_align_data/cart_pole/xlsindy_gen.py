@@ -102,20 +102,6 @@ def xlsindy_component(
         )  # Contain only \dot{q}_1 \dot{q}_2
         expand_matrix = np.ones((len(friction_catalog), num_coordinates), dtype=int)
 
-        # Past paradigm
-        # catalog_repartition = [
-        #     ("external_forces", [[1],[2]]),
-        #     ("lagrangian", lagrange_catalog),
-        #     ("classical", friction_catalog, expand_matrix),
-        # ]
-
-        # Generate solution vector
-
-        #ideal_solution_vector = xlsindy.symbolic_util.create_solution_vector(
-        #    catalog_repartition,
-        #    [(None),(Lagrangian,substitutions),(friction_forces,expand_matrix)],
-        #)
-
         catalog_repartition = xlsindy.catalog.CatalogRepartition(
             [
                 xlsindy.catalog_base.ExternalForces(
@@ -203,17 +189,6 @@ def xlsindy_component(
             sindy_catalog_len,
             random_seed,
         )
-
-        # catalog_repartition = [
-        #     ("external_forces", [[1],[2]]),
-        #     ("classical", catalog_need, binary_matrix)
-        #     ]
-
-        # ideal_solution_vector = xlsindy.symbolic_util.create_solution_vector(
-        #     catalog_repartition,
-        #     [(None),(coeff_matrix,binary_matrix)]
-        # )
-
 
         catalog_repartition = xlsindy.catalog.CatalogRepartition(
             [

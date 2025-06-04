@@ -66,3 +66,15 @@ class Lagrange(CatalogCategory):
 
     def label(self):
         raise NotImplementedError
+    
+    def separate_by_mask(self, mask):
+
+        return Lagrange(
+            catalog=self.catalog[mask==1],
+            symbol_matrix=self.symbol_matrix,
+            time_symbol=self.time_symbol
+        ), Lagrange(
+            catalog=self.catalog[mask==0],
+            symbol_matrix=self.symbol_matrix,
+            time_symbol=self.time_symbol
+        )

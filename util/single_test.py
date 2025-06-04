@@ -27,6 +27,10 @@ class Args:
     ## Randomness
     random_seed: List[int] = field(default_factory=lambda: [2])
     """the random seed of the experiment (only used for force function)"""
+    ## Catalog
+    catalog_restriction: int = -1
+    """the number of term in the catalog to use, if -1 use all the catalog (default -1).
+    If number is less than ideal solution, the catalog is truncated to the number of ideal solution term"""
     ## Data generation
     batch_number: int = 1
     """the number of batch to generate, this is used to generate more data mainly in implicit case (default 1)"""
@@ -102,6 +106,45 @@ if __name__ == "__main__":
             xlsindy_component(mode=args.algorithm, random_seed=args.random_seed)
         )
 
+        rng = np.random.default_rng(args.random_seed)
+
+    
+
+        ## Calatog restriction
+
+
+        if args.catalog_restriction >= 0:
+            
+            ideal_solution_binary = np.where(
+                extra_info["ideal_solution_vector"] != 0, 1, 0
+            ).flatten()
+
+            if args.catalog_restriction > ideal_solution_binary.sum():
+                zero_indices = np.flatnonzero(ideal_solution_binary == 0)
+                chosen_indices = rng.choice(
+                    zero_indices,
+                    size=args.catalog_restriction - ideal_solution_binary.sum(),
+                    replace=False,
+                )
+                ideal_solution_binary[chosen_indices] = 1
+
+            else:
+                print(
+                    f"INFO : Catalog restriction is {args.catalog_restriction} but ideal solution has only {ideal_solution_binary.sum()} non-zero terms, using all the necessary catalog"
+                )
+
+            masked_catalog,_ = full_catalog.separate_by_mask(ideal_solution_binary)
+
+            full_catalog = masked_catalog
+        
+            ideal_solution_vector = extra_info["ideal_solution_vector"][ideal_solution_binary==1]
+
+
+        else:
+            ideal_solution_vector = extra_info["ideal_solution_vector"]
+        
+
+
         # Mujoco environment path
         mujoco_xml = os.path.join(folder_path, "environment.xml")
 
@@ -119,7 +162,7 @@ if __name__ == "__main__":
     simulation_qacc_g = np.empty((0,num_coordinates))
     force_vector_g = np.empty((0,num_coordinates))
 
-    rng = np.random.default_rng(args.random_seed)
+    
 
     if len(args.initial_position)==0:
         args.initial_position = np.zeros((num_coordinates,2))
@@ -211,7 +254,7 @@ if __name__ == "__main__":
         else: # Theorical generation
             
             model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(
-            extra_info["ideal_solution_vector"],
+            ideal_solution_vector,
             full_catalog,
             symbols_matrix,
             time_sym,
@@ -285,7 +328,7 @@ if __name__ == "__main__":
             symbol_matrix=symbols_matrix,
             catalog_repartition=full_catalog,
             hard_threshold=1e-3,
-            l1_lambda=1e0
+            l1_lambda=1e-3
         )
 
         
@@ -331,13 +374,13 @@ if __name__ == "__main__":
         solution_matrix_normalised[np.abs(solution_matrix)<1e-3] = 0.0
 
         sparsity_solution_matrix = np.where(solution_matrix_normalised!=0,1,0)
-        sparsity_solution = np.where(extra_info["ideal_solution_vector"]!=0,1,0)
+        sparsity_solution = np.where(ideal_solution_vector!=0,1,0)
 
         sparsisty_analysis = np.where(sparsity_solution+sparsity_solution_matrix==2,1,0) + \
                              np.where(sparsity_solution_matrix-sparsity_solution==-1,-1,0) + \
                              np.where(sparsity_solution-sparsity_solution_matrix==-1,-1,0)
 
-        compare_matrix = np.abs(solution_matrix_normalised) - np.abs(extra_info["ideal_solution_vector"])/np.max(np.abs(extra_info["ideal_solution_vector"]))
+        compare_matrix = np.abs(solution_matrix_normalised) - np.abs(ideal_solution_vector)/np.max(np.abs(ideal_solution_vector))
 
         graph["solution_matrix"].set_title("Solution Matrix")
         graph["solution_matrix"].imshow(np.abs(compare_matrix), aspect="equal", cmap="viridis")
@@ -350,7 +393,7 @@ if __name__ == "__main__":
         #graph["solution_sparsity_analisy"].grid(axis='x')
 
         graph["solution"].set_title("Solution")
-        graph["solution"].imshow(np.abs(extra_info["ideal_solution_vector"]), aspect="auto", cmap="viridis")
+        graph["solution"].imshow(np.abs(ideal_solution_vector), aspect="auto", cmap="viridis")
 
         graph["sparsity_solution"].set_title("Sparsity Solution")
         graph["sparsity_solution"].imshow(sparsity_solution, aspect="auto", cmap="viridis")
@@ -362,7 +405,7 @@ if __name__ == "__main__":
 
         fig.savefig(filename+".svg")
         np.save(filename+".npy", solution_matrix)
-        np.save(filename+"_ideal_solution.npy", extra_info["ideal_solution_vector"])
+        np.save(filename+"_ideal_solution.npy", ideal_solution_vector)
 
         exit() # exit because the implicit regression is not compatible with the rest of the code
     #End of temporary code 
@@ -384,7 +427,7 @@ if __name__ == "__main__":
 
     # Ideal Residulas (only for debugging purposes)
     exp_matrix_amp,forces_vector_g = xlsindy.optimization.amputate_experiment_matrix(exp_matrix,0)
-    ideal_solution_amp = np.delete(extra_info["ideal_solution_vector"],0,axis=0)
+    ideal_solution_amp = np.delete(ideal_solution_vector,0,axis=0)
 
     print("forces difference",np.linalg.norm(forces_vector_g.flatten()-force_vector_g.T.flatten()))
 
@@ -405,7 +448,7 @@ if __name__ == "__main__":
     print("Residuals : ", residuals_norm)
 
     # Sparsity of the model 
-    sparsity_reference = np.count_nonzero(extra_info["ideal_solution_vector"])
+    sparsity_reference = np.count_nonzero(ideal_solution_vector)
     sparsity_model = np.count_nonzero(solution)
 
     sparsity_percentage = (
@@ -421,13 +464,13 @@ if __name__ == "__main__":
 
     non_null_term = np.unique(
         np.concat(
-            (non_null_term, np.argwhere(extra_info["ideal_solution_vector"].flatten() != 0)), axis=0
+            (non_null_term, np.argwhere(ideal_solution_vector.flatten() != 0)), axis=0
         ),
         axis=0,
     )
 
     ideal_solution_norm = xlsindy.result_formatting.normalise_solution(
-        extra_info["ideal_solution_vector"]
+        ideal_solution_vector
     )
 
     solution_norm = xlsindy.result_formatting.normalise_solution(solution)
