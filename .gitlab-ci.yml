@@ -1,10 +1,9 @@
-image: python:3.10-alpine
+image: ghcr.io/astral-sh/uv:latest
 
 test:
   stage: test
   script:
-  - pip install poetry
-  - poetry install --with=dev
+  - uv sync --locked --dev
   - sphinx-build -b html .docs public
   only:
   - develop
@@ -14,13 +13,13 @@ test:
     paths:
     - public
 
-pages:
-  stage: deploy
-  script:
-  - pip install -U sphinx
-  - sphinx-build -b html . public
-  artifacts:
-    paths:
-    - public
-  only:
-  - master
+# pages:
+#   stage: deploy
+#   script:
+#   - pip install -U sphinx
+#   - sphinx-build -b html . public
+#   artifacts:
+#     paths:
+#     - public
+#   only:
+#   - master
