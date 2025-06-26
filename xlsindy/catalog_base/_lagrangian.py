@@ -3,7 +3,6 @@ Contains the function responsible for the lagrangian part of the catalog.
 """
 
 import sympy 
-from typing import List, Union
 import numpy as np
 from .. import euler_lagrange
 

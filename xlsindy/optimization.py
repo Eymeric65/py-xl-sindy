@@ -6,7 +6,7 @@ This module include every function in order to run the optimisation step for get
 
 import numpy as np
 from sklearn.linear_model import Lasso, LassoCV
-from typing import Callable, Tuple, List
+from typing import Callable, Tuple
 
 
 def condition_value(exp_matrix: np.ndarray, solution: np.ndarray) -> np.ndarray:
@@ -115,7 +115,7 @@ def unnormalize_experiment(
         np.ndarray: Unnormalized solution vector.
     """
     solution_unscaled = coefficients / variance[reduction_indices]
-    friction_coefficient = -solution_unscaled[-1]
+    # friction_coefficient = -solution_unscaled[-1]
 
     solution = np.zeros((exp_matrix.shape[1], 1))
     solution[reduction_indices, 0] = solution_unscaled
@@ -402,61 +402,61 @@ Since now the experiment matrix contain also the external forces vector, every r
 
 """
 
-def jax_hard_treshold(
-    exp_matrix: np.ndarray,
-    mask: int,
-    condition_func: Callable = condition_value,
-    threshold: float = 0.03,
-) -> np.ndarray:
-    """
-    Performs sparse regression with a hard threshold to select significant features.
+# def jax_hard_treshold(
+#     exp_matrix: np.ndarray,
+#     mask: int,
+#     condition_func: Callable = condition_value,
+#     threshold: float = 0.03,
+# ) -> np.ndarray:
+#     """
+#     Performs sparse regression with a hard threshold to select significant features.
 
-    Parameters:
-        exp_matrix (np.ndarray): Experimental matrix.
-        mask (k): the mask to apply
-        condition_func (Callable): Function to calculate condition values.
-        threshold (float): Threshold for feature selection.
+#     Parameters:
+#         exp_matrix (np.ndarray): Experimental matrix.
+#         mask (k): the mask to apply
+#         condition_func (Callable): Function to calculate condition values.
+#         threshold (float): Threshold for feature selection.
 
-    Returns:
-        np.ndarray: solution vector. shape (-1,)
-    """
+#     Returns:
+#         np.ndarray: solution vector. shape (-1,)
+#     """
 
-    b_vector = exp_matrix[:, mask]
+#     b_vector = exp_matrix[:, mask]
 
-    exp_matrix
+#     exp_matrix
 
-    solution, residuals, rank, _ = np.linalg.lstsq(
-        exp_matrix, forces_vector, rcond=None
-    )
+#     solution, residuals, rank, _ = np.linalg.lstsq(
+#         exp_matrix, forces_vector, rcond=None
+#     )
 
-    # print("solution shape",solution.shape)
+#     # print("solution shape",solution.shape)
 
-    retained_solution = solution.copy()
-    result_solution = np.zeros(solution.shape)
-    active_indices = np.arange(len(solution))
-    steps = []
+#     retained_solution = solution.copy()
+#     result_solution = np.zeros(solution.shape)
+#     active_indices = np.arange(len(solution))
+#     steps = []
 
-    prev_num_indices = len(solution) + 1
-    current_num_indices = len(solution)
+#     prev_num_indices = len(solution) + 1
+#     current_num_indices = len(solution)
 
-    while current_num_indices < prev_num_indices:
-        prev_num_indices = current_num_indices
-        condition_values = condition_func(exp_matrix, retained_solution)
-        steps.append((retained_solution, condition_values, active_indices))
+#     while current_num_indices < prev_num_indices:
+#         prev_num_indices = current_num_indices
+#         condition_values = condition_func(exp_matrix, retained_solution)
+#         steps.append((retained_solution, condition_values, active_indices))
 
-        significant_indices = np.argwhere(
-            condition_values / np.max(condition_values) > threshold
-        ).flatten()
-        active_indices = active_indices[significant_indices]
-        exp_matrix = exp_matrix[:, significant_indices]
+#         significant_indices = np.argwhere(
+#             condition_values / np.max(condition_values) > threshold
+#         ).flatten()
+#         active_indices = active_indices[significant_indices]
+#         exp_matrix = exp_matrix[:, significant_indices]
 
-        retained_solution, residuals, rank, _ = np.linalg.lstsq(
-            exp_matrix, forces_vector, rcond=None
-        )
-        current_num_indices = len(active_indices)
+#         retained_solution, residuals, rank, _ = np.linalg.lstsq(
+#             exp_matrix, forces_vector, rcond=None
+#         )
+#         current_num_indices = len(active_indices)
 
-    result_solution[active_indices] = retained_solution
+#     result_solution[active_indices] = retained_solution
 
-    result_solution = np.reshape(result_solution, (-1,))  # flatten
+#     result_solution = np.reshape(result_solution, (-1,))  # flatten
 
-    return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
+#     return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated

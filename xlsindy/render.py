@@ -4,7 +4,6 @@ This module contain some render function for the basics experiment
 
 """
 
-import sys
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
@@ -347,7 +346,7 @@ def animate_single_pendulum(
         time_text.set_text(time_template % time_array[i])
         return pendulum_line, trace_line, time_text
 
-    ani = animation.FuncAnimation(
+    animation.FuncAnimation(
         fig, update_frame, len(angle_array), interval=40, blit=True
     )
     plt.show()
@@ -376,7 +375,7 @@ def animate_double_pendulum(
 
     x2 = length2 * np.sin(angle_array[:, 2]) + x1
     y2 = -length2 * np.cos(angle_array[:, 2]) + y1
-    if fig == None:
+    if fig is None:
         fig = plt.figure(figsize=(5, 4))
 
     ax = fig.add_subplot(
@@ -404,7 +403,7 @@ def animate_double_pendulum(
         time_text.set_text(time_template % time_array[i])
         return pendulum_line, trace_line, time_text
 
-    ani = animation.FuncAnimation(
+    animation.FuncAnimation(
         fig, update_frame, len(angle_array), interval=40, blit=True
     )
     plt.show()

@@ -7,16 +7,13 @@ import numpy as np
 from .utils import print_progress
 from scipy import interpolate
 from scipy.integrate import RK45
-from typing import List, Callable, Dict
+from typing import List, Callable
 
 import jax.numpy as jnp
 import sympy
 from typing import Tuple
 
-from . import euler_lagrange
-from . import symbolic_util
 
-import time
 
 from .catalog import CatalogRepartition
 
@@ -66,7 +63,7 @@ def generate_acceleration_function(
     valid = True
 
     for i in range(num_coords):
-        if not str(symbol_matrix[3, i]) in str(dynamic_equations[i]):
+        if str(symbol_matrix[3, i]) not in str(dynamic_equations[i]):
             valid = False
 
     if valid:

@@ -6,9 +6,7 @@ This module primarly focus on symbolic variable and enable to do the different m
 
 import numpy as np
 import sympy
-import time
-from typing import List, Callable, Dict, Tuple
-import jax.numpy as jnp
+from typing import List
 
 
 def compute_euler_lagrange_equation(

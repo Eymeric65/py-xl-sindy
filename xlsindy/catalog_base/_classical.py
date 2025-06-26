@@ -2,8 +2,6 @@
 Contains the function responsible for the classical part of the catalog.
 """
 
-import sympy 
-from typing import List
 import numpy as np
 
 from ..catalog import CatalogCategory

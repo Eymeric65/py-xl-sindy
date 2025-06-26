@@ -10,7 +10,6 @@ import numpy as np
 import sympy
 from typing import List, Callable, Tuple
 
-from sympy import latex
 
 # most important function generate the symbolic matrix 
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
