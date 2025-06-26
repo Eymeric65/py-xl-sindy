@@ -3,7 +3,7 @@ image: ghcr.io/astral-sh/uv:debian-slim
 test:
   stage: test
   script:
-  - uv sync --locked --dev
+  - uv build
   - source .venv/bin/activate
   - sphinx-build -b html docs public
   only:
