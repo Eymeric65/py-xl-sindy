@@ -4,7 +4,7 @@ test:
   stage: test
   script:
   - uv build
-  - uv sync --locked --only-dev
+  - uv sync --locked
   - source .venv/bin/activate
   - sphinx-build -b html docs public
   only:
