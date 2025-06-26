@@ -1,0 +1,26 @@
+image: python:3.10-alpine
+
+test:
+  stage: test
+  script:
+  - pip install poetry
+  - poetry install --with=dev
+  - sphinx-build -b html .docs public
+  only:
+  - develop
+  except:
+  - master
+  artifacts:
+    paths:
+    - public
+
+pages:
+  stage: deploy
+  script:
+  - pip install -U sphinx
+  - sphinx-build -b html . public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master

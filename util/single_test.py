@@ -22,6 +22,8 @@ import xlsindy
 
 import matplotlib.pyplot as plt
 
+from xlsindy.catalog import CatalogRepartition
+
 @dataclass
 class Args:
     ## Randomness
@@ -40,7 +42,7 @@ class Args:
     """the folder where the experiment data is stored : the mujoco environment.xml file and the xlsindy_gen.py script"""
     max_time: float = 10.0
     """the maximum time for the simulation"""
-    initial_condition_randomness: float = 0.0
+    initial_condition_randomness: List[float] = field(default_factory=lambda: [0.0])
     """the randomness of the initial condition, this is used to generate a random initial condition around the initial position for each batch"""
     initial_position: List[float] = field(default_factory=lambda: [])
     """the initial position of the system"""
@@ -61,6 +63,10 @@ class Args:
     """the level of noise introduce in the experiment"""
     implicit_regression:bool = False
     """if true, use the implicit regression function"""
+    implicit_regression_debug:bool = False
+    """if true, use the implicit regression function with debug mode"""
+    implicit_regression_lamba: float = 1e-3
+    """the lambda value for the implicit regression function"""
 
 if __name__ == "__main__":
 
@@ -168,12 +174,26 @@ if __name__ == "__main__":
         args.initial_position = np.zeros((num_coordinates,2))
 
     # Batch generation
-    for i in range(args.batch_number):
+
+
+
+    if args.mujoco_generation : # Mujoco Generation
+        
+        # initialize Mujoco environment and controller
+        mujoco_model = mujoco.MjModel.from_xml_path(mujoco_xml)
+        mujoco_data = mujoco.MjData(mujoco_model)
+
         # Initial condition
         initial_condition = np.array(args.initial_position).reshape(num_coordinates,2) + extra_info["initial_condition"]
-        initial_condition += rng.normal(
-            loc=0, scale=args.initial_condition_randomness, size=initial_condition.shape
-        )
+
+        if len(args.initial_condition_randomness) == 1:
+            initial_condition += rng.normal(
+                loc=0, scale=args.initial_condition_randomness, size=initial_condition.shape
+            )
+        else:
+            initial_condition += rng.normal(
+                loc=0, scale=np.reshape(args.initial_condition_randomness,initial_condition.shape)
+            )
 
         # Random controller initialisation. This is the only random place of the code Everything else is deterministic (except if non deterministic solver is used)
         forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
@@ -186,79 +206,100 @@ if __name__ == "__main__":
             random_seed=args.random_seed,
         )
 
-        if args.mujoco_generation : # Mujoco Generation
-            
-            # initialize Mujoco environment and controller
-            mujoco_model = mujoco.MjModel.from_xml_path(mujoco_xml)
-            mujoco_data = mujoco.MjData(mujoco_model)
-
-            simulation_time_m = []
-            simulation_qpos_m = []
-            simulation_qvel_m = []
-            simulation_qacc_m = []
-            force_vector_m = []
-
-            initial_qpos,initial_qvel = initial_condition[:,0].reshape(1,-1),initial_condition[:,1].reshape(1,-1)
-
-            initial_qpos,initial_qvel,_ = inverse_mujoco_transform(initial_qpos,initial_qvel,None)
-
-            mujoco_data.qpos = initial_qpos
-            mujoco_data.qvel = initial_qvel
-
-
-            def random_controller(forces_function):
-
-                def ret(model, data):
-
-                    forces = forces_function(data.time)
-                    data.qfrc_applied = forces
-
-                    force_vector_m.append(forces.copy())
-
-                    simulation_time_m.append(data.time)
-                    simulation_qpos_m.append(data.qpos.copy())
-                    simulation_qvel_m.append(data.qvel.copy())
-                    simulation_qacc_m.append(data.qacc.copy())
-
-                return ret
-
-            mujoco.set_mjcb_control(
-                random_controller(forces_function)
-            )  # use this for the controller, could be made easier with using directly the data from mujoco.
-
-            print("INFO : Mujoco initialized")
-            while mujoco_data.time < args.max_time:
-                mujoco.mj_step(mujoco_model, mujoco_data)
-
-            print("INFO : Mujoco simulation done")
-
-            # turn the result into a numpy array, and transform the data if needed
-            simulation_qpos_m, simulation_qvel_m, simulation_qacc_m = mujoco_transform(
-                np.array(simulation_qpos_m), np.array(simulation_qvel_m), np.array(simulation_qacc_m)
-            )
-            simulation_time_m = np.array(simulation_time_m).reshape(-1, 1)
-            force_vector_m = np.array(force_vector_m)
-
-            if len(simulation_qvel_g) >0:
-                simulation_time_m += np.max(simulation_time_g)
-
-            # Concatenate the data
-            simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m), axis=0)
-            simulation_qpos_g = np.concatenate((simulation_qpos_g, simulation_qpos_m), axis=0)
-            simulation_qvel_g = np.concatenate((simulation_qvel_g, simulation_qvel_m), axis=0)
-            simulation_qacc_g = np.concatenate((simulation_qacc_g, simulation_qacc_m), axis=0)
-            force_vector_g = np.concatenate((force_vector_g, force_vector_m), axis=0)
+        simulation_time_m = []
+        simulation_qpos_m = []
+        simulation_qvel_m = []
+        simulation_qacc_m = []
+        force_vector_m = []
 
 
 
-        else: # Theorical generation
-            
-            model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(
-            ideal_solution_vector,
-            full_catalog,
-            symbols_matrix,
-            time_sym,
-            lambdify_module="numpy"
+        initial_qpos,initial_qvel = initial_condition[:,0].reshape(1,-1),initial_condition[:,1].reshape(1,-1)
+
+        initial_qpos,initial_qvel,_ = inverse_mujoco_transform(initial_qpos,initial_qvel,None)
+
+        mujoco_data.qpos = initial_qpos
+        mujoco_data.qvel = initial_qvel
+
+
+        def random_controller(forces_function):
+
+            def ret(model, data):
+
+                forces = forces_function(data.time)
+                data.qfrc_applied = forces
+
+                force_vector_m.append(forces.copy())
+
+                simulation_time_m.append(data.time)
+                simulation_qpos_m.append(data.qpos.copy())
+                simulation_qvel_m.append(data.qvel.copy())
+                simulation_qacc_m.append(data.qacc.copy())
+
+            return ret
+
+        mujoco.set_mjcb_control(
+            random_controller(forces_function)
+        )  # use this for the controller, could be made easier with using directly the data from mujoco.
+
+        print("INFO : Mujoco initialized")
+        while mujoco_data.time < args.max_time:
+            mujoco.mj_step(mujoco_model, mujoco_data)
+
+        print("INFO : Mujoco simulation done")
+
+        # turn the result into a numpy array, and transform the data if needed
+        simulation_qpos_m, simulation_qvel_m, simulation_qacc_m = mujoco_transform(
+            np.array(simulation_qpos_m), np.array(simulation_qvel_m), np.array(simulation_qacc_m)
+        )
+        simulation_time_m = np.array(simulation_time_m).reshape(-1, 1)
+        force_vector_m = np.array(force_vector_m)
+
+        if len(simulation_qvel_g) >0:
+            simulation_time_m += np.max(simulation_time_g)
+
+        # Concatenate the data
+        simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m), axis=0)
+        simulation_qpos_g = np.concatenate((simulation_qpos_g, simulation_qpos_m), axis=0)
+        simulation_qvel_g = np.concatenate((simulation_qvel_g, simulation_qvel_m), axis=0)
+        simulation_qacc_g = np.concatenate((simulation_qacc_g, simulation_qacc_m), axis=0)
+        force_vector_g = np.concatenate((force_vector_g, force_vector_m), axis=0)
+
+
+
+    else: # Theorical generation
+        
+        model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(
+        ideal_solution_vector,
+        full_catalog,
+        symbols_matrix,
+        time_sym,
+        lambdify_module="numpy"
+        )
+        
+        for i in range(args.batch_number):
+
+            # Initial condition
+            initial_condition = np.array(args.initial_position).reshape(num_coordinates,2) + extra_info["initial_condition"]
+
+            if len(args.initial_condition_randomness) == 1:
+                initial_condition += rng.normal(
+                    loc=0, scale=args.initial_condition_randomness, size=initial_condition.shape
+                )
+            else:
+                initial_condition += rng.normal(
+                    loc=0, scale=np.reshape(args.initial_condition_randomness,initial_condition.shape)
+                )
+
+            # Random controller initialisation. This is the only random place of the code Everything else is deterministic (except if non deterministic solver is used)
+            forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
+                component_count=num_coordinates,
+                scale_vector=args.forces_scale_vector,
+                time_end=args.max_time,
+                period=args.forces_period,
+                period_shift=args.forces_period_shift,
+                augmentations=10, # base is 40
+                random_seed=args.random_seed,
             )
 
             model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
@@ -320,22 +361,47 @@ if __name__ == "__main__":
 
     if args.implicit_regression:
 
-        solution, exp_matrix, _ , _ = xlsindy.simulation.regression_implicite(
+            # Quick fix to remove the external forces from the catalog
+        catalog_repartition_no_force = CatalogRepartition(full_catalog.catalog_repartition[1:])
+        #catalog_repartition_no_force= full_catalog
+
+        solution, exp_matrix = xlsindy.simulation.regression_implicite(
             theta_values=simulation_qpos_g,
             velocity_values=simulation_qvel_g,
             acceleration_values=simulation_qacc_g,
             time_symbol=time_sym,
             symbol_matrix=symbols_matrix,
-            catalog_repartition=full_catalog,
-            hard_threshold=1e-3,
-            l1_lambda=1e-3
+            catalog_repartition=catalog_repartition_no_force,
+            l1_lambda=args.implicit_regression_lamba,
+            debug=args.implicit_regression_debug,
         )
 
+        print("INFO : Implicit regression done")
+
+        solution = np.vstack([np.zeros((1, solution.shape[1])), solution])
+        if args.implicit_regression_debug:
+            solution = np.hstack([np.zeros((solution.shape[0],1 )), solution])
+
         
+        # # Hack for the solution to be in the same format as the explicit one
+        
+        exp_matrix = np.hstack([np.zeros(( exp_matrix.shape[0],1)), exp_matrix])
+
+        print(f"the solution is splitted into {solution.shape[1]} disjoint subspace.")
+
+        if not args.implicit_regression_debug:
+
+            # Add k zeros before the first row of solution (shape: catalog_size, k)
+            
+
+            solution, _  = xlsindy.simulation.combine_best_fit(solution,ideal_solution_vector)
+
+            solution[0,0]=-1 # Adding external forces that can't be guessed
+
 
     else:
         
-        solution, exp_matrix, residuals,covariange_matrix = xlsindy.simulation.regression_explicite(
+        solution, exp_matrix = xlsindy.simulation.regression_explicite(
             theta_values=simulation_qpos_g,
             velocity_values=simulation_qvel_g,
             acceleration_values=simulation_qacc_g,
@@ -343,16 +409,22 @@ if __name__ == "__main__":
             symbol_matrix=symbols_matrix,
             catalog_repartition=full_catalog,
             external_force=force_vector_g,
-            hard_threshold=1e-3,
             regression_function=regression_function,
         )
 
+    print("DEBUG : print a bunch of information")
+    print(solution.shape)
+    print(exp_matrix.shape)
+    print(ideal_solution_vector.shape)
+    # Apply an hardtreshold
+    hard_treshold=1e-3
+    solution = np.where(np.abs(solution)/np.linalg.norm(solution)>hard_treshold,solution,0)
     print("INFO : Regression done")
 
     #Temporary code for implicit regression debugging
-    if args.implicit_regression:
+    if args.implicit_regression_debug:
 
-
+        # Temporary disabled 
         fig, axs = plt.subplots(3, 3,figsize=(10, 10),height_ratios=[1,4,4])
         fig.suptitle("Experiment Results")
 
@@ -427,24 +499,26 @@ if __name__ == "__main__":
 
     # Ideal Residulas (only for debugging purposes)
     exp_matrix_amp,forces_vector_g = xlsindy.optimization.amputate_experiment_matrix(exp_matrix,0)
-    ideal_solution_amp = np.delete(ideal_solution_vector,0,axis=0)
 
     print("forces difference",np.linalg.norm(forces_vector_g.flatten()-force_vector_g.T.flatten()))
 
-    LHS = exp_matrix_amp @ ideal_solution_amp
-    RHS = forces_vector_g
 
-    ideal_residuals = RHS - LHS
+    ideal_residuals = exp_matrix @ ideal_solution_vector
+    residuals = exp_matrix @ solution
 
-    ideal_residuals_norm = np.linalg.norm(ideal_residuals)/np.linalg.norm(forces_vector_g)
+    forces_vector_g_norm = np.linalg.norm(forces_vector_g)
+
+    forces_vector_g_norm = 1 if forces_vector_g_norm<1e-4 else forces_vector_g_norm
+
+    ideal_residuals_norm = np.linalg.norm(ideal_residuals)/forces_vector_g_norm
     print("Ideal Residuals : ", ideal_residuals_norm )
 
-    # Correlate in order to verify no offset 
-    correlate =  np.correlate(LHS.flatten(),RHS.flatten(),"full")
-    print("max overlap :", np.argmax(correlate) - (len(RHS) - 1))
+    # Correlate in order to verify no offset DEPRECATED
+    # correlate =  np.correlate(LHS.flatten(),RHS.flatten(),"full")
+    # print("max overlap :", np.argmax(correlate) - (len(RHS) - 1))
 
     # Residuals
-    residuals_norm = np.linalg.norm(residuals)/np.linalg.norm(forces_vector_g)
+    residuals_norm = np.linalg.norm(residuals)/forces_vector_g_norm
     print("Residuals : ", residuals_norm)
 
     # Sparsity of the model 
@@ -484,13 +558,14 @@ if __name__ == "__main__":
 ### ----------------------------------------- Part 4, Render -----------------------------------------
 
     # Function catalog rendering
-    fig, axs = plt.subplots(3, 1,figsize=(10, 10))
+    fig, axs = plt.subplots(4, 1,figsize=(10, 10))
     fig.suptitle("Experiment Results")
 
     graph = {
         "model_comp":axs[0],
         "residuals":axs[1],
-        "ideal_residuals":axs[2]
+        "ideal_residuals":axs[2],
+        "position":axs[3],
     }
 
     graph["model_comp"].set_title("Model Comparison")
@@ -537,14 +612,14 @@ if __name__ == "__main__":
         horizontalalignment='left',
         bbox=dict(facecolor='white', alpha=0.7))
 
-    graph["residuals"].text(0.01, 0.05, f"Residuals : {ideal_residuals_norm:.2e}",
+    graph["residuals"].text(0.01, 0.05, f"Residuals : {residuals_norm:.2e}",
         transform=graph["residuals"].transAxes,
         fontsize=12,
         verticalalignment='bottom',
         horizontalalignment='left',
         bbox=dict(facecolor='white', alpha=0.7))
     
-    graph["ideal_residuals"].text(0.01, 0.05, f"Ideals residuals : {residuals_norm:.2e}",
+    graph["ideal_residuals"].text(0.01, 0.05, f"Ideals residuals : {ideal_residuals_norm:.2e}",
         transform=graph["ideal_residuals"].transAxes,
         fontsize=12,
         verticalalignment='bottom',
@@ -555,6 +630,9 @@ if __name__ == "__main__":
 
     graph["residuals"].legend(loc="upper right")
     graph["ideal_residuals"].legend(loc="upper right")
+
+    graph["position"].set_title("Position")
+    graph["position"].plot(simulation_time_g, simulation_qpos_g)
 
     fig.savefig(f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{'implicit' if args.implicit_regression else 'explicit' }_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}.svg")
     plt.show()

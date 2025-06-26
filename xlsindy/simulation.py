@@ -18,93 +18,6 @@ import cvxpy as cp
 
 from .catalog import CatalogRepartition
 
-def execute_regression(
-    theta_values: np.ndarray,
-    velocity_values: np.ndarray,
-    acceleration_values: np.ndarray,
-    time_symbol: sympy.Symbol,
-    symbol_matrix: np.ndarray,
-    catalog_repartition: np.ndarray,
-    external_force: np.ndarray,
-    hard_threshold: float = 1e-3,
-    apply_normalization: bool = True,
-    regression_function: Callable = lasso_regression,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    (DEPRECATED) will be removed in the future, should use TODO
-    Executes regression for a dynamic system to estimate the system’s parameters.
-
-    Parameters:
-        theta_values (np.ndarray): Array of angular positions over time.
-        symbol_list (np.ndarray): Symbolic variables for model construction.
-        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
-        external_force (np.ndarray): array of external forces.
-        time_step (float): Time step value.
-        hard_threshold (float): Threshold below which coefficients are zeroed.
-        velocity_values (np.ndarray): Array of velocities (optional).
-        acceleration_values (np.ndarray): Array of accelerations (optional).
-        apply_normalization (bool): Whether to normalize data.
-        regression_function (Callable): the regression function used to make the retrieval
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-            Solution vector, experimental matrix, sampled time values, covariance matrix.
-    """
-
-    num_coordinates = theta_values.shape[1]
-
-    catalog = expand_catalog(catalog_repartition, symbol_matrix, time_symbol)
-
-    # Generate the experimental matrix from the catalog
-    experimental_matrix = create_experiment_matrix(
-        num_coordinates,
-        catalog,
-        symbol_matrix,
-        theta_values,
-        velocity_values,
-        acceleration_values,
-    )
-
-    external_force_vec = np.reshape(external_force.T, (-1, 1))
-
-    covariance_matrix = None
-    solution = None
-
-    # Normalize experimental matrix if required
-    normalized_matrix, reduction_indices, variance_vector = normalize_experiment_matrix(
-        experimental_matrix, null_effect=apply_normalization
-    )
-
-    # Perform Lasso regression to obtain coefficients
-    coefficients = regression_function(external_force_vec, normalized_matrix)
-
-    # Revert normalization to obtain solution in original scale
-    solution = unnormalize_experiment(
-        coefficients, variance_vector, reduction_indices, experimental_matrix
-    )
-    solution[np.abs(solution) < np.max(np.abs(solution)) * hard_threshold] = 0
-
-    # Estimate covariance matrix based on Ordinary Least Squares (OLS)
-    solution_flat = solution.flatten()
-    nonzero_indices = np.nonzero(np.abs(solution_flat) > 0)[0]
-    reduced_experimental_matrix = experimental_matrix[:, nonzero_indices]
-    covariance_reduced = np.cov(reduced_experimental_matrix.T)
-
-    covariance_matrix = np.zeros((solution.shape[0], solution.shape[0]))
-    covariance_matrix[nonzero_indices[:, np.newaxis], nonzero_indices] = (
-        covariance_reduced
-    )
-
-    residuals = external_force_vec - experimental_matrix @ solution
-    sigma_squared = (
-        1
-        / (experimental_matrix.shape[0] - experimental_matrix.shape[1])
-        * residuals.T
-        @ residuals
-    )
-    covariance_matrix *= sigma_squared
-
-    return solution, experimental_matrix, covariance_matrix
 
 def regression_explicite(
     theta_values: np.ndarray,
@@ -114,7 +27,6 @@ def regression_explicite(
     symbol_matrix: np.ndarray,
     catalog_repartition: CatalogRepartition,
     external_force: np.ndarray,
-    hard_threshold: float = 1e-3,
     regression_function: Callable = lasso_regression,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -154,62 +66,39 @@ def regression_explicite(
 
     whole_solution = regression_function(whole_experimental_matrix,external_forces_mask) # Mask the first one that is the external forces
     whole_solution = np.reshape(whole_solution,shape=(-1,1))
-    whole_solution[np.abs(whole_solution) < np.max(np.abs(whole_solution)) * hard_threshold] = 0
+    #whole_solution[np.abs(whole_solution) < np.max(np.abs(whole_solution)) * hard_threshold] = 0
 
     ## Regression data, residual, covariance matrix,.... everything need to be done on the truncated again matrix 
 
-    exp_matrix,forces_vector = amputate_experiment_matrix(whole_experimental_matrix,external_forces_mask)
-    solution = np.delete(whole_solution,external_forces_mask,axis=0)
+    # exp_matrix,forces_vector = amputate_experiment_matrix(whole_experimental_matrix,external_forces_mask)
+    # solution = np.delete(whole_solution,external_forces_mask,axis=0)
 
 
-    # Estimate covariance matrix based on Ordinary Least Squares (OLS)
+    # # Estimate covariance matrix based on Ordinary Least Squares (OLS)
 
-    solution_flat = solution.flatten()
-    nonzero_indices = np.nonzero(np.abs(solution_flat) > 0)[0]
-    reduced_experimental_matrix = exp_matrix[:, nonzero_indices]
-    covariance_reduced = np.cov(reduced_experimental_matrix.T)
+    # solution_flat = solution.flatten()
+    # nonzero_indices = np.nonzero(np.abs(solution_flat) > 0)[0]
+    # reduced_experimental_matrix = exp_matrix[:, nonzero_indices]
+    # covariance_reduced = np.cov(reduced_experimental_matrix.T)
 
-    covariance_matrix = np.zeros((solution.shape[0], solution.shape[0]))
-    covariance_matrix[nonzero_indices[:, np.newaxis], nonzero_indices] = (
-        covariance_reduced
-    )
+    # covariance_matrix = np.zeros((solution.shape[0], solution.shape[0]))
+    # covariance_matrix[nonzero_indices[:, np.newaxis], nonzero_indices] = (
+    #     covariance_reduced
+    # )
 
-    residuals = forces_vector - exp_matrix @ solution
+    # Deprecated just here as a reminder of the math 
 
-    sigma_squared = (
-        1
-        / (exp_matrix.shape[0] - exp_matrix.shape[1])
-        * residuals.T
-        @ residuals
-    )
-    covariance_matrix *= sigma_squared
+    # residuals = forces_vector - exp_matrix @ solution
 
-    return whole_solution, whole_experimental_matrix, residuals, covariance_matrix
+    # sigma_squared = (
+    #     1
+    #     / (exp_matrix.shape[0] - exp_matrix.shape[1])
+    #     * residuals.T
+    #     @ residuals
+    # )
+    # covariance_matrix *= sigma_squared
 
-# def _build_A_star(A, k):
-#     # Build A without the k-th column using dynamic slicing
-#     left = lax.dynamic_slice(A, (0, 0), (A.shape[0], k))
-#     right = lax.dynamic_slice(A, (0, k+1), (A.shape[0], A.shape[1] - k - 1))
-#     return jnp.concatenate([left, right], axis=1)
-
-def _build_A_star(A, k):
-    n = A.shape[1]
-    
-    if k == 0:
-        # Remove first column
-        return A[:, 1:]
-    elif k == n - 1:
-        # Remove last column
-        return A[:, :-1]
-    else:
-        # Remove middle column
-        return np.concatenate([A[:, :k], A[:, k+1:]], axis=1)
-
-def _insert_zero(x_k, k, n):
-    x_full = np.zeros(n)
-    x_full[:k] = x_k[:k]
-    x_full[k+1:] = x_k[k:]
-    return x_full
+    return whole_solution, whole_experimental_matrix
 
 def regression_implicite(
     theta_values: np.ndarray,
@@ -218,8 +107,8 @@ def regression_implicite(
     time_symbol: sympy.Symbol,
     symbol_matrix: np.ndarray,
     catalog_repartition: CatalogRepartition,
-    hard_threshold: float = 1e-3,
-    l1_lambda = 1e-2,
+    l1_lambda = 1e-7,
+    debug: bool = False,
     #regression_function: Callable = lasso_regression,
     #sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -231,18 +120,25 @@ def regression_implicite(
     Parameters:
         theta_values (np.ndarray): Array of angular positions over time.
         symbol_list (np.ndarray): Symbolic variables for model construction.
-        catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
+        catalog_repartition (CatalogRepartition): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
         external_force (np.ndarray): array of external forces.
         time_step (float): Time step value.
         hard_threshold (float): Threshold below which coefficients are zeroed.
         velocity_values (np.ndarray): Array of velocities (optional).
         acceleration_values (np.ndarray): Array of accelerations (optional).
         regression_function (Callable): the regression function used to make the retrieval
+        debug (bool): Whether to go into debug mode.
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             Solution vector, experimental matrix, sampled time values, covariance matrix.
     """
+
+    # Need to erase the external forces from the catalog
+
+
+
+
 
     num_coordinates = theta_values.shape[1]
 
@@ -259,16 +155,159 @@ def regression_implicite(
         acceleration_values,
     )
 
-    A = experimental_matrix
+    print("debug : some information")
+    print(np.linalg.norm(experimental_matrix),np.var(experimental_matrix))
+
+
+    # Normalization enable more stable regression over the different experiment
+
+    sigma_max = np.linalg.svd(experimental_matrix, compute_uv=False)[0]
+    A = experimental_matrix / sigma_max
+    # Aparently, operator norm is better than frobenius norm for this kind of regression
+    # I don't know why, but it was the case on the first test, lol
+
+    #A = experimental_matrix /np.linalg.norm(experimental_matrix)
 
     m, n = A.shape
 
     X = cp.Variable((n,n))
 
+    # Since norm of A is 1, norm1(X) is around ~1 l1_lambda constrain the overal precision of the solution
+    # Before attain frobenius residual to l1_lambda order the sparsity is not enforced...
+    # One should take advantage of this in order to envorce the good behavior
     obj = cp.Minimize(
         cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X)
     )
+
+
     prob = cp.Problem(obj, [cp.diag(X) == 0])
     prob.solve(verbose=True)
+
+    if debug:
+        return X.value, experimental_matrix
     
-    return X.value, experimental_matrix, None, None
+    else:
+        solutions = _implicit_post_treatment( X.value)
+        
+        return solutions, experimental_matrix
+
+def _implicit_post_treatment(
+        solution: np.ndarray,
+        deg_tol: float = 10,
+        weight_distribution_threshold: float = 0.8,
+) -> np.ndarray:
+    """
+        Second try as post treatment to recuperate the solution in the form of a unique vector.
+    Explained in implicit_solution_analysis.ipynb
+    
+    Parameters:
+        solution (np.ndarray): The solution matrix obtained from the regression.
+        deg_tol (float): The cone of similarity the vector need to be to form a cluster
+        weight_distribution_threshold (float): the minimal weight deviation that is acceptable for a cluster
+    Returns:
+        np.ndarray: The processed solution vector.
+    """
+
+    #Firstly create sparse cluster
+    groups = _groups_homothetic_noisy(solution, deg_tol=deg_tol, atol=1e-12)
+
+    filtered_groups=[]
+    for i, group in enumerate(groups):
+        if len(group) > 2:
+
+            total_group = solution[:,group].sum(axis=1)
+            weight= _weak_sparsity_rank_weighted(total_group)
+
+            if weight>weight_distribution_threshold: 
+                filtered_groups+= [group]
+
+            print(f"Group {i}, weight {weight:.2f}: {group}")
+
+    solutions = np.zeros((solution.shape[0],len(filtered_groups)))
+
+    for i,group in enumerate(filtered_groups) :
+
+        candidate_solution = solution[:, group]
+        U, S, VT = np.linalg.svd(candidate_solution.T)
+        solutions[:,i] += -VT[0].flatten()
+
+    return solutions
+
+def _groups_homothetic_noisy(mat, deg_tol=3.0, atol=1e-12):
+    """
+    Used in _implicit_post_treatment in order to create sparse cluster of same direction vector.
+
+    Parameters:
+        mat  : shape (m, n) – columns are the vectors
+        deg_tol : angular tolerance in degrees
+
+    Returns:
+        list of lists with column indices that are homothetic
+
+    """
+    rad_tol = np.deg2rad(deg_tol)
+    # 1) normalise columns (keep track of zeros separately)
+    lengths = np.linalg.norm(mat, axis=0)
+    keep   = np.where(lengths > atol)[0]
+    if keep.size == 0:
+        return []                     # nothing but zeros
+    unit   = mat[:, keep] / lengths[keep]
+
+    groups, pool = [], list(range(unit.shape[1]))
+    while pool:
+        j        = pool.pop(0)
+        ref      = unit[:, j]
+        hits     = [keep[j]]          # column index in the original matrix
+        to_drop  = []
+        # 2) compare with remaining columns
+        for pos in pool:
+            ang = np.arccos(
+                np.clip(np.abs(ref @ unit[:, pos]), -1.0, 1.0)
+            )
+            if ang <= rad_tol:
+                hits.append(keep[pos])
+                to_drop.append(pos)
+        # 3) remove the ones we already grouped
+        for pos in reversed(to_drop):
+            pool.remove(pos)
+        groups.append(hits)
+    return groups
+
+def _weak_sparsity_rank_weighted(x):
+    """
+    Custom weak sparsity measure: weighted average of sorted abs(x) using inverse rank weights.
+
+    Parameters:
+        x: np.ndarray (1D vector)
+
+    Returns:
+        scalar value ∈ [0, 1], higher = more concentrated mass at top
+
+    """
+    x = np.abs(x)
+    s = np.sort(x)[::-1]  # descending
+    ranks = np.arange(1, len(s) + 1)
+
+    weights = 1.0 / ranks
+    weighted_sum = np.sum(s * weights)
+    weight_total = np.sum(weights)
+
+    return weighted_sum / weight_total if weight_total != 0 else 0.0
+
+def combine_best_fit(solutions, v_ideal):
+    """
+    Return the best linear combination of a and b to fit v_ideal.
+
+    Parameters:
+    - solutions: disjoint solution array
+    - v_ideal: target vector
+
+    Returns:
+    - v_hat: best fit vector (alpha * a + beta * b)
+    - residual: L2 norm of the residual (||v_hat - v_ideal||)
+    """
+
+    x, _, _, _ = np.linalg.lstsq(solutions, v_ideal, rcond=None)
+    v_hat = solutions @ x
+    residual = np.linalg.norm(v_hat - v_ideal)
+    return v_hat.reshape(-1,1), residual
