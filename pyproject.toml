@@ -14,9 +14,9 @@ dependencies = [
     "scipy>=1.15.3",
     "sympy>=1.14.0",
 ]
-packages = [
-    { include = "xlsindy"}
-]
+
+[tool.setuptools.packages.find]
+include = ["xlsindy*"]
 
 [project.optional-dependencies]
 gpu = [

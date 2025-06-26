@@ -32,4 +32,4 @@ For a better understanding of the whole framework it is recommanded to read the 
    :maxdepth: 4
    :caption: Base catalog content :
 
-   xlsindy.base_catalog
+   xlsindy.catalog_base
