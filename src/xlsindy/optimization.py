@@ -73,6 +73,7 @@ def activated_catalog(
     force_vector: np.ndarray,
 ):
     """
+    [AHHHHHH] I need to transpose the force vector bruh
     Perform a recursive search to find the part ot the catalog that could be activated by the force vector.
     
     Args

@@ -307,6 +307,8 @@ def _weak_sparsity_rank_weighted(x):
 
 def combine_best_fit(solutions, v_ideal):
     """
+    [ISSUE] Clearly bugged and falatious, need to be fixed.
+
     Return the best linear combination of a and b to fit v_ideal.
 
     Parameters:
@@ -336,6 +338,8 @@ def regression_mixed(
     regression_function: Callable = lasso_regression,
     l1_lambda = 1e-7,
     ideal_solution_vector: np.ndarray = None,
+    deg_tol: float = 15, # base 10
+    weight_distribution_threshold: float = 0.5, # base 0.8
 ):
     """
     Executes regression for a dynamic system to estimate the system's parameters.
@@ -389,12 +393,21 @@ def regression_mixed(
 
     activated_function,activated_coordinate = activated_catalog(
         experimental_matrix,
-        external_force,
+        external_force.T,
     )
+
+    logger.info(f"activated_function : {activated_function.shape}")
+    logger.info(f"activated_coordinate : {activated_coordinate.shape}")
+
+    logger.info(f"external_forces : {external_force.shape}")
+    logger.info(f"acceleration_values : {acceleration_values.shape}")
+    
 
     solution = np.zeros((experimental_matrix.shape[1],1))
 
     logger.info(f" {activated_coordinate.sum()} coordinates activated by the external forces and function interlink : \n {activated_coordinate.flatten()}")
+
+    num_samples = theta_values.shape[0]
 
     if activated_coordinate.sum() > 0:
 
@@ -404,7 +417,7 @@ def regression_mixed(
 
         # Expand activated_coordinate (shape: [num_coordinate, 1]) to match the rows of experimental_matrix
         # Each coordinate corresponds to (num_samples) consecutive rows in experimental_matrix
-        num_samples = theta_values.shape[0]
+        
         expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
 
         explicit_experimental_matrix = experimental_matrix[expanded_mask == 1, :][:, activated_function.flatten() == 1]
@@ -444,14 +457,27 @@ def regression_mixed(
         prob = cp.Problem(obj, [cp.diag(X) == 0])
         prob.solve(verbose=True)
 
-        implicit_solutions = _implicit_post_treatment( X.value)
+        implicit_solution_matrix = X.value
+
+    # Set the diagonal of the solution matrix to zero
+        np.fill_diagonal(implicit_solution_matrix, -1)
+
+        implicit_solutions = _implicit_post_treatment( 
+            implicit_solution_matrix,
+            deg_tol=deg_tol, 
+            weight_distribution_threshold=weight_distribution_threshold
+        )
 
         if ideal_solution_vector is not None:
-            implicit_solution_stacked, _  = combine_best_fit(solution,ideal_solution_vector[activated_function.flatten() == 0])
+            implicit_solution_stacked, _  = combine_best_fit(implicit_solutions,ideal_solution_vector[activated_function.flatten() == 0]) # Falatious, need to be fixed
         else:
             implicit_solution_stacked = implicit_solutions.sum(axis=1,keepdims=True)
 
+        #logger.info(f"Implicit solutions found: {implicit_solution_stacked}, stacking them into a single solution vector.")
+
         solution[activated_function.flatten() == 0] = implicit_solution_stacked
+
+    solution[0]= -1.0  # Adding external forces that can't be guessed
 
     logger.info("Mixed regression process completed successfully.")
 
