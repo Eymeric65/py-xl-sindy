@@ -4,6 +4,9 @@ User can choose :
 - the type of algorithm : Sindy, XLSindy
 - the regression algorithm : coordinate descent (scipy lasso), hard treshold
 - level of noise added to imported data
+
+Actually align_data.py is in developpement, Implicit explicit regression is under test
+
 """
 
 # tyro cly dependencies
@@ -41,8 +44,12 @@ class Args:
     """the random seed for the noise"""
     skip_already_done: bool = True
     """if true, skip the experiment if already present in the result file"""
-    validation_on_database: bool = True
+    validation_on_database: bool = False
     """if true validate the model on the database file"""
+    biparted_graph: bool = False
+    """if true, plot the biparted graph in a svg file"""
+    implicit_regression:bool = False
+    """if true, use the implicit regression function"""
 
 
 def extract_validation(database_pickle: str, training_filename: str):
@@ -132,6 +139,8 @@ if __name__ == "__main__":
         xlsindy_component(mode=args.algorithm, random_seed=random_seed)
     )
 
+
+
     regression_function = eval(f"xlsindy.optimization.{args.optimization_function}")
 
     sim_data = np.load(args.experiment_file + ".npz")
@@ -162,18 +171,57 @@ if __name__ == "__main__":
     )
 
     ## XLSINDY dependent
-    solution, exp_matrix, _ = xlsindy.simulation.execute_regression(
-        theta_values=imported_qpos,
-        velocity_values=imported_qvel,
-        acceleration_values=imported_qacc,
-        time_symbol=time_sym,
-        symbol_matrix=symbols_matrix,
-        catalog_repartition=catalog_repartition,
-        external_force=imported_force,
-        hard_threshold=1e-3,
-        apply_normalization=True,
-        regression_function=regression_function,
-    )
+
+    if args.implicit_regression:
+
+        solution, exp_matrix, _ = xlsindy.simulation.regression_implicite(
+            theta_values=imported_qpos,
+            velocity_values=imported_qvel,
+            acceleration_values=imported_qacc,
+            time_symbol=time_sym,
+            symbol_matrix=symbols_matrix,
+            catalog_repartition=catalog_repartition,
+            hard_threshold=1e-3,
+            regression_function=regression_function,
+        )
+
+    else:
+
+        solution, exp_matrix, _ = xlsindy.simulation.regression_explicite(
+            theta_values=imported_qpos,
+            velocity_values=imported_qvel,
+            acceleration_values=imported_qacc,
+            time_symbol=time_sym,
+            symbol_matrix=symbols_matrix,
+            catalog_repartition=catalog_repartition,
+            external_force=imported_force,
+            hard_threshold=1e-3,
+            regression_function=regression_function,
+        )
+
+    if args.biparted_graph:
+
+        catalog_label = xlsindy.symbolic_util.label_catalog(catalog_repartition)
+
+        ground_truth_indices = np.argwhere( extra_info["ideal_solution_vector"].flatten() != 0).flatten()
+        
+        b_label = ["$q_{{{}}}$".format(i) for i in range(num_coordinates)]
+
+        print(len(catalog_label))
+
+        link = xlsindy.optimization.bipartite_link(exp_matrix, num_coordinates, catalog_label,b_label )
+
+        xlsindy.render.plot_bipartite_graph_svg(
+            catalog_label,
+            b_label,
+            link,
+            ground_truth_indices,
+            output_file=f"bipartite_graph_{args.algorithm}_{args.optimization_function}_{args.experiment_file.split('/')[-1]}_min.svg",
+            important_exclusive=True,
+        )
+
+        exit()
+
 
     # DEBUG
     # solution = extra_info["ideal_solution_vector"]
@@ -210,6 +258,7 @@ if __name__ == "__main__":
     if valid_model:
 
         model_dynamics_system = vmap(model_dynamics_system, in_axes=(1, 1), out_axes=1)
+
 
         model_acc = xlsindy.dynamics_modeling.vectorised_acceleration_generation(
             model_dynamics_system, imported_qpos, imported_qvel, imported_force

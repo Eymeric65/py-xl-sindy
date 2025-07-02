@@ -6,9 +6,7 @@ This module primarly focus on symbolic variable and enable to do the different m
 
 import numpy as np
 import sympy
-import time
-from typing import List, Callable, Dict, Tuple
-import jax.numpy as jnp
+from typing import List
 
 
 def compute_euler_lagrange_equation(
@@ -77,43 +75,93 @@ def newton_from_lagrangian(
 
     return res
 
-
-def create_experiment_matrix(
+def jax_create_experiment_matrix(
     num_coords: int,
     catalogs: np.ndarray,
     symbol_matrix: np.ndarray,
-    time_symbol: sympy.Symbol,
     position_values: np.ndarray,
     velocity_values: np.ndarray,
     acceleration_values: np.ndarray,
-    friction_order_one: bool = False,
+    forces_values: np.ndarray,
 ) -> List[np.ndarray]:
     """
     Create the SINDy experiment matrix.
 
-    For each function in the catalog (plus the friction term) create the times series of the euler-lagranged function for each coordinate.
+    For each function in the catalog create the times series of function for each coordinate.
     This matrix will afterward undergo the regression in order to retrieve the parse expression.
 
     Args:
         num_coords (int): Number of generalized coordinates.
         catalogs (list): array of catalog function of shape (p,n)
         symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
-        time_symbol (sp.Symbol): The symbol for the time
-        position_values (np.array): Array of positions at each time step.
-        velocity_values (np.array): Array of velocities.
-        acceleration_values (np.array): Array of accelerations.
-        friction_order_one (bool): Whether to add frictional forces (default is False). Use the model of friction matrix in the first order
-
+        position_values (np.array(num_coordinate,sampled_step)): Array of positions at each time step.
+        velocity_values (np.array(num_coordinate,sampled_step)): Array of velocities.
+        acceleration_values (np.array(num_coordinate,sampled_step)): Array of accelerations.
+        forces_values (np.ndarray(num_coordinate,sampled_step)): Array of external forces.
 
     Returns:
         np.array: Experiment matrix.
-        np.array: Subsampled time values.
     """
     sampled_steps = len(position_values)
 
     catalog_lenght = catalogs.shape[0]
 
     experiment_matrix = np.zeros(((sampled_steps) * num_coords, catalog_lenght))
+
+    q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
+    
+    q_matrix[0, :, :] = np.transpose(forces_values)
+    q_matrix[1, :, :] = np.transpose(position_values)
+    q_matrix[2, :, :] = np.transpose(velocity_values)
+    q_matrix[3, :, :] = np.transpose(acceleration_values)
+
+    for i in range(num_coords):
+
+        catalog_lambda = list(
+            map(
+                lambda x: sympy.lambdify([symbol_matrix], x, modules="numpy"),
+                catalogs[:, i],
+            )
+        )
+
+        for j, func in enumerate(catalog_lambda):
+            experiment_matrix[i * sampled_steps : (i + 1) * sampled_steps, j] = func(
+                q_matrix
+            )
+
+    return experiment_matrix
+
+
+def create_experiment_matrix(
+    num_coords: int,
+    catalogs: np.ndarray,
+    symbol_matrix: np.ndarray,
+    position_values: np.ndarray,
+    velocity_values: np.ndarray,
+    acceleration_values: np.ndarray,
+) -> np.ndarray:
+    """
+    Create the SINDy experiment matrix.
+
+    For each function in the catalog create the times series of function for each coordinate.
+    This matrix will afterward undergo the regression in order to retrieve the parse expression.
+
+    Args:
+        num_coords (int): Number of generalized coordinates.
+        catalogs (list): array of catalog function of shape (p,n)
+        symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
+        position_values (np.array): Array of positions at each time step.
+        velocity_values (np.array): Array of velocities.
+        acceleration_values (np.array): Array of accelerations.
+
+    Returns:
+        experiment_matrix (np.array (sampled_steps * num_coords, catalog_lenght)): The experiment matrix.
+    """
+    sampled_steps = len(position_values)
+
+    catalog_lenght = catalogs.shape[0]
+
+    experiment_matrix = np.zeros((sampled_steps * num_coords, catalog_lenght))
 
     q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
     q_matrix[1, :, :] = np.transpose(position_values)

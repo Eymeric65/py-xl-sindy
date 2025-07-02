@@ -32,7 +32,7 @@ def xlsindy_component(
 
     num_coordinates = 2
 
-    symbols_matrix = xlsindy.catalog_gen.generate_symbolic_matrix(
+    symbols_matrix = xlsindy.symbolic_util.generate_symbolic_matrix(
         num_coordinates, time_sym
     )
 
@@ -81,6 +81,7 @@ def xlsindy_component(
     )
 
     if mode == "xlsindy":
+
         # Create the catalog (Mandatory part)
         function_catalog_1 = [lambda x: symbols_matrix[2, x]]
         function_catalog_2 = [
@@ -89,12 +90,12 @@ def xlsindy_component(
         ]
 
         catalog_part1 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_1, num_coordinates, 2
             )
         )
         catalog_part2 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_2, num_coordinates, 2
             )
         )
@@ -102,28 +103,37 @@ def xlsindy_component(
 
         lagrange_catalog = np.concatenate(
             (cross_catalog.flatten(), catalog_part1, catalog_part2)
-        )  # Maybe not ?
+        ) 
 
         friction_catalog = (
             friction_function.flatten()
         )  # Contain only \dot{q}_1 \dot{q}_2
+
         expand_matrix = np.ones((len(friction_catalog), num_coordinates), dtype=int)
-        catalog_repartition = [
-            ("lagrangian", lagrange_catalog),
-            ("classical", friction_catalog, expand_matrix),
-        ]
-        # give a reference lagrangian for the system analysed (optional) through the extra_info dictionary
 
-        # Generate solution vector
-        ideal_lagrangian_vector = xlsindy.catalog_gen.create_solution_vector(
-            sp.expand_trig(Lagrangian.subs(substitutions)), lagrange_catalog
+        catalog_repartition = xlsindy.catalog.CatalogRepartition(
+            [
+                xlsindy.catalog_base.ExternalForces(
+                    [[1,-2], [2]], symbols_matrix
+                ),
+                xlsindy.catalog_base.Lagrange(
+                    lagrange_catalog, symbols_matrix, time_sym
+                ),
+                xlsindy.catalog_base.Classical(
+                    friction_catalog, expand_matrix
+                ),
+            ]
         )
-        ideal_friction_vector = np.reshape(friction_forces, (-1, 1))
 
-        ideal_solution_vector = np.concatenate(
-            (ideal_lagrangian_vector, ideal_friction_vector), axis=0
+        ideal_solution_vector = catalog_repartition.create_solution_vector(
+            [
+                ([]),
+                ([Lagrangian.subs(substitutions)]),
+                ([friction_forces]),
+            ]
         )
-        catalog_len = len(lagrange_catalog) + np.sum(expand_matrix)
+
+        catalog_len = len(ideal_solution_vector)
 
     elif mode == "sindy":
 
@@ -139,13 +149,13 @@ def xlsindy_component(
         for i in range(num_coordinates):
 
             newton_system += [
-                xlsindy.catalog_gen.get_additive_equation_term(
+                xlsindy.symbolic_util.get_additive_equation_term(
                     sp.expand_trig(newton_equations[i])
                 )
             ]
 
         catalog_need, coeff_matrix, binary_matrix = (
-            xlsindy.catalog_gen.sindy_create_coefficient_matrices(newton_system)
+            xlsindy.symbolic_util.sindy_create_coefficient_matrices(newton_system)
         )
 
         # complete the catalog
@@ -158,30 +168,30 @@ def xlsindy_component(
         ]
 
         catalog_part0 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_0, num_coordinates, 1
             )
         )
         catalog_part1 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_1, num_coordinates, 2
             )
         )
         catalog_part2 = np.array(
-            xlsindy.catalog_gen.generate_full_catalog(
+            xlsindy.symbolic_util.generate_full_catalog(
                 function_catalog_2, num_coordinates, 2
             )
         )
 
-        lagrange_catalog = xlsindy.catalog_gen.cross_catalog(
+        lagrange_catalog = xlsindy.symbolic_util.cross_catalog(
             catalog_part1, catalog_part2
         )
-        lagrange_catalog = xlsindy.catalog_gen.cross_catalog(
+        lagrange_catalog = xlsindy.symbolic_util.cross_catalog(
             lagrange_catalog, catalog_part0
         )
         # --------------------
 
-        coeff_matrix, binary_matrix, catalog_need = xlsindy.catalog_gen.augment_catalog(
+        coeff_matrix, binary_matrix, catalog_need = xlsindy.symbolic_util.augment_catalog(
             num_coordinates,
             lagrange_catalog,
             coeff_matrix,
@@ -191,13 +201,25 @@ def xlsindy_component(
             random_seed,
         )
 
-        solution = xlsindy.catalog_gen.translate_coeff_matrix(
-            coeff_matrix, binary_matrix
+        catalog_repartition = xlsindy.catalog.CatalogRepartition(
+            [
+                xlsindy.catalog_base.ExternalForces(
+                    [[1,-2], [2]], symbols_matrix
+                ),
+                xlsindy.catalog_base.Classical(
+                    catalog_need, binary_matrix
+                ),
+            ]
         )
 
-        catalog_repartition = [("classical", catalog_need, binary_matrix)]
-        ideal_solution_vector = solution
-        catalog_len = np.sum(binary_matrix)
+        ideal_solution_vector = catalog_repartition.create_solution_vector(
+            [
+                ([]),
+                ([coeff_matrix]),
+            ]
+        )
+
+        catalog_len = len(ideal_solution_vector)
 
     # Create the extra_info dictionnary
     extra_info = {
@@ -218,25 +240,32 @@ def xlsindy_component(
     )  # extra_info is optionnal and should be set to None if not in use
 
 
-def mujoco_transform(pos, vel, acc, forces):
+def mujoco_transform(pos, vel, acc):
 
     pos = -np.cumsum(pos, axis=1) + mujoco_angle_offset
     vel = -np.cumsum(vel, axis=1)
     acc = -np.cumsum(acc, axis=1)
 
-    forces[:, :-1] -= forces[:, 1:]
+    return pos, vel, acc
 
-    return pos, vel, acc, forces
+def inverse_mujoco_transform(tpos, tvel, tacc):
+    """
+    Given outputs of mujoco_transform (tpos, tvel, tacc),
+    recover the original pos, vel, acc (all shape (batch, n)).
+    """
+    # Undo the negated cumsum (and offset for angles)
+    S_pos = -(tpos - mujoco_angle_offset)
+    S_vel = -tvel
+    if tacc is not None:
+        S_acc = -tacc
 
+    # invert cumulative sum by taking differences (with zero prepended)
+    pos = np.diff(S_pos, axis=1, prepend=np.zeros((S_pos.shape[0],1)))
+    vel = np.diff(S_vel, axis=1, prepend=np.zeros((S_vel.shape[0],1)))
+    if tacc is not None:
+        acc = np.diff(S_acc, axis=1, prepend=np.zeros((S_acc.shape[0],1)))
 
-def forces_wrapper(fun):
-
-    def wrapper(*args, **kwargs):
-
-        forces = fun(*args, **kwargs)
-
-        forces[:-1] -= forces[1:]
-
-        return forces
-
-    return wrapper
+    if tacc is not None:
+        return pos, vel, acc
+    else:
+        return pos, vel, None

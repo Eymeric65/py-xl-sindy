@@ -33,7 +33,7 @@ num_periods = 5  # Number of periods for the simulation
 # Symbols and symbolic matrix generation
 time_sym = sp.symbols("t")
 num_coordinates = 2
-symbols_matrix = xlsindy.catalog_gen.generate_symbolic_matrix(num_coordinates, time_sym)
+symbols_matrix = xlsindy.symbolic_util.generate_symbolic_matrix(num_coordinates, time_sym)
 
 # Assign ideal model variables
 theta1 = symbols_matrix[1, 0]

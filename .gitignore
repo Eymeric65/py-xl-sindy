@@ -1,9 +1,10 @@
-.venv/
 py_xl_sindy.egg-info/
 __pycache__
 temp/
-.dep/
 _build/
 *.pkl
 *.svg
 *.mp4
+.*/
+.env
+dist/

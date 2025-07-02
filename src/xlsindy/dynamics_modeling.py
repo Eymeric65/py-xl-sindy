@@ -7,21 +7,20 @@ import numpy as np
 from .utils import print_progress
 from scipy import interpolate
 from scipy.integrate import RK45
-from typing import List, Callable, Dict
+from typing import List, Callable
 
 import jax.numpy as jnp
 import sympy
 from typing import Tuple
 
-from . import euler_lagrange
-from . import catalog_gen
 
-import time
+
+from .catalog import CatalogRepartition
 
 
 def generate_acceleration_function(
     regression_solution: np.ndarray,
-    catalog_repartition: List[tuple],
+    catalog_repartition: CatalogRepartition,
     symbol_matrix: np.ndarray,
     time_symbol: sympy.Symbol,
     lambdify_module: str = "numpy",
@@ -51,21 +50,20 @@ def generate_acceleration_function(
     """
     num_coords = symbol_matrix.shape[1]
 
-    expanded_catalog = catalog_gen.expand_catalog(
-        catalog_repartition, symbol_matrix, time_symbol
-    )
+    expanded_catalog = catalog_repartition.expand_catalog()
 
     dynamic_equations = regression_solution.T @ expanded_catalog
     dynamic_equations = dynamic_equations.flatten()
 
-    dynamic_equations -= np.array(
-        [symbol_matrix[0, i] for i in range(num_coords)], dtype=object
-    )  # Add external forces
+    # dynamic_equations -= np.array(
+    #     [symbol_matrix[0, i] for i in range(num_coords)], dtype=object
+    # )  # Add external forces 
+    # maybe not necessary now !! (Added when fusing the experiment matrix and forces function through the function catalog) To test 
 
     valid = True
 
     for i in range(num_coords):
-        if not str(symbol_matrix[3, i]) in str(dynamic_equations[i]):
+        if str(symbol_matrix[3, i]) not in str(dynamic_equations[i]):
             valid = False
 
     if valid:
@@ -406,8 +404,14 @@ def vectorised_acceleration_generation(dynamic_system: Callable, qpos, qvel, for
 
     T, n = qpos.shape
 
-    base_vectors = np.empty((T, 2 * n), dtype=qpos.dtype)
-    base_vectors[:, 0::2] = qpos
-    base_vectors[:, 1::2] = qvel
+    # base_vectors = np.empty((T, 2 * n), dtype=qpos.dtype)
+    # base_vectors[:, 0::2] = qpos
+    # base_vectors[:, 1::2] = qvel
+
+    base_vectors = np.stack((qpos, qvel), axis=2)  # shape: (1001, 4, 2)
+    base_vectors = base_vectors.reshape(T, 2 * n)  # shape: (1001, 8)
+
+    base_vectors = jnp.array(base_vectors)
+
 
     return dynamic_system(base_vectors.T, force.T).T
