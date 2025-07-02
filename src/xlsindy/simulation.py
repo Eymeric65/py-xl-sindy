@@ -9,13 +9,15 @@ import numpy as np
 import sympy
 
 from .euler_lagrange import create_experiment_matrix, jax_create_experiment_matrix
-from .optimization import lasso_regression
-
+from .optimization import lasso_regression, activated_catalog
 
 import cvxpy as cp
 
 from .catalog import CatalogRepartition
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 def regression_explicite(
     theta_values: np.ndarray,
@@ -48,6 +50,7 @@ def regression_explicite(
     """
 
     num_coordinates = theta_values.shape[1]
+
     external_forces_mask = 0 # super bad ## need to automate the finding process
 
     catalog = catalog_repartition.expand_catalog()
@@ -107,6 +110,8 @@ def regression_implicite(
     catalog_repartition: CatalogRepartition,
     l1_lambda = 1e-7,
     debug: bool = False,
+    deg_tol: float = 8, # base 10
+    weight_distribution_threshold: float = 0.5, # base 0.8
     #regression_function: Callable = lasso_regression,
     #sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -176,11 +181,24 @@ def regression_implicite(
     prob = cp.Problem(obj, [cp.diag(X) == 0])
     prob.solve(verbose=True)
 
+    
+
+    solution_matrix = X.value
+
+    # Set the diagonal of the solution matrix to zero
+    np.fill_diagonal(solution_matrix, -1)
+
+    logger.info(f"CVXPY problem solved with solution: {solution_matrix}")
+
     if debug:
-        return X.value, experimental_matrix
+        return solution_matrix, experimental_matrix
     
     else:
-        solutions = _implicit_post_treatment( X.value)
+        solutions = _implicit_post_treatment( 
+            solution_matrix,
+            deg_tol=deg_tol, 
+            weight_distribution_threshold=weight_distribution_threshold
+            )
         
         return solutions, experimental_matrix
 
@@ -283,7 +301,7 @@ def _weak_sparsity_rank_weighted(x):
 
     weights = 1.0 / ranks
     weighted_sum = np.sum(s * weights)
-    weight_total = np.sum(weights)
+    weight_total = np.sum(s)
 
     return weighted_sum / weight_total if weight_total != 0 else 0.0
 
@@ -316,6 +334,8 @@ def regression_mixed(
     catalog_repartition: CatalogRepartition,
     external_force: np.ndarray,
     regression_function: Callable = lasso_regression,
+    l1_lambda = 1e-7,
+    ideal_solution_vector: np.ndarray = None,
 ):
     """
     Executes regression for a dynamic system to estimate the system's parameters.
@@ -344,23 +364,107 @@ def regression_mixed(
         catalog_repartition (CatalogRepartition): Catalog containing the different parts used in the regression.
         external_force (np.ndarray): Array of external forces. Defaults to None.
         regression_function (Callable, optional): The regression function used to make the retrieval. Defaults to lasso_regression. ( Maybe change to CVxPY in the future)
-        
+        l1_lambda (float, optional): Regularization parameter for the regression. Defaults to 1e-7.
+
     Returns:
         Tuple TODO
     """
+
+    logger.info("Starting mixed regression process...")
 
     num_coordinates = theta_values.shape[1]
 
     catalog = catalog_repartition.expand_catalog()
 
     # Generate the experimental matrix from the catalog
-    experimental_matrix = create_experiment_matrix(
+    experimental_matrix = jax_create_experiment_matrix(
         num_coordinates,
         catalog,
         symbol_matrix,
         theta_values,
         velocity_values,
         acceleration_values,
+        external_force,
     )
+
+    activated_function,activated_coordinate = activated_catalog(
+        experimental_matrix,
+        external_force,
+    )
+
+    solution = np.zeros((experimental_matrix.shape[1],1))
+
+    logger.info(f" {activated_coordinate.sum()} coordinates activated by the external forces and function interlink : \n {activated_coordinate.flatten()}")
+
+    if activated_coordinate.sum() > 0:
+
+        logger.info("Performing explicit regression on the activated coordinates...")
+
+        external_forces_mask = 0 # super bad ## need to automate the finding process
+
+        # Expand activated_coordinate (shape: [num_coordinate, 1]) to match the rows of experimental_matrix
+        # Each coordinate corresponds to (num_samples) consecutive rows in experimental_matrix
+        num_samples = theta_values.shape[0]
+        expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
+
+        explicit_experimental_matrix = experimental_matrix[expanded_mask == 1, :][:, activated_function.flatten() == 1]
+
+        explicite_solution = regression_function(explicit_experimental_matrix,external_forces_mask) # Mask the first one that is the external forces
+        
+        solution[activated_function.flatten() == 1] = explicite_solution
+
+        explicit_system_time_series = experimental_matrix @ solution
+
+        updated_activated_coordinate = np.where( np.abs(explicit_system_time_series).reshape(num_coordinates,-1).sum(axis=1,keepdims=True) > 0 , 1,0)
+
+        logger.info(f" {updated_activated_coordinate.sum()} coordinates activated by the explicit regression this is a {updated_activated_coordinate.sum()-activated_coordinate.sum()} change from the first detection : \n {updated_activated_coordinate.flatten()}")
+
+        activated_coordinate = updated_activated_coordinate
+
+    if activated_coordinate.sum() < num_coordinates:
+
+        logger.info("Performing implicit regression on the remaining coordinates...")
+
+        expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
+
+        implicit_experimental_matrix = experimental_matrix[expanded_mask == 0, :][:, activated_function.flatten() == 0]
+
+        sigma_max = np.linalg.svd(implicit_experimental_matrix, compute_uv=False)[0]
+
+        A = implicit_experimental_matrix / sigma_max
+
+        m, n = A.shape
+
+        X = cp.Variable((n,n))
+
+        obj = cp.Minimize(
+            cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X)
+        )
+
+        prob = cp.Problem(obj, [cp.diag(X) == 0])
+        prob.solve(verbose=True)
+
+        implicit_solutions = _implicit_post_treatment( X.value)
+
+        if ideal_solution_vector is not None:
+            implicit_solution_stacked, _  = combine_best_fit(solution,ideal_solution_vector[activated_function.flatten() == 0])
+        else:
+            implicit_solution_stacked = implicit_solutions.sum(axis=1,keepdims=True)
+
+        solution[activated_function.flatten() == 0] = implicit_solution_stacked
+
+    logger.info("Mixed regression process completed successfully.")
+
+    return solution,experimental_matrix
+
+
+
+
+    
+
+
+
+    
+
 
 

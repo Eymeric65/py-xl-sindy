@@ -24,6 +24,10 @@ import matplotlib.pyplot as plt
 
 from xlsindy.catalog import CatalogRepartition
 
+import logging
+
+
+
 @dataclass
 class Args:
     ## Randomness
@@ -61,7 +65,7 @@ class Args:
     """the name of the algorithm used (for the moment "xlsindy" and "sindy" are the only possible)"""
     noise_level: float = 0.0
     """the level of noise introduce in the experiment"""
-    implicit_regression:bool = False
+    regression_type:str = "explicit"
     """if true, use the implicit regression function"""
     implicit_regression_debug:bool = False
     """if true, use the implicit regression function with debug mode"""
@@ -71,6 +75,11 @@ class Args:
 if __name__ == "__main__":
 
 ### ----------------------------------- Part 0 , load the variable -----------------------------------
+
+# Setup logger 
+
+    FORMAT = "[PY-XL-SINDY] [%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+    logging.basicConfig(level="INFO", format=FORMAT, stream=sys.stdout)
 
     args = tyro.cli(Args)
 
@@ -359,7 +368,7 @@ if __name__ == "__main__":
 
     print("INFO : Regression function initialized")
 
-    if args.implicit_regression:
+    if args.regression_type == "implicit":
 
             # Quick fix to remove the external forces from the catalog
         catalog_repartition_no_force = CatalogRepartition(full_catalog.catalog_repartition[1:])
@@ -392,14 +401,14 @@ if __name__ == "__main__":
         if not args.implicit_regression_debug:
 
             # Add k zeros before the first row of solution (shape: catalog_size, k)
-            
 
             solution, _  = xlsindy.simulation.combine_best_fit(solution,ideal_solution_vector)
 
-            solution[0,0]=-1 # Adding external forces that can't be guessed
+            solution[0,0] = -1.0    
 
 
-    else:
+
+    elif args.regression_type == "explicit":
         
         solution, exp_matrix = xlsindy.simulation.regression_explicite(
             theta_values=simulation_qpos_g,
@@ -410,6 +419,20 @@ if __name__ == "__main__":
             catalog_repartition=full_catalog,
             external_force=force_vector_g,
             regression_function=regression_function,
+        )
+
+    elif args.regression_type == "mixed":
+
+        solution, exp_matrix = xlsindy.simulation.regression_mixed(
+            theta_values=simulation_qpos_g,
+            velocity_values=simulation_qvel_g,
+            acceleration_values=simulation_qacc_g,
+            time_symbol=time_sym,
+            symbol_matrix=symbols_matrix,
+            catalog_repartition=full_catalog,
+            external_force=force_vector_g,
+            regression_function=regression_function,
+            ideal_solution_vector=ideal_solution_vector,
         )
 
     print("DEBUG : print a bunch of information")
@@ -473,7 +496,7 @@ if __name__ == "__main__":
         graph["position"].set_title("Position") 
         graph["position"].plot(simulation_time_g,simulation_qpos_g)
 
-        filename = f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{'implicit' if args.implicit_regression else 'explicit' }_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}"
+        filename = f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{args.regression_type }_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}"
 
         fig.savefig(filename+".svg")
         np.save(filename+".npy", solution_matrix)
@@ -634,7 +657,7 @@ if __name__ == "__main__":
     graph["position"].set_title("Position")
     graph["position"].plot(simulation_time_g, simulation_qpos_g)
 
-    fig.savefig(f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{'implicit' if args.implicit_regression else 'explicit' }_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}.svg")
+    fig.savefig(f"single_test_result/experiment_result_{args.experiment_folder.split('/')[1]}_{args.regression_type }_{'mujoco' if args.mujoco_generation else 'theory'}_{args.optimization_function}_{args.algorithm}.svg")
     plt.show()
 
 

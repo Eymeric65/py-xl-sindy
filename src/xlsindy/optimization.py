@@ -71,22 +71,69 @@ def bipartite_link(exp_matrix,num_coordinate,x_names,b_names):
 def activated_catalog(
     exp_matrix: np.ndarray,
     force_vector: np.ndarray,
-    num_coordinate: int,
 ):
     """
     Perform a recursive search to find the part ot the catalog that could be activated by the force vector.
     
     Args
-        exp_matrix (np.ndarray): Experimental matrix.
-        force_vector (np.ndarray): Force vector.
-        num_coordinate (int): Number of coordinates.
+        exp_matrix (np.ndarray(num_coordinate*sample_number,catalog_lenght)): Experimental matrix.
+        force_vector (np.ndarray(num_coordinate,sample_number)): Force vector.
         
+    Returns:
+        np.ndarray (num_coordinate,1): Activated catalog.
+        np.ndarray (1,catalog_lenght): Activated coordinate.
+    """
+
+    num_coordinate = force_vector.shape[0]
+
+    binary_compressed_exp_matrix = np.where( np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1) > 0 , 1,0)
+
+    binary_compressed_force_vector =  np.where( np.abs(force_vector).sum(axis=1,keepdims=True) >0 ,1 ,0 )
+
+    activation,activate_function = _recursive_activation(
+        binary_compressed_exp_matrix,
+        binary_compressed_force_vector,
+    )
+
+    return activate_function,activation
+
+
+
+
+def _recursive_activation(
+        binary_compressed_exp_matrix:np.ndarray,
+        activate_vector:np.ndarray,
+):
+    """
+    recursive function to find the activated catalog
+    
+    Args:
+        compressed_exp_matrix (np.ndarray): Compressed experimental matrix.
+        activate_vector (np.ndarray): Activated catalog.
+
     Returns:
         np.ndarray: Activated catalog.
     """
-    compressed_exp_matrix = np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1)
 
-    compressed_force_vector =   None
+    activate_function = np.where( np.where( binary_compressed_exp_matrix+activate_vector > 1 , 1 ,0 ).sum(axis=0,keepdims=True) >0,1 ,0)
+
+    activated_line = binary_compressed_exp_matrix.copy()
+
+    activated_line[ :, activate_function[0] == 0] = 0 
+
+    new_activate_vector = np.where(activated_line.sum(axis=1,keepdims=True) > 0, 1, 0)
+
+    if np.sum(new_activate_vector) <= np.sum(activate_vector):
+
+        return activate_vector,activate_function
+    
+    else:
+
+        activation_vector,activation_function = _recursive_activation(binary_compressed_exp_matrix, new_activate_vector)
+
+        return activation_vector, np.where(activation_function + activate_function > 0, 1, 0)
+
+
 
 
 def normalize_experiment_matrix(

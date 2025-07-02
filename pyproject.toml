@@ -36,6 +36,8 @@ dev = [
     "sphinx-rtd-theme>=3.0.2",
 ]
 util = [
+    "ipykernel>=6.29.5",
     "mujoco>=3.3.3",
+    "pandas>=2.3.0",
     "tyro>=0.9.26",
 ]

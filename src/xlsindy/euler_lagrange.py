@@ -100,7 +100,7 @@ def jax_create_experiment_matrix(
         forces_values (np.ndarray(num_coordinate,sampled_step)): Array of external forces.
 
     Returns:
-        np.array: Experiment matrix.
+        np.array (sampled_steps * num_coords, catalog_lenght): Experiment matrix.
     """
     sampled_steps = len(position_values)
 
