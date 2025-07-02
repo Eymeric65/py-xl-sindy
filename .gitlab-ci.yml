@@ -1,3 +1,5 @@
+# Useless because pages is not available in the tohoku instance.
+
 image: ghcr.io/astral-sh/uv:debian-slim
 
 test:

@@ -68,6 +68,26 @@ def bipartite_link(exp_matrix,num_coordinate,x_names,b_names):
 
     return rooted_links
 
+def activated_catalog(
+    exp_matrix: np.ndarray,
+    force_vector: np.ndarray,
+    num_coordinate: int,
+):
+    """
+    Perform a recursive search to find the part ot the catalog that could be activated by the force vector.
+    
+    Args
+        exp_matrix (np.ndarray): Experimental matrix.
+        force_vector (np.ndarray): Force vector.
+        num_coordinate (int): Number of coordinates.
+        
+    Returns:
+        np.ndarray: Activated catalog.
+    """
+    compressed_exp_matrix = np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1)
+
+    compressed_force_vector =   None
+
 
 def normalize_experiment_matrix(
     exp_matrix: np.ndarray, null_effect: bool = False

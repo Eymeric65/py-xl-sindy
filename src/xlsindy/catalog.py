@@ -122,6 +122,8 @@ class CatalogCategory(ABC,metaclass=_CatalogMetaClass):
         """
         Initialisation of the Catalog class, each Catalog class can have a different base data on their init.
         """
+        self.catalog_lenght = None
+        self.num_coordinate = None
         super().__init__()
 
 
@@ -264,3 +266,85 @@ class CatalogRepartition:
             remainer += catalog.catalog_length
 
         return CatalogRepartition(masked_catalogs), CatalogRepartition(remaining_catalogs)
+
+    def seperate_by_type(self, type_mask: List[str])-> tuple:
+        """
+        Separate the catalog by type. The type is a list of string that match the label of the catalog. the type is the name of the class.
+
+        Args:
+            type_mask (List[str]): a list of string that match the label of the catalog.
+
+        Returns:
+            tuple: two CatalogRepartition with the masked data and the remaining data.
+        """
+        masked_catalogs = []
+        remaining_catalogs = []
+
+        for catalog in self.catalog_repartition:
+            if type(catalog).__name__ in type_mask:
+                masked_catalogs.append(catalog)
+            else:
+                remaining_catalogs.append(catalog)
+
+        return CatalogRepartition(masked_catalogs), CatalogRepartition(remaining_catalogs)
+
+    def separate_solution_by_type(
+            self,
+            solution: np.ndarray,
+            type_mask: List[str]
+            )-> tuple:
+        """
+        Separate the the solution vector by type. The type is a list of string that match the label of the catalog. the type is the name of the class.
+
+        Args:
+            solution (np.ndarray): the solution vector to be separated.
+            type_mask (List[str]): a list of string that match the label of the catalog.
+
+        Returns:
+            tuple: two CatalogRepartition with the masked data and the remaining data.
+        """
+        masked_solution = []
+        remaining_solution = []
+
+        start_index = 0 
+
+        for catalog in self.catalog_repartition:
+            if type(catalog).__name__ in type_mask:
+                masked_solution.append(solution[start_index:start_index + catalog.catalog_lenght])
+
+                start_index += catalog.catalog_lenght
+            else:
+                remaining_solution.append(catalog)
+
+        return np.concatenate(masked_solution, axis=0), np.concatenate(remaining_solution, axis=0)
+    
+    def reunite_solution_by_type(
+            self,
+            type_mask: List[str],
+            masked_solution: np.ndarray,
+            remaining_solution: np.ndarray
+    ):
+        """
+        Reunite the solution vector by type. The type is a list of string that match the label of the catalog. the type is the name of the class.
+
+        Args:
+            type_mask (List[str]): a list of string that match the label of the catalog.
+            masked_solution (np.ndarray): the masked solution vector to be reunited.
+            remaining_solution (np.ndarray): the remaining solution vector to be reunited.
+
+        Returns:
+            np.ndarray: the reunited solution vector.
+        """
+        start_index_m = 0
+        start_index_r = 0
+        result = []
+
+        for catalog in self.catalog_repartition:
+            if type(catalog).__name__ in type_mask:
+                result.append(masked_solution[start_index_m:start_index_m + catalog.catalog_lenght])
+                start_index_m += catalog.catalog_lenght
+            else:
+                result.append(remaining_solution[start_index_r:start_index_r + catalog.catalog_lenght])
+                start_index_r += catalog.catalog_lenght
+        
+        return np.concatenate(result, axis=0)

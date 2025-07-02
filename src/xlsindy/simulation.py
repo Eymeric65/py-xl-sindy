@@ -133,11 +133,6 @@ def regression_implicite(
     """
 
     # Need to erase the external forces from the catalog
-
-
-
-
-
     num_coordinates = theta_values.shape[1]
 
     catalog = catalog_repartition.expand_catalog()
@@ -309,3 +304,63 @@ def combine_best_fit(solutions, v_ideal):
     v_hat = solutions @ x
     residual = np.linalg.norm(v_hat - v_ideal)
     return v_hat.reshape(-1,1), residual
+
+## Mixed framework regression 
+
+def regression_mixed(
+    theta_values: np.ndarray,
+    velocity_values: np.ndarray,
+    acceleration_values: np.ndarray,
+    time_symbol: sympy.Symbol,
+    symbol_matrix: np.ndarray,
+    catalog_repartition: CatalogRepartition,
+    external_force: np.ndarray,
+    regression_function: Callable = lasso_regression,
+):
+    """
+    Executes regression for a dynamic system to estimate the system's parameters.
+    This function can be used with both explicit and implicit systems, and will performs a chain of implicit/explicit regression.
+
+    The algorithm is the following:
+    1. Find recursively the explicit part of the catalog from the external forces.
+    2. Perform a first explicit regression on this part of the catalog to retrieve the coefficients
+    3. Perform an implicit regression on the remaining part of the catalog (remaining part calculated from the result of explicit regression).
+
+    [Need to explore this algorithm maybe]
+    The algorithm is the following:
+    1. Create the experimental matrix from the catalog.
+    2. Search the "activated" part of the catalog where force are present.
+    3. Perform a first explicit regression on this experiment matrix to retrieve the coefficients of the explicit part.
+    4. Search if the solution "activate" another part of the catalog.
+    5. Repeat 3 and 4 until no new part of the catalog is activated.
+    6. Perform a final implicit regression on the remaining part of the catalog.
+    
+    Args:
+        theta_values (np.ndarray): Array of angular positions over time.
+        velocity_values (np.ndarray): Array of velocities (optional).
+        acceleration_values (np.ndarray): Array of accelerations (optional).
+        time_symbol (sympy.Symbol): Symbol representing time.
+        symbol_matrix (np.ndarray): Matrix of symbolic variables for model construction.
+        catalog_repartition (CatalogRepartition): Catalog containing the different parts used in the regression.
+        external_force (np.ndarray): Array of external forces. Defaults to None.
+        regression_function (Callable, optional): The regression function used to make the retrieval. Defaults to lasso_regression. ( Maybe change to CVxPY in the future)
+        
+    Returns:
+        Tuple TODO
+    """
+
+    num_coordinates = theta_values.shape[1]
+
+    catalog = catalog_repartition.expand_catalog()
+
+    # Generate the experimental matrix from the catalog
+    experimental_matrix = create_experiment_matrix(
+        num_coordinates,
+        catalog,
+        symbol_matrix,
+        theta_values,
+        velocity_values,
+        acceleration_values,
+    )
+
+

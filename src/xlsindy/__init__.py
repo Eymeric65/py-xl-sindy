@@ -1,6 +1,6 @@
 import importlib.metadata
 
-__version__ = importlib.metadata.version("py-xl-sindy")
+__version__ = importlib.metadata.version("xlsindy")
 
 from . import symbolic_util
 from . import dynamics_modeling

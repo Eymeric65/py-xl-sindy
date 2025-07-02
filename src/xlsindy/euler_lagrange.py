@@ -94,10 +94,10 @@ def jax_create_experiment_matrix(
         num_coords (int): Number of generalized coordinates.
         catalogs (list): array of catalog function of shape (p,n)
         symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
-        position_values (np.array): Array of positions at each time step.
-        velocity_values (np.array): Array of velocities.
-        acceleration_values (np.array): Array of accelerations.
-        forces_values (np.ndarray): Array of external forces.
+        position_values (np.array(num_coordinate,sampled_step)): Array of positions at each time step.
+        velocity_values (np.array(num_coordinate,sampled_step)): Array of velocities.
+        acceleration_values (np.array(num_coordinate,sampled_step)): Array of accelerations.
+        forces_values (np.ndarray(num_coordinate,sampled_step)): Array of external forces.
 
     Returns:
         np.array: Experiment matrix.
@@ -139,7 +139,7 @@ def create_experiment_matrix(
     position_values: np.ndarray,
     velocity_values: np.ndarray,
     acceleration_values: np.ndarray,
-) -> List[np.ndarray]:
+) -> np.ndarray:
     """
     Create the SINDy experiment matrix.
 
@@ -155,13 +155,13 @@ def create_experiment_matrix(
         acceleration_values (np.array): Array of accelerations.
 
     Returns:
-        np.array: Experiment matrix.
+        experiment_matrix (np.array (sampled_steps * num_coords, catalog_lenght)): The experiment matrix.
     """
     sampled_steps = len(position_values)
 
     catalog_lenght = catalogs.shape[0]
 
-    experiment_matrix = np.zeros(((sampled_steps) * num_coords, catalog_lenght))
+    experiment_matrix = np.zeros((sampled_steps * num_coords, catalog_lenght))
 
     q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
     q_matrix[1, :, :] = np.transpose(position_values)
