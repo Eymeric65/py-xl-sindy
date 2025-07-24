@@ -89,19 +89,19 @@ python single_test.py \
 python single_test.py \
     --random-seed 12 15 \
     --experiment-folder "mujoco_align_data/cart_pole" \
-    --max-time 20 \
-    --forces-scale-vector 5 0 \
+    --max-time 10 \
+    --forces-scale-vector 0 3 \
     --initial-position 0.0 0 0.0 0 \
-    --forces-period 3 \
-    --forces-period-shift 0.5 \
+    --forces-period 1 \
+    --forces-period-shift 0.2 \
     --sample-number 200 \
-    --optimization-function "hard_threshold_sparse_regression" \
+    --optimization-function "lasso_regression" \
     --algorithm "sindy" \
     --noise-level 0.0 \
     --regression-type "mixed" \
     --no-mujoco-generation \
-    --batch-number 1 \
-    --initial-condition-randomness 0 \
+    --batch-number 6 \
+    --initial-condition-randomness 1 \
     --catalog-restriction -1 \
     --no-implicit-regression-debug \
     --implicit-regression-lamba 1e-7

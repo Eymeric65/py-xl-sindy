@@ -123,11 +123,7 @@ if __name__ == "__main__":
 
         rng = np.random.default_rng(args.random_seed)
 
-    
-
         ## Calatog restriction
-
-
         if args.catalog_restriction >= 0:
             
             ideal_solution_binary = np.where(
@@ -158,8 +154,6 @@ if __name__ == "__main__":
         else:
             ideal_solution_vector = extra_info["ideal_solution_vector"]
         
-
-
         # Mujoco environment path
         mujoco_xml = os.path.join(folder_path, "environment.xml")
 
