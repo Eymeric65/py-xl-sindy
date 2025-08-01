@@ -8,5 +8,5 @@ _build/
 .*/
 .env
 dist/
-
+results/
 +.github/

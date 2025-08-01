@@ -215,7 +215,6 @@ if __name__ == "__main__":
             pbar_2.close()
             
 
-
             # turn the result into a numpy array, and transform the data if needed
             simulation_qpos_m, simulation_qvel_m, simulation_qacc_m = mujoco_transform(
                 np.array(simulation_qpos_m), np.array(simulation_qvel_m), np.array(simulation_qacc_m)
@@ -322,7 +321,7 @@ if __name__ == "__main__":
 
     # Save pickle file
 
-    filename = f"result/{args.get_uid()}.pkl"
+    filename = f"results/{args.get_uid()}.pkl"
     with open(filename,'wb') as f : 
         pickle.dump(data, f)
     logger.info(f"Data saved with uid {args.get_uid()}")
@@ -335,7 +334,7 @@ if __name__ == "__main__":
     }
 
     # Save json file
-    json_filename = f"result/{args.get_uid()}.json"
+    json_filename = f"results/{args.get_uid()}.json"
     with open(json_filename,'w') as f :
         json.dump(data, f, indent=4)
     logger.info(f"Settings saved with uid {args.get_uid()}")
