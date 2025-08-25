@@ -29,6 +29,11 @@ logger = setup_logger(__name__)
 
 @dataclass
 class Args:
+    ## System definition 
+    experiment_folder: str = "None"
+    """the folder where the experiment data is stored : the mujoco environment.xml file and the xlsindy_gen.py script"""
+    damping_coefficients: List[float] = field(default_factory=lambda: [])
+    """the damping coefficients for the system, this is used to replace the DAMPING value in the environment.xml file"""
     ## Randomness
     random_seed: List[int] = field(default_factory=lambda: [0])
     """the random seed of the experiment (only used for force function)"""
@@ -37,8 +42,6 @@ class Args:
     """the number of batch to generate, this is used to generate more data mainly in implicit case (default 1)"""
     generation_type:str = "theorical"
     """if true generate the data using mujoco otherwise use the theoritical generator (default true)"""
-    experiment_folder: str = "None"
-    """the folder where the experiment data is stored : the mujoco environment.xml file and the xlsindy_gen.py script"""
     max_time: float = 10.0
     """the maximum time for the simulation"""
     initial_condition_randomness: List[float] = field(default_factory=lambda: [0.0])
@@ -101,8 +104,8 @@ if __name__ == "__main__":
             inverse_mujoco_transform = None
 
 
-        num_coordinates, time_sym, symbols_matrix, full_catalog, extra_info = (
-            xlsindy_component( random_seed=args.random_seed)
+        num_coordinates, time_sym, symbols_matrix, full_catalog, xml_content, extra_info = (
+            xlsindy_component( random_seed=args.random_seed, damping_coefficients=args.damping_coefficients)  # type: ignore
         )
 
         rng = np.random.default_rng(args.random_seed)
@@ -137,7 +140,7 @@ if __name__ == "__main__":
     if args.generation_type == "mujoco" : # Mujoco Generation
         
         # initialize Mujoco environment and controller
-        mujoco_model = mujoco.MjModel.from_xml_path(mujoco_xml)
+        mujoco_model = mujoco.MjModel.from_xml_string(mujoco_xml)
         mujoco_data = mujoco.MjData(mujoco_model)
 
 
