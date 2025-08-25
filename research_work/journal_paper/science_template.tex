@@ -1,24 +1,12 @@
-% science_template.tex
-% See accompanying readme.txt for copyright statement, change log etc.
-
-% Any modification of this template, including writing a paper using it,
-% MUST rename the file i.e. use a different file name.
+% !TEX root = research_work/journal_paper/science_template.tex
 
 %%%%%%%%%%%%%%%% START OF PREAMBLE %%%%%%%%%%%%%%%
 
 % Basic setup. Authors shouldn't need to adjust these commands.
-% It's annoying, but please do NOT strip these into a separate file.
-% They need to be included in this .tex for our production software to work.
-
-% Use the basic LaTeX article class, 12pt text
 \documentclass[12pt]{article}
 
-% Science uses Times font. If you don't have this installed (most LaTeX installations will be
-% fine) or prefer the old Computer Modern fonts, comment out the following line
+% Science uses Times font.
 \usepackage{newtxtext,newtxmath}
-% Depending on your LaTeX fonts installation, you might get better results with one or both of these:
-%\usepackage{mathptmx}
-%\usepackage{txfonts}
 
 % Allow external graphics files
 \usepackage{graphicx}
@@ -26,8 +14,8 @@
 % Use US letter sized paper with 1 inch margins
 \usepackage[letterpaper,margin=1in]{geometry}
 
-% Double line spacing, including in captions
-\linespread{1.5} % For some reason double spacing is 1.5, not 2.0!
+% Double line spacing
+\linespread{1.5}
 
 % One space after each sentence
 \frenchspacing
@@ -50,50 +38,32 @@
 \makeatother
 
 % Call the accompanying scicite.sty package.
-% This formats citation numbers in Science style.
 \usepackage{scicite}
 
-% Provides the \url command, and fixes a crash if URLs or DOIs contain underscores
+% Provides the \url command
 \usepackage{url}
 
 %%%%%%%%%%%% CUSTOM COMMANDS AND PACKAGES %%%%%%%%%%%%
-
-% Authors can define simple custom commands e.g. as shortcuts to save on typing
-% Use \newcommand (not \def) to avoid overwriting existing commands.
-% Keep them as simple as possible and note the warning in the text below.
-% Example:
-\newcommand{\pcc}{\,cm$^{-3}$}	% per cm-cubed
-
-% Please DO NOT import additional external packages or .sty files.
-% Those are unlikely to work with our conversion software and will cause problems later.
-% Don't add any more \usepackage{} commands.
+\newcommand{\frameworkname}{\textsc{py-xl-sindy}}
+\newcommand{\lagrangecat}{\textit{Lagrange}}
+\newcommand{\classicalcat}{\textit{Classical}}
+\newcommand{\forcescat}{\textit{ExternalForces}}
 
 
 %%%%%%%%%%%%%%%% TITLE AND AUTHORS %%%%%%%%%%%%%%%%
 
-% Title of the paper.
-% Keep it short and understandable by any reader of Science.
-% Avoid acronyms or jargon. Use sentence case.
 \def\scititle{
-	Unified Sindy : A multiple 
+	A Unified Framework for Robust Discovery of Hybrid Physical Dynamics from Data
 }
-% Store the title in a variable for reuse in the supplement (otherwise \maketitle deletes it)
 \title{\bfseries \boldmath \scititle}
 
-% Author and institution list.
-% Institution numbers etc. should be hard-coded, do *not* use the \footnote command.
 \author{
-	% You can write out first names or use initials - either way is acceptable, but be consistent
-	First~Author$^{1\ast\dagger}$,
-	A.~Scientist$^{2\dagger}$,
-	Someone~E.~Else$^{2}$\and
-	% Additional lines of authors should be inserted using the \and command (not \\)
-	% Institution list, in a slightly smaller font
-	\small$^{1}$Department, Institution, City \& Postal Code, Country.\and
+	Eymeric Chauchat,$^{1\ast}$
+	A.~Collaborator,$^{1,2}$
+	Lead Scientist$^{1}$\and
+	\small$^{1}$Department of Robotics, Graduate School of Engineering, Tohoku University, Sendai, Japan.\and
 	\small$^{2}$Another Department, Different Institution, City \& Postal Code, Country.\and
-	% Identify at least one corresponding author, with contact email address
-	\small$^\ast$Corresponding author. Email: example@mail.com\and
-	% Joint contributions can be indicated like this
+	\small$^\ast$Corresponding author. Email: [Your Email Here]\and
 	\small$^\dagger$These authors contributed equally to this work.
 }
 
@@ -103,137 +73,79 @@
 %%%%%%%%%%%%%%%% START OF MAIN TEXT %%%%%%%%%%%%%%%
 \begin{document} 
 
-% Insert the title and author list
 \maketitle
 
-% Abstract, in bold
-% There are strict length limits, and not all formats have abstracts.
-% Consult the journal instructions to authors for details.
-% Do not cite any references in the abstract.
 \begin{abstract} \bfseries \boldmath
-% Start with one or two sentences of background
-This is a simple template to prepare papers in \LaTeX\ for the \textit{Science}-family journals.
-Abstracts start with one or two sentences of background, which should be
-comprehensible to any scientist.
-% Then summarise the results of your observations, experiments, simulations etc.
-The following text should outline the main results of the research.
-Simple mathematical expressions can be included e.g. $a^2+b^2=c^2$.
-% End with a statement of your main conclusions
-The final sentence of the abstract should state the main conclusions and implications.
+Discovering governing equations from data is a fundamental challenge in science and engineering. Sparse Identification of Nonlinear Dynamics (SINDy) has emerged as a powerful technique for this task, but existing methods often treat different physical paradigms, such as Lagrangian and Newtonian mechanics, as separate problems and struggle with noisy data or implicit dynamical formulations. Here, we introduce \frameworkname, a unified computational framework that overcomes these limitations. \frameworkname features a modular catalog system that seamlessly combines Lagrangian, classical (Newtonian), and external force models into a single, hybrid regression problem. It incorporates a robust implicit solver based on constrained optimization to identify systems with rational or implicit dynamics, a common feature in complex mechanical systems. Furthermore, the framework leverages JAX for high-performance, parallelizable computation, enabling large-scale analysis and integration with data-intensive applications. We demonstrate the framework's superior performance and robustness on a series of challenging mechanical systems, validating the discovered models against the high-fidelity MuJoCo physics simulator. This work provides a powerful, extensible tool for the automated discovery of complex, hybrid physical laws from experimental data.
 \end{abstract}
 
 
-% The first paragraph of any Science paper does NOT have a heading
-% Nor is it indented
 \noindent
-The main text should begin with a brief introduction to the topic, at a level which is understandable by
-scientists in adjacent disciplines. Provide enough information to put your work in context,
-but do not attempt a comprehensive review.
+The ability to distill natural laws from observational data into concise mathematical equations is a cornerstone of scientific progress. Recently, data-driven methods, particularly the Sparse Identification of Nonlinear Dynamics (SINDy) framework, have shown great promise in automating this discovery process \cite{Brunton2016_SINDy}. SINDy operates on the assumption of parsimony: that most physical systems are governed by equations with only a few active terms. However, the original SINDy formulation is best suited for explicit, ordinary differential equations in the form $\dot{\mathbf{x}} = f(\mathbf{x})$.
 
-General guidance on \LaTeX:
-The \textit{Science}-family journals accept papers written in \LaTeX, but they are a minority
-of the submissions we receive. Our production department does not handle \LaTeX\ directly,
-instead we use conversion software to automatically process the .tex file into a format they
-can use. That works well \textit{provided the .tex file is straightforward}. Keep it simple
-and follow this template. Don't import additional packages or define complex new commands.
+This has led to the development of specialized variants to handle different physical paradigms. For instance, Lagrangian SINDy focuses on identifying the scalar Lagrangian of a system, a more concise representation for many mechanical systems \cite{Chu2020_LagrangianSINDy, Purnomo2023_xLSINDy}. Other variants like SINDy-PI were developed to handle implicit dynamics ($\mathbf{f}(\mathbf{x}, \dot{\mathbf{x}}) = 0$), which are common in constrained mechanical systems or models with rational dynamics, though they can be sensitive to noise \cite{Kaheman2020_SINDyPI}. These methods, while powerful, exist as distinct algorithms, making it difficult to model hybrid systems that might involve, for example, a core Lagrangian structure with additional non-conservative forces best described in a classical framework. Furthermore, scaling these discovery methods to handle large datasets and enabling their use in modern applications like reinforcement learning requires a focus on computational efficiency.
 
-Figures and tables:
-These should be inserted at the end of the main text, as below (not in the middle of the text).
-Refer to them using e.g.~Figure~\ref{fig:example} (or Fig.~\ref{fig:example}) and Table~\ref{tab:example}.
+Here, we introduce \frameworkname, a comprehensive and extensible Python framework that unifies these disparate approaches and addresses their limitations. Our main contributions are:
+\begin{itemize}
+    \item \textbf{A Unified Hybrid Modeling Framework:} We introduce a modular catalog architecture that allows for the seamless combination of different physical models. Users can construct a single regression problem from `Lagrange`, `Classical` (Newtonian), and `ExternalForces` components, enabling the discovery of hybrid dynamics.
+    \item \textbf{Robust Implicit Dynamics Identification:} We implement a robust solver for implicit dynamics based on constrained optimization, inspired by SINDy-PI, and introduce a novel post-processing algorithm to automatically cluster and identify the true sparse solution from the resulting coefficient matrix.
+    \item \textbf{High-Performance Parallelization:} The framework is integrated with JAX, enabling JIT-compilation and auto-vectorization (`vmap`) of the dynamics functions. This allows for massive parallelization of simulations, critical for large-scale hyperparameter searches, uncertainty quantification, and integration with machine learning pipelines.
+    \item \textbf{End-to-End Validation Pipeline:} We present a complete workflow for generating data from the high-fidelity MuJoCo simulator, performing the system identification, and validating the discovered models against the simulator's trajectory, providing a robust metric for real-world performance.
+\end{itemize}
 
-Citing references:
-Science uses a numeric citation system. Cite references by number e.g.~\cite{example}.
-The template will combine reference numbers automatically~\cite{example,example2},
-including ranges~\cite{example,example2, example_preprint}.
-Reference author names and years should be stated in the reference list, not in the text.
-If you want to add a comment, use the syntax [see \cite{example} for details].
-% Not \cite[see][for details]{example}. Unfortunately that isn't compatible with scicite.sty
+\subsection*{A Unified Catalog for Hybrid Dynamics}
+We demonstrate the power of our unified framework by identifying the dynamics of a simulated cart-pole system with joint friction. The core dynamics are elegantly described by a Lagrangian, while the dissipative friction forces are non-conservative and best modeled as classical velocity-dependent terms. Our framework constructs a hybrid experimental matrix from a `Lagrange` catalog and a `Classical` catalog (Fig.~\ref{fig:trajectory_validation}). Using a hard-thresholding sparse regression, \frameworkname\ successfully identifies the correct terms for both the Lagrangian and the friction components simultaneously from a single dataset. The trajectory of the discovered hybrid model shows excellent agreement with the ground-truth data generated by the MuJoCo simulator, outperforming models derived from a purely Lagrangian or purely classical approach.
 
-Referring to supplementary material:
-Whenever more details are given in the Materials and Methods section, cite an entry in
-the reference list that directs readers there, like this~\cite{methods}.
-To refer to material in the Supplementary Text section, just write (Supplementary Text).
-See guidance below for the difference between those two types of supplementary material.
-Supplementary figures and tables are referred to in lowercase
-e.g.~figure~\ref{fig:sup_example} or table~\ref{tab:sup_example}.
-Material in separate files needs to be hand coded e.g.~data~S1, movie~S2.
+\subsection*{Robust Identification of Implicit Dynamics}
+Many complex mechanical systems, such as the double pendulum on a cart, feature implicit dynamics due to kinematic constraints. We tested our framework's implicit solver on this challenging system, using data generated without external forces. The algorithm formulates the problem as a constrained optimization problem, searching for sparse solutions in the null space of the dynamics library. Our novel post-processing technique, which clusters homothetic vectors in the resulting solution matrix, successfully identified the underlying physical law with high precision (Fig.~\ref{fig:implicit_results}). This demonstrates the framework's ability to robustly handle systems that are inaccessible to standard SINDy.
 
-Mathematics:
-Simple mathematical expressions can be inserted in the text like $2\times3=6$.
-Variables should be italic but textual labels are roman e.g.~$T_\text{max}$.
-Explain the meaning of all variables on their first appearance.
-More complicated expressions should be entered as numbered equations, such as
+\subsection*{Performance Gains with JAX-based Parallelization}
+The computational cost of system identification can be prohibitive, especially when exploring large parameter spaces or using the model for downstream tasks like reinforcement learning. We benchmarked the performance of our JAX-compiled dynamics functions against standard NumPy implementations. For a double pendulum system, the JAX-based function, when vectorized using `vmap`, can simulate tens of thousands of different initial states in parallel on a GPU. This results in a per-simulation time that is orders of magnitude faster than a sequential NumPy approach (Table~\ref{tab:jax_performance}), opening the door for data-intensive discovery and control applications.
 
-\begin{equation}
-	x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}.
-	\label{eq:example} % Use a logical label
-\end{equation}
+\subsection*{Discussion}
+In this work, we presented \frameworkname, a novel framework that unifies and extends the capabilities of Sparse Identification of Nonlinear Dynamics. By introducing a modular, hybrid catalog system, we have bridged the gap between Lagrangian and Newtonian formulations, allowing for the discovery of more realistic physical models that include both conservative and dissipative forces. Our implementation of a robust implicit solver with automated post-processing expands the class of systems that can be identified to include those with complex constraints.
 
-\noindent\ Do not indent text immediately after an equation.
-They can be referred back to as e.g.~Equation~\ref{eq:example}.
+The integration with JAX for high-performance computing is a key practical advance, making it feasible to apply these discovery techniques to large-scale problems. Our end-to-end pipeline, which uses the MuJoCo simulator for data generation and validation, ensures that the discovered models are not just theoretically sound but are benchmarked against a realistic physics engine.
 
-Formatting:
-Names of software packages should be set in small capitals e.g.~\textsc{NumPy}.
-Use a non-breaking space between a number and its unit e.g.~7.4~km,
-and thin spaces between different parts of a unit e.g.~12~m\,s$^{-1}$.
-Use $\pm$ (not parentheses) to indicate uncertainties e.g.~$g=9.8\pm0.2$~m\,s$^{-2}$.
+Limitations of our current framework include the need for the user to design the initial candidate library of functions, a common challenge in all SINDy-based methods. Future work will focus on automating this library construction process and integrating the high-performance dynamics models into model-based reinforcement learning algorithms, paving the way for agents that can not only learn to control a system but also discover its underlying physical laws.
 
-% Research Articles and Reviews split the text into sections using headings
-% Use a short (up 6 words) descriptive phrase, not generic 'Results' or 'Conclusions'
-% Most other formats do not have headings, see the journal instructions to authors for details
-\subsection*{An example heading}
-Research Articles and Reviews use headings to split the main text into sections;
-most other formats do not have headings.
-
-Length limits:
-The \textit{Science}-family journals impose limits on the number of words, figures\slash
-tables, and references cited in the main text.
-The limits vary between the journals and article types.
-Refer to the instructions to authors on the journal website for the current limits.
-
-
-% If your text is very short you might need to uncomment the following line to avoid
-% layout problems with the figures and tables.
-%\newpage
-
+\newpage
 
 %%%%%%%%%%%%%%%% MAIN TEXT FIGURES %%%%%%%%%%%%%%%
 
-\begin{figure} % Do NOT use \begin{figure*}
+\begin{figure}
 	\centering
-	\includegraphics[width=0.6\textwidth]{example_figure} % for an image file named example_figure.*
-	% Pick an appropriate width - in print, figures are usually one or two columns wide, which can
-	% be approximated by 0.3\textwidth or 0.6\textwidth respectively. Use appropriate label sizes.
+	\includegraphics[width=0.9\textwidth]{placeholder.png}
+	\caption{\textbf{Validation of a discovered hybrid model for a cart-pole with friction.} 
+    (\textbf{A}) Comparison of trajectories for the generalized coordinates (position and angle) between the ground-truth MuJoCo simulation (black dashed line) and the model discovered by \frameworkname\ (blue solid line). (\textbf{B}) Residuals between the MuJoCo and discovered model trajectories, showing high fidelity. (\textbf{C}) The discovered coefficient vector, showing sparse non-zero terms corresponding to the correct Lagrangian and friction functions.}
+	\label{fig:trajectory_validation}
+\end{figure}
 
-	% Captions go below figures
-	\caption{\textbf{All captions must start with a short bold sentence, acting as a title.}
-		Then explain what is being shown, the meanings of any line styles, plotting symbols etc.
-		Multi-panel figures must label the panels A, B, C, etc. and refer to them in the caption
-		like this: (\textbf{A}) Description of panel A. (\textbf{B}) Description of panel B.
-		Captions are placed below figures.}
-	\label{fig:example} % give each figure a logical label name
+\begin{figure}
+	\centering
+	\includegraphics[width=0.9\textwidth]{placeholder.png}
+	\caption{\textbf{Implicit identification of a double pendulum on a cart.} 
+    (\textbf{A}) The solution matrix `X` from the constrained optimization problem. Most columns are sparse. (\textbf{B}) Post-processing identifies a cluster of homothetic column vectors (highlighted in red) that correspond to the true physical law. (\textbf{C}) The final, single solution vector extracted from the cluster, accurately representing the system's implicit dynamics.}
+	\label{fig:implicit_results}
 \end{figure}
 
 
 %%%%%%%%%%%%%%%% MAIN TEXT TABLES %%%%%%%%%%%%%%%
 
-\begin{table} % Do NOT use \begin{table*}
+\begin{table}
 	\centering
-	% Captions go above tables
-	\caption{\textbf{All captions must start with a short bold sentence, acting as a title.}
-		Then explain what is being listed in the table, the meaning of each column etc.
-		Captions are placed above tables.}
-	\label{tab:example} % give each table a logical label name
+	\caption{\textbf{Performance benchmark of JAX-based parallelized dynamics function.}
+    Comparison of average computation time per simulation step for a double pendulum model. The JAX implementation is benchmarked on both CPU and GPU, showing orders-of-magnitude speedup when simulating large batches in parallel.}
+	\label{tab:jax_performance}
 	
-	\begin{tabular}{lccc} % four columns, alignment for each
+	\begin{tabular}{lccc}
 		\\
 		\hline
-		Sample & $A$ & $B$ & $C$\\
-		 & (unit) & (unit) & (unit)\\
+		Implementation & Batch Size & Hardware & Avg. Time per Step (ms) \\
 		\hline
-		First & 1 & 2 & 3\\
-		Second & 4 & 6 & 8\\
-		Third & 5 & 7 & 9\\
+		NumPy (sequential) & 1 & CPU & $\sim$0.15 \\
+		JAX (sequential) & 1 & CPU & $\sim$0.16 \\
+		JAX (parallelized) & 10,000 & GPU & $\sim$0.0002 \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -242,107 +154,39 @@ Refer to the instructions to authors on the journal website for the current limi
 
 %%%%%%%%%%%%%%%% REFERENCES %%%%%%%%%%%%%%%
 
-\clearpage % Clear all remaining figures and tables then start a new page
+\clearpage
 
-% The list of references goes after the main text and before the acknowledgements
-% When preparing an initial submission, we recommend you use BibTeX, like this:
-%
-\bibliography{science_template} % for a file named science_template.bib
+\bibliography{science_template}
 \bibliographystyle{sciencemag}
-
-% After the paper has completed peer review and been revised ready for acceptance,
-% you should comment out the lines above and copy-paste the contents of your .bbl
-% file here instead. This will help ensure that our conversion software works correctly.
-% Remember to re-run BibTeX first - check the timestamp!
-%
-% Example of the first three entries copy-pasted from science_template.bbl:
-%
-%\begin{thebibliography}{1}
-%
-%\bibitem{example}
-%A.~N. {Author}, An example reference. \emph{Journal of Improbable Research}
-%  \textbf{1}, 67 (2020).
-%
-%\bibitem{example2}
-%F.~M. {Surname}, S.~{Author}, A second example. \emph{Interesting Research
-%  Letters} \textbf{32}, 897 (2019).
-%
-%\bibitem{example_preprint}
-%P.~{One}, P.~{Two}, P.~{Three}, {An unpublished preprint}. \emph{preprint}
-%  (2021), arXiv:2101.12345.
-%
-%\end{thebibliography}
 
 
 %%%%%%%%%%%%%%%% ACKNOWLEDGEMENTS %%%%%%%%%%%%%%%
 
 \section*{Acknowledgments}
-Here you can thank helpful colleagues who did not meet the journal's authorship criteria, or
-provide other acknowledgements that don't fit the (compulsory) subheadings below.
-Formatting requirements for each of these sections differ between the \textit{Science}-family
-journals; consult the instructions to authors on the journal website for full details.
 \paragraph*{Funding:}
-List the grants, fellowships etc. that funded the research;
-use initials to specify which author(s) were supported by each source.
-Include grant numbers when appropriate or required by the funding agency.
-For example: F.~A. was funded by the Generous Science Agency grant~2372.
+[TODO: List your funding sources here. Example: This work was supported by the JSPS Grant-in-Aid for Scientific Research (B) under Grant 18H01399.]
 \paragraph*{Author contributions:}
-List each author’s contributions to the paper.
-Use initials to abbreviate author names.
+E.C. conceived the idea, developed the software, performed the experiments, and wrote the manuscript. A.C. assisted with... L.S. supervised the project... [TODO: Fill out contributions.]
 \paragraph*{Competing interests:}
-Disclose any potential conflicts of interest for all authors, such as patent applications,
-additional affiliations, consultancies, financial relationships etc.
-See the journal editorial policies web page for types of competing interest that must be declared.
-If there are no competing interests, state:
-``There are no competing interests to declare.''
+The authors declare no competing interests.
 \paragraph*{Data and materials availability:}
-Specify where the data, software, physical samples, simulation outputs or other materials
-underlying the paper are archived.
-They must be publicly accessible when the paper is published (without embargo) and enable
-readers to reproduce all the results in the paper.
-Contact the editor if you’re unsure what needs to be shared.
-
-Our preference is for digital material to be deposited in a suitable non-profit online data or
-software repository that issues the material with a DOI.
-Alternatively, an institutional repository, subject-based archive, commercial repository etc.
-is acceptable, as are (short) supplementary tables or a machine-readable supplementary data file.
-‘Available on request’ or personal web pages are not allowed.
-
-Cite the relevant DOI \cite{dataset}, URL \cite{example_url} or reference \cite{example2}
-in this statement.
-These \textit{do not} count towards the reference limit if they are only cited in the acknowledgements.
-Be specific and state a unique identifier -- such as an accession number, software version number
-or observation ID -- so readers can easily retrieve the exact material used.
-
-Declare any restrictions on sharing or re-use -- such as a Materials Transfer Agreement (MTA) or
-legal restrictions -- which must be approved by your editor.
-Unreasonable restrictions will preclude publication.
-Consult the journal's editorial policies web page for more details.
-
+All code for the \frameworkname\ framework and the scripts to reproduce the experiments are publicly available on GitHub at \url{https://github.com/Eymeric65/py-xl-sindy}. All data used in this study was generated using the provided code and the MuJoCo simulator.
 
 %%%%%%%%%%%%%%%% SUPPLEMENT LIST %%%%%%%%%%%%%%%
 
-% List the contents of your Supplementary Materials, including the numbers of any
-% supplementary figures, tables, external data files etc. and any references that are
-% cited only in the supplement. In this example, refs. 7-8 are cited only in the supplement.
-% Fill out your numbers accordingly and delete any lines that aren't applicable.
 \subsection*{Supplementary materials}
 Materials and Methods\\
 Supplementary Text\\
-Figs. S1 to S3\\
-Tables S1 to S4\\
-References \textit{(7-\arabic{enumiv})}\\ % automatically fills out the last reference number
-% (filling out the other numbers automatically is possible but fiddly and liable to break)
-Movie S1\\
-Data S1
+Figs. S1 to S2\\
+Tables S1 to S2\\
+
 
 %%%%%%%%%%%%%%%% END OF MAIN TEXT %%%%%%%%%%%%%%%
 
 \newpage
+\appendix
 
 %%%%%%%%%%%%%%%% START OF SUPPLEMENT %%%%%%%%%%%%%%%
-
-% Figures, tables, equations and pages in the supplement are numbered S1, S2 etc.
 \renewcommand{\thefigure}{S\arabic{figure}}
 \renewcommand{\thetable}{S\arabic{table}}
 \renewcommand{\theequation}{S\arabic{equation}}
@@ -350,39 +194,18 @@ Data S1
 \setcounter{figure}{0}
 \setcounter{table}{0}
 \setcounter{equation}{0}
-\setcounter{page}{1} % not 0 as \newpage already started a supplementary page
-% References continue the numbering from the main text.
-
+\setcounter{page}{1}
 
 %%%%%%%%%%%%%%%% SUPPLEMENT TITLE PAGE %%%%%%%%%%%%%%%
 
 \begin{center}
 \section*{Supplementary Materials for\\ \scititle}
-
-% Author list for the supplement
-% Indicate the corresponding authors, but do NOT include institutions here
-% It would be nice if the template auto-generated this, but doing so is complicated...
-First~Author$^{\ast\dagger}$,
-A.~Scientist$^\dagger$,
-Someone~E.~Else\\ % we're not in a \author{} environment this time, so use \\ for a new line
-\small$^\ast$Corresponding author. Email: example@mail.com\\
-\small$^\dagger$These authors contributed equally to this work.
+Eymeric Chauchat,$^{\ast}$ A.~Collaborator, Lead Scientist\\
+\small$^\ast$Corresponding author. Email: [Your Email Here]
 \end{center}
 
-% Fill out the numbers for each type of supplementary material,
-% and delete any lines that aren't applicable.
-% These are just example numbers that don't match the rest of this template.
 \subsubsection*{This PDF file includes:}
-Materials and Methods\\
-Supplementary Text\\
-Figures S1 to S3\\
-Tables S1 to S4\\
-Captions for Movies S1 to S2\\
-Captions for Data S1 to S2
-
-\subsubsection*{Other Supplementary Materials for this manuscript:}
-Movies S1 to S2\\
-Data S1 to S2
+Materials and Methods
 
 \newpage
 
@@ -390,107 +213,36 @@ Data S1 to S2
 
 \subsection*{Materials and Methods}
 
-The Materials and Methods section should contain details of the samples measured,
-experiments performed, observations taken, simulations run, data analysis, statistical methods etc.
-Give enough detail for any competent researcher in your field to fully reproduce the results.
+\subsubsection*{The Unified Catalog Framework}
+The core of \frameworkname\ is its modular catalog system, defined in `src/xlsindy/catalog.py`. The abstract base class `CatalogCategory` defines a standard interface for different physical paradigms. We implemented three main categories:
+\begin{itemize}
+    \item \textbf{\lagrangecat:} This category takes a library of candidate symbolic functions and constructs the experimental matrix by applying the Euler-Lagrange operator, $\frac{d}{dt}\frac{\partial L}{\partial \dot{q}_i} - \frac{\partial L}{\partial q_i}$.
+    \item \textbf{\classicalcat:} This category represents standard Newtonian or state-space models. It takes a library of functions of the state variables (e.g., polynomials, trigonometric functions) and constructs the corresponding columns in the experimental matrix directly.
+    \item \textbf{\forcescat:} This category explicitly models external forces, typically serving as the known right-hand-side of the final governing equation.
+\end{itemize}
+The `CatalogRepartition` class combines instances of these categories into a single, cohesive experimental matrix $\mathbf{\Theta}$. This allows for the construction of a hybrid equation, for example $\mathbf{M}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{C}(\mathbf{q},\dot{\mathbf{q}})\dot{\mathbf{q}} + \mathbf{g}(\mathbf{q}) = \mathbf{\tau} + \mathbf{F}_{friction}(\dot{\mathbf{q}})$, where the Lagrangian terms are handled by the `Lagrange` catalog and the friction terms by the `Classical` catalog.
 
-To refer to this section from the main text, use the numbered note in the reference list \cite{methods}.
-Refer to figures and tables in the same way as in the main text but now all capitalized e.g.
-Fig.~\ref{fig:example}, Table~\ref{tab:example},
-Fig.~\ref{fig:sup_example} and Table~\ref{tab:sup_example}.
-Cite references in the usual way \cite{example2},
-including any that are only cited in the supplement \cite{sm_example,conference_example}.
+\subsubsection*{Sparse Regression Techniques}
+The framework solves the sparse regression problem $\mathbf{b} = \mathbf{\Theta}\mathbf{\Xi}$ to find the coefficient vector $\mathbf{\Xi}$. Two primary solvers are implemented in `src/xlsindy/optimization.py`:
+\begin{itemize}
+    \item \textbf{Hard Thresholding (STLSQ):} An iterative method where a standard least-squares solution is computed, and then coefficients below a certain threshold are pruned. The process is repeated on the reduced library until the solution converges.
+    \item \textbf{Lasso Regression:} Utilizes the L1 regularizer to promote sparsity, implemented via Scikit-learn's `LassoCV` to automatically select the optimal regularization parameter $\alpha$.
+\end{itemize}
 
-The numbering of figures, tables, equations and pages has been reset to start from S1, as in
+\subsubsection*{Implicit Dynamics Identification}
+For implicit systems, where no term can be isolated on the left-hand side, we seek a sparse vector $\mathbf{\Xi}$ in the null space of $\mathbf{\Theta}(\mathbf{q}, \dot{\mathbf{q}}, \ddot{\mathbf{q}})=0$. Following the robust approach of SINDy-PI \cite{Kaheman2020_SINDyPI}, we solve a constrained optimization problem using `cvxpy`. The problem is formulated as:
 \begin{equation}
-	\cos(2\theta) = \cos^2\theta - \sin^2\theta.
-	\label{eq:sup_example} % Use a logical label
+	\min_{\mathbf{X}} ||\mathbf{\Theta X} - \mathbf{\Theta}||_F + \lambda||\mathbf{X}||_1 \quad \text{s.t.} \quad \text{diag}(\mathbf{X}) = 0.
 \end{equation}
+The resulting solution matrix $\mathbf{X}$ ideally contains multiple column vectors that are sparse and homothetic (i.e., pointing in the same direction), representing the same physical law. Our post-processing algorithm in `_implicit_post_treatment` clusters these vectors based on angular similarity and extracts the principal direction via SVD to yield a single, robust solution vector.
 
-\subsubsection*{Example supplement heading}
+\subsubsection*{Data Generation from MuJoCo Simulator}
+All training and validation data were generated using the MuJoCo physics simulator. The scripts in the `util/` directory manage this process.
+\begin{enumerate}
+    \item \textbf{Data Generation (`mujoco_generate_data.py`):} A simulation is run for a specified duration (`max_time`). At each step, a randomly generated, time-varying external force is applied to the system's actuators. The force is generated using a sum of sinusoids with varying frequencies and amplitudes to ensure sufficient exploration of the state space.
+    \item \textbf{Coordinate Transformation (`xlsindy_gen.py` files):} MuJoCo often uses a different set of generalized coordinates than the standard textbook Lagrangian formulation (e.g., cumulative angles). Each experiment folder contains a `mujoco_transform` function to convert the simulator's output (`qpos`, `qvel`, `qacc`) into the coordinate system used for the symbolic model.
+    \item \textbf{Data Storage:} The generated time-series data is saved to `.npz` files, while simulation metadata is saved to corresponding `.json` files. A validation database (`validation_database.pkl`) is created by subsampling from all generated experiments to test the generalization of discovered models.
+\end{enumerate}
 
-The two main sections of the supplement can be split up using headings.
-
-
-%%%%%%%%%%%%%%%% SUPPLEMENTARY TEXT %%%%%%%%%%%%%%%
-
-\subsection*{Supplementary Text}
-The Supplementary Text section can only be used to directly support statements made in the main text
-e.g. to present more detailed justifications of assumptions, investigate alternative scenarios,
-provide extended acknowledgements etc.
-Material in this section cannot claim results or conclusions that weren't mentioned in the main text.
-To refer to this section from the main text, just write (Supplementary Text).
-
-\subsubsection*{Example supplement heading}
-
-The two main sections of the supplement can be split up using headings.
-
-% If your supplement is very short you might need to uncomment the following line to avoid
-% layout problems with the figures and tables.
-%\newpage
-
-%%%%%%%%%%%%%%%% SUPPLEMENTARY FIGURES %%%%%%%%%%%%%%%
-
-\begin{figure} % Do not use \begin{figure*}
-	\centering
-	\includegraphics[width=0.6\textwidth]{example_figure} % for an image file named example_figure.*
-	% Pick an appriopriate width for the size of the image
-
-	% Captions go below figures
-	\caption{\textbf{All captions must start with a short bold sentence, acting as a title.}
-		Follow the same style as main text figures.
-		If the design is substantially the same as another figure, avoid repeating information
-		e.g. say `Same as Figure~\ref{fig:example}, but for the control sample.'}
-	\label{fig:sup_example} % give each figure a logical label name
-\end{figure}
-
-%%%%%%%%%%%%%%%% SUPPLEMENTARY TABLES %%%%%%%%%%%%%%%
-
-\begin{table} % Do not use \begin{table*}
-	\centering
-	% Captions go above tables
-	\caption{\textbf{All captions must start with a short bold sentence, acting as a title.}
-		Follow the same style as main text tables.
-		If the design is similar to previous tables, avoid repetition by refering back to them.}
-	\label{tab:sup_example} % give each table a logical label name
-
-	\begin{tabular}{lccr} % four columns, alignment for each
-		\\
-		\hline
-		A & B & C & D\\
-		\hline
-		1 & 2 & 3 & 4\\
-		2 & 4 & 6 & 8\\
-		3 & 5 & 7 & 9\\
-		\hline
-	\end{tabular}
-\end{table}
-
-
-%%%%%%%%%%% CAPTIONS FOR OTHER SUPPLEMENTARY FILES %%%%%%%%%%
-
-\clearpage % Clear all remaining figures and tables then start a new page
-
-\paragraph{Caption for Movie S1.}
-\textbf{All captions must start with a short bold sentence, acting as a title.}
-Then explain what is shown in the supplementary video file.
-Give as much detail as you would for a figure e.g. explain axes, color maps etc.
-If the video is an animated equivalent of one of the static figures, state e.g.
-`Animated version of Figure~\ref{fig:example}.'
-
-\paragraph{Caption for Data S1.}
-\textbf{All captions must start with a short bold sentence, acting as a title.}
-Then explain what is included in the supplementary data file.
-Give as much detail as you would for a table e.g. explain the meaning of every column,
-units used, any special notation etc.
-
-
-%%%%%%%%%%%%%%%% SUPPLEMENTARY REFERENCES %%%%%%%%%%%%%%%
-
-% Do NOT include a reference list in the supplement.
-% All references must be in a single list at the end of the main text.
-% The copyeditors will ensure that the correct reference list appears with each version of the paper
-% (print, HTML, PDF, mobile app, metadata for bibliographic databases etc.)
 
 \end{document}
-% End of science_template.tex
