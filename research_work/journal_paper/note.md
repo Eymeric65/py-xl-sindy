@@ -15,3 +15,12 @@ After when the database is generated, we can use the data to generate different 
 ## Batch launch : 
 
 I changed the `batch_launch` script in order to have the experiment that contain batch experiments. ( for mixed / implicit method )
+
+
+## Article name and spirit 
+
+### August 24
+
+I thought about multiple stuff concerning the big title of the article... 
+
+- Space transform : Use this word instead of paradigm
