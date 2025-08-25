@@ -1,4 +1,4 @@
-% !TEX root = research_work/journal_paper/science_template.tex
+% !TEX root = research_work\journal_paper\science_template.tex
 
 %%%%%%%%%%%%%%%% START OF PREAMBLE %%%%%%%%%%%%%%%
 
@@ -156,7 +156,7 @@ Limitations of our current framework include the need for the user to design the
 
 \clearpage
 
-\bibliography{science_template}
+\bibliography{science_template.bib}
 \bibliographystyle{sciencemag}
 
 
@@ -234,14 +234,15 @@ For implicit systems, where no term can be isolated on the left-hand side, we se
 \begin{equation}
 	\min_{\mathbf{X}} ||\mathbf{\Theta X} - \mathbf{\Theta}||_F + \lambda||\mathbf{X}||_1 \quad \text{s.t.} \quad \text{diag}(\mathbf{X}) = 0.
 \end{equation}
-The resulting solution matrix $\mathbf{X}$ ideally contains multiple column vectors that are sparse and homothetic (i.e., pointing in the same direction), representing the same physical law. Our post-processing algorithm in `_implicit_post_treatment` clusters these vectors based on angular similarity and extracts the principal direction via SVD to yield a single, robust solution vector.
+
+The resulting solution matrix $\mathbf{X}$ ideally contains multiple column vectors that are sparse and homothetic (i.e., pointing in the same direction), representing the same physical law. Our post-processing algorithm in `\_implicit\_post\_treatment` clusters these vectors based on angular similarity and extracts the principal direction via SVD to yield a single, robust solution vector.
 
 \subsubsection*{Data Generation from MuJoCo Simulator}
 All training and validation data were generated using the MuJoCo physics simulator. The scripts in the `util/` directory manage this process.
 \begin{enumerate}
-    \item \textbf{Data Generation (`mujoco_generate_data.py`):} A simulation is run for a specified duration (`max_time`). At each step, a randomly generated, time-varying external force is applied to the system's actuators. The force is generated using a sum of sinusoids with varying frequencies and amplitudes to ensure sufficient exploration of the state space.
-    \item \textbf{Coordinate Transformation (`xlsindy_gen.py` files):} MuJoCo often uses a different set of generalized coordinates than the standard textbook Lagrangian formulation (e.g., cumulative angles). Each experiment folder contains a `mujoco_transform` function to convert the simulator's output (`qpos`, `qvel`, `qacc`) into the coordinate system used for the symbolic model.
-    \item \textbf{Data Storage:} The generated time-series data is saved to `.npz` files, while simulation metadata is saved to corresponding `.json` files. A validation database (`validation_database.pkl`) is created by subsampling from all generated experiments to test the generalization of discovered models.
+    \item \textbf{Data Generation (`mujoco\_generate\_data.py`):} A simulation is run for a specified duration (`max\_time`). At each step, a randomly generated, time-varying external force is applied to the system's actuators. The force is generated using a sum of sinusoids with varying frequencies and amplitudes to ensure sufficient exploration of the state space.
+    \item \textbf{Coordinate Transformation (`xlsindy\_gen.py` files):} MuJoCo often uses a different set of generalized coordinates than the standard textbook Lagrangian formulation (e.g., cumulative angles). Each experiment folder contains a `mujoco\_transform` function to convert the simulator's output (`qpos`, `qvel`, `qacc`) into the coordinate system used for the symbolic model.
+    \item \textbf{Data Storage:} The generated time-series data is saved to `.npz` files, while simulation metadata is saved to corresponding `.json` files. A validation database (`validation\_database.pkl`) is created by subsampling from all generated experiments to test the generalization of discovered models.
 \end{enumerate}
 
 
