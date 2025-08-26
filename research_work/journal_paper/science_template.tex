@@ -5,6 +5,13 @@
 % Basic setup. Authors shouldn't need to adjust these commands.
 \documentclass[12pt]{article}
 
+%%%%%%%%%%%% ADDED PACKAGES - NOT FOR PRODUCTION %%%%%%%%%%%%
+% Enable color support for TODO markers (remove for final submission)
+\usepackage{xcolor}
+% Enable strikethrough for version comparison (remove for final submission)
+\usepackage{ulem}
+%%%%%%%%%%%% END ADDED PACKAGES %%%%%%%%%%%%
+
 % Science uses Times font.
 \usepackage{newtxtext,newtxmath}
 
@@ -49,11 +56,30 @@
 \newcommand{\classicalcat}{\textit{Classical}}
 \newcommand{\forcescat}{\textit{ExternalForces}}
 
+% TODO command - creates a highly visible TODO marker
+\newcommand{\TODO}[1]{\textbf{\textcolor{red}{\Large TODO: \normalsize #1}}}
+
+% Version comparison command - shows old vs new versions with clear visual distinction
+\newcommand{\concurrentversion}[2]{%
+    \textcolor{red}{#1} \textcolor{blue}{\textbf{#2}}%
+}
+
+% Alternative version command that shows both versions in a box for review
+\newcommand{\versioncompare}[2]{%
+    \fbox{\parbox{\textwidth}{%
+        \textcolor{red}{\textbf{OLD:} #1} \\[0.5em]
+        \textcolor{blue}{\textbf{NEW:} #2}%
+    }}%
+}
+
+% AI revised content command - shows AI-revised text in small dark green
+\newcommand{\airevised}[1]{\textcolor{olive}{\small #1}}
+
 
 %%%%%%%%%%%%%%%% TITLE AND AUTHORS %%%%%%%%%%%%%%%%
 
 \def\scititle{
-	A Unified Framework for Robust Discovery of Hybrid Physical Dynamics from Data
+	A Unified Framework for Robust Discovery of Hybrid Physical Dynamics from Data \TODO{change title}
 }
 \title{\bfseries \boldmath \scititle}
 
@@ -65,6 +91,7 @@
 	\small$^{2}$Another Department, Different Institution, City \& Postal Code, Country.\and
 	\small$^\ast$Corresponding author. Email: [Your Email Here]\and
 	\small$^\dagger$These authors contributed equally to this work.
+	\TODO{correctly format, add correct people}
 }
 
 %%%%%%%%%%%%%%%%% END OF PREAMBLE %%%%%%%%%%%%%%%%
@@ -76,9 +103,18 @@
 \maketitle
 
 \begin{abstract} \bfseries \boldmath
+
+\concurrentversion{
 Discovering governing equations from data is a fundamental challenge in science and engineering. Sparse Identification of Nonlinear Dynamics (SINDy) has emerged as a powerful technique for this task, but existing methods often treat different physical paradigms, such as Lagrangian and Newtonian mechanics, as separate problems and struggle with noisy data or implicit dynamical formulations. Here, we introduce \frameworkname, a unified computational framework that overcomes these limitations. \frameworkname features a modular catalog system that seamlessly combines Lagrangian, classical (Newtonian), and external force models into a single, hybrid regression problem. It incorporates a robust implicit solver based on constrained optimization to identify systems with rational or implicit dynamics, a common feature in complex mechanical systems. Furthermore, the framework leverages JAX for high-performance, parallelizable computation, enabling large-scale analysis and integration with data-intensive applications. We demonstrate the framework's superior performance and robustness on a series of challenging mechanical systems, validating the discovered models against the high-fidelity MuJoCo physics simulator. This work provides a powerful, extensible tool for the automated discovery of complex, hybrid physical laws from experimental data.
+}{
+System characterisation is fundamental for understanding the behavior of complex mechanical systems and for their control. New algorithm-based method to discover the dynamics of a system are a revolution from the manual analytical analysis. In this field Sparse Identification of Nonlinear Dynamics is one of the most mature methods. We present here \frameworkname, a unified framework that can perform SINDy system discovery on systems composed of hybrid formalism: Newtonian, Lagrangian and any other heuristic. In the mean time it is also suited for mixed implicit and explicit situation, in the case of not every coordinate activated. We demonstrate the framework's superior performance and robustness on a series of increasing challenging simulated system on MuJoCo.This work provides a powerful, extensible tool for the automated discovery of complex, hybrid physical laws from experimental data.
+}
+\airevised{Automated discovery of governing equations for complex mechanical systems is often hindered by methods that cannot handle hybrid physical formalisms or implicit dynamics. To address this, we introduce \frameworkname, a unified computational framework that extends Sparse Identification of Nonlinear Dynamics (SINDy). Our framework's key innovation is a modular catalog that seamlessly combines Lagrangian, Newtonian, and other modeling paradigms to identify hybrid systems from a single data source. It further incorporates a robust, constrained-optimization solver to accurately identify implicit dynamics, even in systems with unforced coordinates. We demonstrate that \frameworkname\ successfully discovers the governing equations for a series of increasingly complex mechanical systems, with models that show high-fidelity agreement with the MuJoCo physics simulator. This work provides a powerful and extensible tool for the automated discovery of complex physical laws from experimental data.}
+
+\TODO{mainly correct need to refine}
 \end{abstract}
 
+\textbf{TEASER : } A new system identification framework that can handle hybrid physical formalism and implicit/explicit experiments.
 
 \noindent
 The ability to distill natural laws from observational data into concise mathematical equations is a cornerstone of scientific progress. Recently, data-driven methods, particularly the Sparse Identification of Nonlinear Dynamics (SINDy) framework, have shown great promise in automating this discovery process \cite{Brunton2016_SINDy}. SINDy operates on the assumption of parsimony: that most physical systems are governed by equations with only a few active terms. However, the original SINDy formulation is best suited for explicit, ordinary differential equations in the form $\dot{\mathbf{x}} = f(\mathbf{x})$.
@@ -92,6 +128,8 @@ Here, we introduce \frameworkname, a comprehensive and extensible Python framewo
     \item \textbf{High-Performance Parallelization:} The framework is integrated with JAX, enabling JIT-compilation and auto-vectorization (`vmap`) of the dynamics functions. This allows for massive parallelization of simulations, critical for large-scale hyperparameter searches, uncertainty quantification, and integration with machine learning pipelines.
     \item \textbf{End-to-End Validation Pipeline:} We present a complete workflow for generating data from the high-fidelity MuJoCo simulator, performing the system identification, and validating the discovered models against the simulator's trajectory, providing a robust metric for real-world performance.
 \end{itemize}
+
+\TODO{clear but need to be refined... }
 
 \subsection*{A Unified Catalog for Hybrid Dynamics}
 We demonstrate the power of our unified framework by identifying the dynamics of a simulated cart-pole system with joint friction. The core dynamics are elegantly described by a Lagrangian, while the dissipative friction forces are non-conservative and best modeled as classical velocity-dependent terms. Our framework constructs a hybrid experimental matrix from a `Lagrange` catalog and a `Classical` catalog (Fig.~\ref{fig:trajectory_validation}). Using a hard-thresholding sparse regression, \frameworkname\ successfully identifies the correct terms for both the Lagrangian and the friction components simultaneously from a single dataset. The trajectory of the discovered hybrid model shows excellent agreement with the ground-truth data generated by the MuJoCo simulator, outperforming models derived from a purely Lagrangian or purely classical approach.
@@ -108,6 +146,8 @@ In this work, we presented \frameworkname, a novel framework that unifies and ex
 The integration with JAX for high-performance computing is a key practical advance, making it feasible to apply these discovery techniques to large-scale problems. Our end-to-end pipeline, which uses the MuJoCo simulator for data generation and validation, ensures that the discovered models are not just theoretically sound but are benchmarked against a realistic physics engine.
 
 Limitations of our current framework include the need for the user to design the initial candidate library of functions, a common challenge in all SINDy-based methods. Future work will focus on automating this library construction process and integrating the high-performance dynamics models into model-based reinforcement learning algorithms, paving the way for agents that can not only learn to control a system but also discover its underlying physical laws.
+
+\TODO{don't talk about jax, it is too implementation related...}
 
 \newpage
 
@@ -170,7 +210,7 @@ E.C. conceived the idea, developed the software, performed the experiments, and 
 \paragraph*{Competing interests:}
 The authors declare no competing interests.
 \paragraph*{Data and materials availability:}
-All code for the \frameworkname\ framework and the scripts to reproduce the experiments are publicly available on GitHub at \url{https://github.com/Eymeric65/py-xl-sindy}. All data used in this study was generated using the provided code and the MuJoCo simulator.
+All code for the \frameworkname\ framework and the scripts to reproduce the experiments are publicly available on GitHub at \url{https://github.com/Eymeric65/py-xl-sindy}. All data used in this study was generated using the provided code and the MuJoCo simulator. \TODO{ add information about the .sh script used for generating the material.}
 
 %%%%%%%%%%%%%%%% SUPPLEMENT LIST %%%%%%%%%%%%%%%
 
