@@ -104,11 +104,9 @@
 
 \begin{abstract} \bfseries \boldmath
 
-\concurrentversion{
-Discovering governing equations from data is a fundamental challenge in science and engineering. Sparse Identification of Nonlinear Dynamics (SINDy) has emerged as a powerful technique for this task, but existing methods often treat different physical paradigms, such as Lagrangian and Newtonian mechanics, as separate problems and struggle with noisy data or implicit dynamical formulations. Here, we introduce \frameworkname, a unified computational framework that overcomes these limitations. \frameworkname features a modular catalog system that seamlessly combines Lagrangian, classical (Newtonian), and external force models into a single, hybrid regression problem. It incorporates a robust implicit solver based on constrained optimization to identify systems with rational or implicit dynamics, a common feature in complex mechanical systems. Furthermore, the framework leverages JAX for high-performance, parallelizable computation, enabling large-scale analysis and integration with data-intensive applications. We demonstrate the framework's superior performance and robustness on a series of challenging mechanical systems, validating the discovered models against the high-fidelity MuJoCo physics simulator. This work provides a powerful, extensible tool for the automated discovery of complex, hybrid physical laws from experimental data.
-}{
+
 System characterisation is fundamental for understanding the behavior of complex mechanical systems and for their control. New algorithm-based method to discover the dynamics of a system are a revolution from the manual analytical analysis. In this field Sparse Identification of Nonlinear Dynamics is one of the most mature methods. We present here \frameworkname, a unified framework that can perform SINDy system discovery on systems composed of hybrid formalism: Newtonian, Lagrangian and any other heuristic. In the mean time it is also suited for mixed implicit and explicit situation, in the case of not every coordinate activated. We demonstrate the framework's superior performance and robustness on a series of increasing challenging simulated system on MuJoCo.This work provides a powerful, extensible tool for the automated discovery of complex, hybrid physical laws from experimental data.
-}
+
 \airevised{Automated discovery of governing equations for complex mechanical systems is often hindered by methods that cannot handle hybrid physical formalisms or implicit dynamics. To address this, we introduce \frameworkname, a unified computational framework that extends Sparse Identification of Nonlinear Dynamics (SINDy). Our framework's key innovation is a modular catalog that seamlessly combines Lagrangian, Newtonian, and other modeling paradigms to identify hybrid systems from a single data source. It further incorporates a robust, constrained-optimization solver to accurately identify implicit dynamics, even in systems with unforced coordinates. We demonstrate that \frameworkname\ successfully discovers the governing equations for a series of increasingly complex mechanical systems, with models that show high-fidelity agreement with the MuJoCo physics simulator. This work provides a powerful and extensible tool for the automated discovery of complex physical laws from experimental data.}
 
 \TODO{mainly correct need to refine}
@@ -116,10 +114,12 @@ System characterisation is fundamental for understanding the behavior of complex
 
 \textbf{TEASER : } A new system identification framework that can handle hybrid physical formalism and implicit/explicit experiments.
 
+\section*{Introduction}
+
 \noindent
 The ability to distill natural laws from observational data into concise mathematical equations is a cornerstone of scientific progress. Recently, data-driven methods, particularly the Sparse Identification of Nonlinear Dynamics (SINDy) framework, have shown great promise in automating this discovery process \cite{Brunton2016_SINDy}. SINDy operates on the assumption of parsimony: that most physical systems are governed by equations with only a few active terms. However, the original SINDy formulation is best suited for explicit, ordinary differential equations in the form $\dot{\mathbf{x}} = f(\mathbf{x})$.
 
-This has led to the development of specialized variants to handle different physical paradigms. For instance, Lagrangian SINDy focuses on identifying the scalar Lagrangian of a system, a more concise representation for many mechanical systems \cite{Chu2020_LagrangianSINDy, Purnomo2023_xLSINDy}. Other variants like SINDy-PI were developed to handle implicit dynamics ($\mathbf{f}(\mathbf{x}, \dot{\mathbf{x}}) = 0$), which are common in constrained mechanical systems or models with rational dynamics, though they can be sensitive to noise \cite{Kaheman2020_SINDyPI}. These methods, while powerful, exist as distinct algorithms, making it difficult to model hybrid systems that might involve, for example, a core Lagrangian structure with additional non-conservative forces best described in a classical framework. Furthermore, scaling these discovery methods to handle large datasets and enabling their use in modern applications like reinforcement learning requires a focus on computational efficiency.
+This has led to the development of specialized variants to handle different physical paradigms. For instance, Lagrangian SINDy focuses on identifying the scalar Lagrangian of a system, a more concise representation for many mechanical systems \cite{Chu2020_LagrangianSINDy, Purnomo2023_xLSINDy}. Other variants like SINDy-PI were developed to handle implicit dynamics ($\mathbf{f}(\mathbf{x}, \dot{\mathbf{x}}) = 0$), which are common in constrained mechanical systems or models with rational dynamics, though they can be sensitive to noise \cite{Kaheman2020_SINDyPI}. These methods, while powerful, exist as distinct algorithms, making it difficult to model hybrid systems that might involve, for example, a core Lagrangian structure with additional non-conservative forces best described in a classical framework. In addition, it is likely to find on system an implicit and explict subspace, specificaly concerning robot where not all coordinate are activated. Furthermore, scaling these discovery methods to handle large datasets and enabling their use in modern applications like reinforcement learning requires a focus on computational efficiency.
 
 Here, we introduce \frameworkname, a comprehensive and extensible Python framework that unifies these disparate approaches and addresses their limitations. Our main contributions are:
 \begin{itemize}
@@ -130,6 +130,12 @@ Here, we introduce \frameworkname, a comprehensive and extensible Python framewo
 \end{itemize}
 
 \TODO{clear but need to be refined... }
+
+\section*{Background}
+
+We briefly introduce the key concepts underlying our framework, focusing on the SINDy methodology and its extensions to different physical paradigms.
+
+
 
 \subsection*{A Unified Catalog for Hybrid Dynamics}
 We demonstrate the power of our unified framework by identifying the dynamics of a simulated cart-pole system with joint friction. The core dynamics are elegantly described by a Lagrangian, while the dissipative friction forces are non-conservative and best modeled as classical velocity-dependent terms. Our framework constructs a hybrid experimental matrix from a `Lagrange` catalog and a `Classical` catalog (Fig.~\ref{fig:trajectory_validation}). Using a hard-thresholding sparse regression, \frameworkname\ successfully identifies the correct terms for both the Lagrangian and the friction components simultaneously from a single dataset. The trajectory of the discovered hybrid model shows excellent agreement with the ground-truth data generated by the MuJoCo simulator, outperforming models derived from a purely Lagrangian or purely classical approach.
