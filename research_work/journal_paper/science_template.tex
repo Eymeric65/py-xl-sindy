@@ -121,6 +121,7 @@ The ability to distill natural laws from observational data into concise mathema
 
 This has led to the development of specialized variants to handle different physical paradigms. For instance, Lagrangian SINDy focuses on identifying the scalar Lagrangian of a system, a more concise representation for many mechanical systems \cite{Chu2020_LagrangianSINDy, Purnomo2023_xLSINDy}. Other variants like SINDy-PI were developed to handle implicit dynamics ($\mathbf{f}(\mathbf{x}, \dot{\mathbf{x}}) = 0$), which are common in constrained mechanical systems or models with rational dynamics, though they can be sensitive to noise \cite{Kaheman2020_SINDyPI}. These methods, while powerful, exist as distinct algorithms, making it difficult to model hybrid systems that might involve, for example, a core Lagrangian structure with additional non-conservative forces best described in a classical framework. In addition, it is likely to find on system an implicit and explict subspace, specificaly concerning robot where not all coordinate are activated. Furthermore, scaling these discovery methods to handle large datasets and enabling their use in modern applications like reinforcement learning requires a focus on computational efficiency.
 
+\TODO{I don't like the itemize...}
 Here, we introduce \frameworkname, a comprehensive and extensible Python framework that unifies these disparate approaches and addresses their limitations. Our main contributions are:
 \begin{itemize}
     \item \textbf{A Unified Hybrid Modeling Framework:} We introduce a modular catalog architecture that allows for the seamless combination of different physical models. Users can construct a single regression problem from `Lagrange`, `Classical` (Newtonian), and `ExternalForces` components, enabling the discovery of hybrid dynamics.
@@ -129,11 +130,18 @@ Here, we introduce \frameworkname, a comprehensive and extensible Python framewo
     \item \textbf{End-to-End Validation Pipeline:} We present a complete workflow for generating data from the high-fidelity MuJoCo simulator, performing the system identification, and validating the discovered models against the simulator's trajectory, providing a robust metric for real-world performance.
 \end{itemize}
 
-\TODO{clear but need to be refined... }
+\TODO{Overall, clear but need to be refined... }
 
 \section*{Background}
 
 We briefly introduce the key concepts underlying our framework, focusing on the SINDy methodology and its extensions to different physical paradigms.
+
+The goal of SINDy is to discover a dynamical system 
+\begin{equation}
+	\frac{d\mathbf{x}}{dt} = \mathbf{f}(\mathbf{x})
+\end{equation}
+
+
 
 
 
