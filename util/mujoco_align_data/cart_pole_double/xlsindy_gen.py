@@ -9,7 +9,11 @@ import numpy as np
 import sympy as sp
 from typing import List
 import os
-from ..text_utils import replace_placeholders
+
+
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from text_utils import replace_placeholders
 
 mujoco_angle_offset = np.pi
 

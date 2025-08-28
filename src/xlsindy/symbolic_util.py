@@ -10,6 +10,10 @@ import numpy as np
 import sympy
 from typing import List, Callable, Tuple
 
+from logging import getLogger
+
+logger = getLogger(__name__)
+
 
 # most important function generate the symbolic matrix 
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
@@ -263,7 +267,7 @@ def augment_catalog(
     zero_indices = np.argwhere(expand_matrix == 0)
 
     additional_pick_number = int(requested_lenght - np.sum(expand_matrix))
-    print(f"need to pick {additional_pick_number} more component")
+    logger.info(f"need to pick {additional_pick_number} more component")
     rng = np.random.default_rng(random_seed)
 
     selected_indices = zero_indices[

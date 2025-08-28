@@ -208,6 +208,8 @@ def _implicit_post_treatment(
         weight_distribution_threshold: float = 0.8,
 ) -> np.ndarray:
     """
+    [WARNING] Still need improvement, need to review the evolution of this function on result... more explanation in mixed regression
+
         Second try as post treatment to recuperate the solution in the form of a unique vector.
     Explained in implicit_solution_analysis.ipynb
     
@@ -232,7 +234,7 @@ def _implicit_post_treatment(
             if weight>weight_distribution_threshold: 
                 filtered_groups+= [group]
 
-            print(f"Group {i}, weight {weight:.2f}: {group}")
+            logger.info(f"Group {i}, weight {weight:.2f}: {group}")
 
     solutions = np.zeros((solution.shape[0],len(filtered_groups)))
 
@@ -342,6 +344,8 @@ def regression_mixed(
     weight_distribution_threshold: float = 0.5, # base 0.8
 ):
     """
+    [WARNING] when introducing noise in the system, the force detection clearly fail (which lead to incoherent system)
+    
     Executes regression for a dynamic system to estimate the system's parameters.
     This function can be used with both explicit and implicit systems, and will performs a chain of implicit/explicit regression.
 
@@ -462,6 +466,11 @@ def regression_mixed(
     # Set the diagonal of the solution matrix to zero
         np.fill_diagonal(implicit_solution_matrix, -1)
 
+        # There is still hole in the _implicit_post_treatment group can overlap on multiple coordinates... which I think is an error ?
+        # The main issue is that we group the column  by closeness (in order to get a solution that is a sum of disjoint space) but we don't inspect these spaces.
+        # Likely they finish by overlapping in the solution (quite absurd) or worst they overlap on multiple coordinates.
+        # In conclusion there is still some work to do on this matter...
+
         implicit_solutions = _implicit_post_treatment( 
             implicit_solution_matrix,
             deg_tol=deg_tol, 
@@ -469,6 +478,7 @@ def regression_mixed(
         )
 
         if ideal_solution_vector is not None:
+            logger.warning("Falatious code, shouldn't run for paper purpose, Please doesn't provide ideal_solution_vector in mixed regression")
             implicit_solution_stacked, _  = combine_best_fit(implicit_solutions,ideal_solution_vector[activated_function.flatten() == 0]) # Falatious, need to be fixed
         else:
             implicit_solution_stacked = implicit_solutions.sum(axis=1,keepdims=True)

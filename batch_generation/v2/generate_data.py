@@ -1,5 +1,5 @@
 """
-This script is used to generate data for experiments. save everything in a folder.
+This script is used to generate data for experiments. save everything in a folder. It is using the V2 of the formalism of batch generation for xlsindy. It is aimed for the journal paper.
 """
 
 from dataclasses import dataclass
@@ -45,7 +45,7 @@ class Args:
     max_time: float = 10.0
     """the maximum time for the simulation"""
     initial_condition_randomness: List[float] = field(default_factory=lambda: [0.0])
-    """the randomness of the initial condition, this is used to generate a random initial condition around the initial position for each batch"""
+    """the randomness of the initial condition, this is used to generate a random initial condition around the initial position for each batch can be a scalar or a list of lenght coordinate times two."""
     initial_position: List[float] = field(default_factory=lambda: [])
     """the initial position of the system"""
     forces_scale_vector: List[float] = field(default_factory=lambda: [])
@@ -108,7 +108,7 @@ if __name__ == "__main__":
             xlsindy_component( random_seed=args.random_seed, damping_coefficients=args.damping_coefficients)  # type: ignore
         )
 
-        rng = np.random.default_rng(args.random_seed)
+        
 
         ideal_solution_vector = extra_info.get("ideal_solution_vector", None)
         if ideal_solution_vector is None:
@@ -116,8 +116,6 @@ if __name__ == "__main__":
                 "xlsindy_gen.py should return an ideal_solution_vector in the extra_info dictionary"
             )
         
-        # Mujoco environment path
-        mujoco_xml = os.path.join(folder_path, "environment.xml")
 
     logger.info("INFO : Cli validated")
     ## TODO add a check for the number of forces scale vector in the input
@@ -136,14 +134,13 @@ if __name__ == "__main__":
     if len(args.initial_position)==0:
         args.initial_position = np.zeros((num_coordinates,2))
 
+    rng = np.random.default_rng(args.random_seed)
     # Batch generation
     if args.generation_type == "mujoco" : # Mujoco Generation
         
         # initialize Mujoco environment and controller
-        mujoco_model = mujoco.MjModel.from_xml_string(mujoco_xml)
+        mujoco_model = mujoco.MjModel.from_xml_string(xml_content)
         mujoco_data = mujoco.MjData(mujoco_model)
-
-
 
         def random_controller(forces_function):
 
@@ -197,7 +194,7 @@ if __name__ == "__main__":
                 period=args.forces_period,
                 period_shift=args.forces_period_shift,
                 augmentations=10, # base is 40
-                random_seed=args.random_seed,
+                random_seed=[args.random_seed,i],
             )
 
 
@@ -235,8 +232,6 @@ if __name__ == "__main__":
             simulation_qacc_g = np.concatenate((simulation_qacc_g, simulation_qacc_m), axis=0)
             force_vector_g = np.concatenate((force_vector_g, force_vector_m), axis=0)
 
-
-
     elif args.generation_type == "theorical": # Theorical generation
         
         model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(
@@ -269,7 +264,7 @@ if __name__ == "__main__":
                 period=args.forces_period,
                 period_shift=args.forces_period_shift,
                 augmentations=10, # base is 40
-                random_seed=args.random_seed,
+                random_seed=[args.random_seed,i],
             )
 
             model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
@@ -334,7 +329,8 @@ if __name__ == "__main__":
     data = {
         "generation_settings" : settings_dict,
         "data_path" : filename,
-    }
+        "results" : {}
+        }
 
     # Save json file
     json_filename = f"results/{args.get_uid()}.json"

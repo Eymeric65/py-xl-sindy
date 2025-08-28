@@ -46,15 +46,17 @@ def estimate_local_volumes_emp(data, k):
     return local_volumes
 
 
-def convert_to_strings(d):
+def convert_to_lists(d):
     if isinstance(d, dict):
-        return {k: convert_to_strings(v) for k, v in d.items()}
+        return {k: convert_to_lists(v) for k, v in d.items()}
     elif isinstance(d, list):
-        return [convert_to_strings(i) for i in d]
+        return [convert_to_lists(i) for i in d]
     elif isinstance(d, np.ndarray):
-        return convert_to_strings(d.tolist())
+        return convert_to_lists(d.tolist())
+    elif isinstance(d, (np.float32, np.float64)):
+        return float(d)
     else:
-        return str(d)
+        return d
 
 
 # Example usage:

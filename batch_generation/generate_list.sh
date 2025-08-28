@@ -4,6 +4,7 @@
 
 python -m batch_generation.v2.generate_data \
     --random-seed 1 \
+    --damping-coefficients -0.8 -1.3 \
     --batch-number 10 \
     --generation-type "mujoco" \
     --experiment-folder "util/mujoco_align_data/cart_pole" \
