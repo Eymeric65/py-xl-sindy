@@ -197,3 +197,70 @@
 2025-08-28 10:41:21,990 - __main__ - INFO - Theorical simulation done
 2025-08-28 10:41:21,994 - __main__ - INFO - Theorical initialized
 2025-08-28 10:41:22,758 - __main__ - INFO - Theorical simulation done
+2025-08-28 15:36:31,457 - xlsindy.simulation - INFO - Starting mixed regression process...
+2025-08-28 15:36:32,625 - xlsindy.simulation - INFO - activated_function : (1, 94)
+2025-08-28 15:36:32,626 - xlsindy.simulation - INFO - activated_coordinate : (2, 1)
+2025-08-28 15:36:32,626 - xlsindy.simulation - INFO - external_forces : (2000, 2)
+2025-08-28 15:36:32,626 - xlsindy.simulation - INFO - acceleration_values : (2000, 2)
+2025-08-28 15:36:32,626 - xlsindy.simulation - INFO -  2 coordinates activated by the external forces and function interlink : 
+ [1 1]
+2025-08-28 15:36:32,626 - xlsindy.simulation - INFO - Performing explicit regression on the activated coordinates...
+2025-08-28 15:36:33,351 - xlsindy.simulation - INFO -  2 coordinates activated by the explicit regression this is a 0 change from the first detection : 
+ [1 1]
+2025-08-28 15:36:33,351 - xlsindy.simulation - INFO - Mixed regression process completed successfully.
+2025-08-28 15:36:34,134 - jax._src.xla_bridge - INFO - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+2025-08-28 15:36:38,990 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:39,773 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:39,777 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:40,532 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:40,535 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:41,287 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:41,290 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:42,075 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:42,078 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:42,833 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:42,837 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:43,586 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:43,589 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:44,342 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:44,345 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:45,094 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:45,097 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:45,841 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:45,844 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:36:46,588 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:36:52,388 - xlsindy.symbolic_util - INFO - need to pick 85 more component
+2025-08-28 15:36:52,389 - xlsindy.simulation - INFO - Starting mixed regression process...
+2025-08-28 15:36:52,678 - xlsindy.simulation - INFO - activated_function : (1, 94)
+2025-08-28 15:36:52,678 - xlsindy.simulation - INFO - activated_coordinate : (2, 1)
+2025-08-28 15:36:52,678 - xlsindy.simulation - INFO - external_forces : (2000, 2)
+2025-08-28 15:36:52,678 - xlsindy.simulation - INFO - acceleration_values : (2000, 2)
+2025-08-28 15:36:52,678 - xlsindy.simulation - INFO -  1 coordinates activated by the external forces and function interlink : 
+ [0 1]
+2025-08-28 15:36:52,678 - xlsindy.simulation - INFO - Performing explicit regression on the activated coordinates...
+2025-08-28 15:36:52,826 - xlsindy.simulation - INFO -  1 coordinates activated by the explicit regression this is a 0 change from the first detection : 
+ [0 1]
+2025-08-28 15:36:52,826 - xlsindy.simulation - INFO - Performing implicit regression on the remaining coordinates...
+2025-08-28 15:37:03,788 - xlsindy.simulation - INFO - Group 0, weight 0.64: [np.int64(0), np.int64(1), np.int64(2), np.int64(3)]
+2025-08-28 15:37:03,789 - xlsindy.simulation - INFO - Mixed regression process completed successfully.
+2025-08-28 15:37:04,037 - jax._src.xla_bridge - INFO - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+2025-08-28 15:37:07,781 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:08,579 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:08,582 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:09,369 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:09,373 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:10,162 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:10,166 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:10,954 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:10,958 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:11,756 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:11,759 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:12,561 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:12,565 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:13,352 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:13,355 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:14,153 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:14,156 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:14,955 - batch_generation.v2.util - INFO - Theorical simulation done
+2025-08-28 15:37:14,958 - batch_generation.v2.util - INFO - Theorical initialized
+2025-08-28 15:37:15,747 - batch_generation.v2.util - INFO - Theorical simulation done

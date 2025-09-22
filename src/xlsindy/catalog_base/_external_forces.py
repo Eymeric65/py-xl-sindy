@@ -49,7 +49,11 @@ class ExternalForces(CatalogCategory):
         return res
 
     def label(self):
-        raise NotImplementedError
+        """
+        Return a place holder lab for the external forces.
+        """
+        
+        return ["$$F_{{ext}}$$"]
     
     # externl forces are not separable by mask
     def separate_by_mask(self, mask):

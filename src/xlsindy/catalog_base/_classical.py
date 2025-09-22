@@ -6,6 +6,8 @@ import numpy as np
 
 from ..catalog import CatalogCategory
 
+from sympy import latex
+
 class Classical(CatalogCategory):
     """
     Classical newtonnian catalog. 
@@ -69,7 +71,23 @@ class Classical(CatalogCategory):
         return res
         
     def label(self):
-        raise NotImplementedError
+        """
+        Return a list of labels from the catalog.
+        """
+        mask = self.binary_matrix.ravel() == 1
+
+        # Create the label_matrix array with shape (symbolic_catalog_length, num_coordinate)
+        label_matrix = np.empty((self.symbolic_catalog_length, self.num_coordinate), dtype=str)
+        
+        # Fill the label_matrix with the format "{symbolic_catalog[p]} coor_{n}"
+        for p in range(self.symbolic_catalog_length):
+            for n in range(self.num_coordinate):
+                label_matrix[p, n] = f"{latex(self.symbolic_catalog[p])} coor_{n}"
+
+        label_vector = label_matrix.ravel()[mask]
+
+        label_vector = label_vector.reshape(-1, 1)
+        return label_vector
     
     def separate_by_mask(self, mask):
 

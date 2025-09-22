@@ -12,6 +12,7 @@ from . import result_formatting
 from . import utils
 from . import catalog
 from . import catalog_base
+from . import logger
 
 __all__ = [
     "symbolic_util",
@@ -24,4 +25,5 @@ __all__ = [
     "utils",
     "catalog",
     "catalog_base",
+    "logger",
 ]

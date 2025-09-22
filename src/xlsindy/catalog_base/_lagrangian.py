@@ -8,6 +8,8 @@ from .. import euler_lagrange
 
 from ..catalog import CatalogCategory
 
+from sympy import latex
+
 class Lagrange(CatalogCategory):
     """
     Lagrange based catalog. 
@@ -64,7 +66,11 @@ class Lagrange(CatalogCategory):
         return res
 
     def label(self):
-        raise NotImplementedError
+        """
+        Return a label for each element of the catalog.
+        """
+
+        return [ f"$${latex(term)}$$" for term in self.catalog]
     
     def separate_by_mask(self, mask):
 

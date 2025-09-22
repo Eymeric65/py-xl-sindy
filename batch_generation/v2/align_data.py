@@ -38,6 +38,8 @@ from tqdm import tqdm
 from logging import getLogger
 import logging
 
+from batch_generation.v2.util import generate_theorical_trajectory
+
 logger = getLogger(__name__)
 
 # Configure logging
@@ -206,7 +208,6 @@ if __name__ == "__main__":
 
     ## Analysis of result
 
-
     simulation_dict["results"][args.get_uid()] = {}
     simulation_dict["results"][args.get_uid()]["algoritm"] = args.algorithm
     simulation_dict["results"][args.get_uid()]["noise_level"] = args.noise_level
@@ -251,64 +252,26 @@ if __name__ == "__main__":
 
         trajectory_rng = np.random.default_rng(args.random_seed)
 
-        # Initialise 
-        simulation_time_g = np.empty((0,1))
-        simulation_qpos_g = np.empty((0,num_coordinates))
-        simulation_qvel_g = np.empty((0,num_coordinates))
-        simulation_qacc_g = np.empty((0,num_coordinates))
-        force_vector_g = np.empty((0,num_coordinates))
-
-        if len(simulation_dict["generation_settings"]["initial_position"]) == 0:
-            simulation_dict["generation_settings"]["initial_position"] = np.zeros((num_coordinates,2))
-
-        for i in tqdm(range(simulation_dict["generation_settings"]["batch_number"]),desc="Generating batches", unit="batch"):
-
-            # Initial condition
-            initial_condition = np.array(simulation_dict["generation_settings"]["initial_position"]).reshape(num_coordinates,2) + extra_info["initial_condition"]
-
-            if len(simulation_dict["generation_settings"]["initial_condition_randomness"]) == 1:
-                initial_condition += trajectory_rng.normal(
-                    loc=0, scale=simulation_dict["generation_settings"]["initial_condition_randomness"], size=initial_condition.shape
-                )
-            else:
-                initial_condition += trajectory_rng.normal(
-                    loc=0, scale=np.reshape(simulation_dict["generation_settings"]["initial_condition_randomness"], initial_condition.shape)
-                )
-
-            # Random controller initialisation. This is the only random place of the code Everything else is deterministic (except if non deterministic solver is used)
-            forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
-                component_count=num_coordinates,
-                scale_vector=simulation_dict["generation_settings"]["forces_scale_vector"],
-                time_end=simulation_dict["generation_settings"]["max_time"],
-                period=simulation_dict["generation_settings"]["forces_period"],
-                period_shift=simulation_dict["generation_settings"]["forces_period_shift"],
-                augmentations=10, # base is 40
-                random_seed=[simulation_dict["generation_settings"]["random_seed"],i],
-            )
-
-            model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func_np,forces_function) 
-            logger.info("Theorical initialized")
-            try:
-                simulation_time_m, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, initial_condition, simulation_dict["generation_settings"]["max_time"], max_step=0.005)
-            except Exception as e:
-                logger.error(f"An error occurred on the RK45 integration: {e}")
-            logger.info("Theorical simulation done")
-
-            simulation_qpos_m = phase_values[:, ::2]
-            simulation_qvel_m = phase_values[:, 1::2]
-
-            simulation_qacc_m = np.gradient(simulation_qvel_m, simulation_time_m, axis=0, edge_order=1)
-
-            force_vector_m = forces_function(simulation_time_m.T).T
-
-            if len(simulation_qvel_g) >0:
-                simulation_time_m += np.max(simulation_time_g)
-            # Concatenate the data
-            simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m.reshape(-1, 1)), axis=0)
-            simulation_qpos_g = np.concatenate((simulation_qpos_g, simulation_qpos_m), axis=0)
-            simulation_qvel_g = np.concatenate((simulation_qvel_g, simulation_qvel_m), axis=0)
-            simulation_qacc_g = np.concatenate((simulation_qacc_g, simulation_qacc_m), axis=0)
-            force_vector_g = np.concatenate((force_vector_g, force_vector_m), axis=0)
+        (simulation_time_g, 
+         simulation_qpos_g, 
+         simulation_qvel_g, 
+         simulation_qacc_g, 
+         force_vector_g) = generate_theorical_trajectory(
+             num_coordinates,
+             simulation_dict["generation_settings"]["initial_position"],
+             simulation_dict["generation_settings"]["initial_condition_randomness"],
+             simulation_dict["generation_settings"]["random_seed"],
+             simulation_dict["generation_settings"]["batch_number"],
+             simulation_dict["generation_settings"]["max_time"],
+             solution,
+             full_catalog,
+             extra_info,
+             time_sym,
+             symbols_matrix,
+             simulation_dict["generation_settings"]["forces_scale_vector"],
+             simulation_dict["generation_settings"]["forces_period"],
+             simulation_dict["generation_settings"]["forces_period_shift"]
+         )
 
         # Generate the batch as a theory one
 

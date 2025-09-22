@@ -230,18 +230,12 @@ class CatalogRepartition:
 
         return np.concatenate(solution, axis=0)
     
-    def label_catalog(catalog_repartition):
+    def label(self):
         """
-        WARNING : NOT IMPLEMENTED YET
-        Convert the catalog into label
-
-        Args:
-            catalog_repartition (List[tuple]): a listing of the different part of the catalog used need to follow the following structure : [("lagrangian",lagrangian_catalog),...,("classical",classical_catalog,expand_matrix)]
-
         Returns:
             List[str]: List of labels for the catalog.
         """
-        raise NotImplementedError("label_catalog is not implemented yet, please use the label method of each catalog class instead")
+        return [catalog.label() for catalog in self.catalog_repartition]
 
     def separate_by_mask(self, mask: np.ndarray) -> tuple:
         """

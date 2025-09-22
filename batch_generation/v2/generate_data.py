@@ -25,6 +25,8 @@ from xlsindy.logger import setup_logger
 
 from tqdm import tqdm
 
+from batch_generation.v2.util import generate_theorical_trajectory
+
 logger = setup_logger(__name__)
 
 @dataclass
@@ -124,20 +126,23 @@ if __name__ == "__main__":
     
     # Batch generation of data
 
-    # Initialise 
-    simulation_time_g = np.empty((0,1))
-    simulation_qpos_g = np.empty((0,num_coordinates))
-    simulation_qvel_g = np.empty((0,num_coordinates))
-    simulation_qacc_g = np.empty((0,num_coordinates))
-    force_vector_g = np.empty((0,num_coordinates))
 
-    if len(args.initial_position)==0:
-        args.initial_position = np.zeros((num_coordinates,2))
-
-    rng = np.random.default_rng(args.random_seed)
     # Batch generation
     if args.generation_type == "mujoco" : # Mujoco Generation
         
+
+        # Initialise 
+        simulation_time_g = np.empty((0,1))
+        simulation_qpos_g = np.empty((0,num_coordinates))
+        simulation_qvel_g = np.empty((0,num_coordinates))
+        simulation_qacc_g = np.empty((0,num_coordinates))
+        force_vector_g = np.empty((0,num_coordinates))
+
+        if len(args.initial_position)==0:
+            args.initial_position = np.zeros((num_coordinates,2))
+
+        rng = np.random.default_rng(args.random_seed)
+
         # initialize Mujoco environment and controller
         mujoco_model = mujoco.MjModel.from_xml_string(xml_content)
         mujoco_data = mujoco.MjData(mujoco_model)
@@ -233,63 +238,27 @@ if __name__ == "__main__":
             force_vector_g = np.concatenate((force_vector_g, force_vector_m), axis=0)
 
     elif args.generation_type == "theorical": # Theorical generation
-        
-        model_acceleration_func, valid_model = xlsindy.dynamics_modeling.generate_acceleration_function(
-        ideal_solution_vector,
-        full_catalog,
-        symbols_matrix,
-        time_sym,
-        lambdify_module="numpy"
-        )
-        
-        for i in tqdm(range(args.batch_number),desc="Generating batches", unit="batch"):
 
-            # Initial condition
-            initial_condition = np.array(args.initial_position).reshape(num_coordinates,2) + extra_info["initial_condition"]
-
-            if len(args.initial_condition_randomness) == 1:
-                initial_condition += rng.normal(
-                    loc=0, scale=args.initial_condition_randomness, size=initial_condition.shape
-                )
-            else:
-                initial_condition += rng.normal(
-                    loc=0, scale=np.reshape(args.initial_condition_randomness,initial_condition.shape)
-                )
-
-            # Random controller initialisation. This is the only random place of the code Everything else is deterministic (except if non deterministic solver is used)
-            forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
-                component_count=num_coordinates,
-                scale_vector=args.forces_scale_vector,
-                time_end=args.max_time,
-                period=args.forces_period,
-                period_shift=args.forces_period_shift,
-                augmentations=10, # base is 40
-                random_seed=[args.random_seed,i],
-            )
-
-            model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
-            logger.info("Theorical initialized")
-            try:
-                simulation_time_m, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, initial_condition, args.max_time, max_step=0.005)
-            except Exception as e:
-                logger.error(f"An error occurred on the RK45 integration: {e}")
-            logger.info("Theorical simulation done")
-
-            simulation_qpos_m = phase_values[:, ::2]
-            simulation_qvel_m = phase_values[:, 1::2]
-
-            simulation_qacc_m = np.gradient(simulation_qvel_m, simulation_time_m, axis=0, edge_order=1)
-
-            force_vector_m = forces_function(simulation_time_m.T).T
-
-            if len(simulation_qvel_g) >0:
-                simulation_time_m += np.max(simulation_time_g)
-            # Concatenate the data
-            simulation_time_g = np.concatenate((simulation_time_g, simulation_time_m.reshape(-1, 1)), axis=0)
-            simulation_qpos_g = np.concatenate((simulation_qpos_g, simulation_qpos_m), axis=0)
-            simulation_qvel_g = np.concatenate((simulation_qvel_g, simulation_qvel_m), axis=0)
-            simulation_qacc_g = np.concatenate((simulation_qacc_g, simulation_qacc_m), axis=0)
-            force_vector_g = np.concatenate((force_vector_g, force_vector_m), axis=0)
+        (simulation_time_g, 
+         simulation_qpos_g, 
+         simulation_qvel_g, 
+         simulation_qacc_g, 
+         force_vector_g) = generate_theorical_trajectory(
+             num_coordinates,
+             args.initial_position,
+             args.initial_condition_randomness,
+             args.random_seed,
+             args.batch_number,
+             args.max_time,
+             ideal_solution_vector,
+             full_catalog,
+             extra_info,
+             time_sym,
+             symbols_matrix,
+             args.forces_scale_vector,
+             args.forces_period,
+             args.forces_period_shift
+         )
 
     raw_sample_number = len(simulation_time_g)
     logger.info( f"Raw simulation len {raw_sample_number}")
