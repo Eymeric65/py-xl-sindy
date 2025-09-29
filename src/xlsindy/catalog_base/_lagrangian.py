@@ -70,7 +70,13 @@ class Lagrange(CatalogCategory):
         Return a label for each element of the catalog.
         """
 
-        return [ f"$${latex(term)}$$" for term in self.catalog]
+        label_list = [f"$${latex(term)}$$" for term in self.catalog]
+
+        label_list = list(map(lambda x: x.replace("qdd","\\ddot{{q}}"), label_list))
+
+        label_list = list(map(lambda x: x.replace("qd","\\dot{{q}}"), label_list))
+
+        return label_list
     
     def separate_by_mask(self, mask):
 

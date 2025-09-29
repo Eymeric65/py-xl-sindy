@@ -15,9 +15,9 @@ import cvxpy as cp
 
 from .catalog import CatalogRepartition
 
-import logging
+from .logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 def regression_explicite(
     theta_values: np.ndarray,
@@ -153,8 +153,9 @@ def regression_implicite(
         acceleration_values,
     )
 
-    print("debug : some information")
-    print(np.linalg.norm(experimental_matrix),np.var(experimental_matrix))
+    logger.info("debug : some information")
+    logger.info(f"Experimental matrix norm: {np.linalg.norm(experimental_matrix)}")
+    logger.info(f"Experimental matrix variance: {np.var(experimental_matrix)}")
 
 
     # Normalization enable more stable regression over the different experiment

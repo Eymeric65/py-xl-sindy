@@ -10,9 +10,9 @@ import numpy as np
 import sympy
 from typing import List, Callable, Tuple
 
-from logging import getLogger
+from .logger import setup_logger
 
-logger = getLogger(__name__)
+logger = setup_logger(__name__)
 
 
 # most important function generate the symbolic matrix 
@@ -243,7 +243,7 @@ def augment_catalog(
         coeff_matrix (np.ndarray): base coeff matrix
         binary_matrix (np.ndarray): base expand matrix
         base_catalog (np.ndarray): base catalog
-        requested_lenght (int): the reqested lenght of the catalog
+        requested_lenght (int): the reqested lenght of the catalog, if -1 we take everything
         random_seed (int): the random seed to pick catalog
 
     Returns:
@@ -266,13 +266,23 @@ def augment_catalog(
 
     zero_indices = np.argwhere(expand_matrix == 0)
 
-    additional_pick_number = int(requested_lenght - np.sum(expand_matrix))
-    logger.info(f"need to pick {additional_pick_number} more component")
-    rng = np.random.default_rng(random_seed)
 
-    selected_indices = zero_indices[
-        rng.choice(len(zero_indices), size=additional_pick_number, replace=False)
-    ]
+
+    if requested_lenght == -1:
+
+        logger.info(f"picking all the remaining {len(zero_indices)} component")
+
+        selected_indices = zero_indices
+
+    else:
+
+        additional_pick_number = int(requested_lenght - np.sum(expand_matrix))
+        logger.info(f"need to pick {additional_pick_number} more component")
+        rng = np.random.default_rng(random_seed)
+
+        selected_indices = zero_indices[
+            rng.choice(len(zero_indices), size=additional_pick_number, replace=False)
+        ]
 
     expand_matrix[tuple(selected_indices.T)] = 1
 

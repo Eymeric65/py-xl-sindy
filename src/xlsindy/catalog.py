@@ -235,7 +235,14 @@ class CatalogRepartition:
         Returns:
             List[str]: List of labels for the catalog.
         """
-        return [catalog.label() for catalog in self.catalog_repartition]
+
+        label_list = [catalog.label() for catalog in self.catalog_repartition]
+
+        ret = []
+        for sublist in label_list:
+            ret += sublist
+
+        return ret
 
     def separate_by_mask(self, mask: np.ndarray) -> tuple:
         """

@@ -77,17 +77,21 @@ class Classical(CatalogCategory):
         mask = self.binary_matrix.ravel() == 1
 
         # Create the label_matrix array with shape (symbolic_catalog_length, num_coordinate)
-        label_matrix = np.empty((self.symbolic_catalog_length, self.num_coordinate), dtype=str)
+        label_matrix = np.empty((self.symbolic_catalog_length, self.num_coordinate), dtype=object)
         
         # Fill the label_matrix with the format "{symbolic_catalog[p]} coor_{n}"
         for p in range(self.symbolic_catalog_length):
             for n in range(self.num_coordinate):
-                label_matrix[p, n] = f"{latex(self.symbolic_catalog[p])} coor_{n}"
+
+                text = f"$$\\text{{coordinate}}_{{{n}}} \\ {latex(self.symbolic_catalog[p])}$$"
+                text = text.replace("qdd","\\ddot{{q}}")
+                text = text.replace("qd","\\dot{{q}}")
+
+                label_matrix[p, n] = text
 
         label_vector = label_matrix.ravel()[mask]
 
-        label_vector = label_vector.reshape(-1, 1)
-        return label_vector
+        return list(label_vector)
     
     def separate_by_mask(self, mask):
 
@@ -115,9 +119,5 @@ class Classical(CatalogCategory):
             binary_matrix=binary_matrix_anti_masked[symbolic_anti_mask]
         )
     
-
-if __name__ == "__main__" :
-
-    print("prout")
 
     
