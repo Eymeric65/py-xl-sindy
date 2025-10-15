@@ -9,13 +9,15 @@ import numpy as np
 import sympy
 
 from .euler_lagrange import create_experiment_matrix, jax_create_experiment_matrix
-from .optimization import lasso_regression
-
+from .optimization import lasso_regression, activated_catalog
 
 import cvxpy as cp
 
 from .catalog import CatalogRepartition
 
+from .logger import setup_logger
+
+logger = setup_logger(__name__)
 
 def regression_explicite(
     theta_values: np.ndarray,
@@ -48,6 +50,7 @@ def regression_explicite(
     """
 
     num_coordinates = theta_values.shape[1]
+
     external_forces_mask = 0 # super bad ## need to automate the finding process
 
     catalog = catalog_repartition.expand_catalog()
@@ -107,7 +110,9 @@ def regression_implicite(
     catalog_repartition: CatalogRepartition,
     l1_lambda = 1e-7,
     debug: bool = False,
-    #regression_function: Callable = lasso_regression,
+    deg_tol: float = 8, # base 10
+    weight_distribution_threshold: float = 0.5, # base 0.8
+    regression_function: Callable = None,
     #sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -148,8 +153,9 @@ def regression_implicite(
         acceleration_values,
     )
 
-    print("debug : some information")
-    print(np.linalg.norm(experimental_matrix),np.var(experimental_matrix))
+    logger.info("debug : some information")
+    logger.info(f"Experimental matrix norm: {np.linalg.norm(experimental_matrix)}")
+    logger.info(f"Experimental matrix variance: {np.var(experimental_matrix)}")
 
 
     # Normalization enable more stable regression over the different experiment
@@ -176,11 +182,24 @@ def regression_implicite(
     prob = cp.Problem(obj, [cp.diag(X) == 0])
     prob.solve(verbose=True)
 
+    
+
+    solution_matrix = X.value
+
+    # Set the diagonal of the solution matrix to zero
+    np.fill_diagonal(solution_matrix, -1)
+
+    logger.info(f"CVXPY problem solved with solution: {solution_matrix}")
+
     if debug:
-        return X.value, experimental_matrix
+        return solution_matrix, experimental_matrix
     
     else:
-        solutions = _implicit_post_treatment( X.value)
+        solutions = _implicit_post_treatment( 
+            solution_matrix,
+            deg_tol=deg_tol, 
+            weight_distribution_threshold=weight_distribution_threshold
+            )
         
         return solutions, experimental_matrix
 
@@ -190,6 +209,8 @@ def _implicit_post_treatment(
         weight_distribution_threshold: float = 0.8,
 ) -> np.ndarray:
     """
+    [WARNING] Still need improvement, need to review the evolution of this function on result... more explanation in mixed regression
+
         Second try as post treatment to recuperate the solution in the form of a unique vector.
     Explained in implicit_solution_analysis.ipynb
     
@@ -214,7 +235,7 @@ def _implicit_post_treatment(
             if weight>weight_distribution_threshold: 
                 filtered_groups+= [group]
 
-            print(f"Group {i}, weight {weight:.2f}: {group}")
+            logger.info(f"Group {i}, weight {weight:.2f}: {group}")
 
     solutions = np.zeros((solution.shape[0],len(filtered_groups)))
 
@@ -283,12 +304,14 @@ def _weak_sparsity_rank_weighted(x):
 
     weights = 1.0 / ranks
     weighted_sum = np.sum(s * weights)
-    weight_total = np.sum(weights)
+    weight_total = np.sum(s)
 
     return weighted_sum / weight_total if weight_total != 0 else 0.0
 
 def combine_best_fit(solutions, v_ideal):
     """
+    [ISSUE] Clearly bugged and falatious, need to be fixed.
+
     Return the best linear combination of a and b to fit v_ideal.
 
     Parameters:
@@ -316,8 +339,14 @@ def regression_mixed(
     catalog_repartition: CatalogRepartition,
     external_force: np.ndarray,
     regression_function: Callable = lasso_regression,
+    l1_lambda = 1e-7,
+    ideal_solution_vector: np.ndarray = None,
+    deg_tol: float = 15, # base 10
+    weight_distribution_threshold: float = 0.5, # base 0.8
 ):
     """
+    [WARNING] when introducing noise in the system, the force detection clearly fail (which lead to incoherent system)
+    
     Executes regression for a dynamic system to estimate the system's parameters.
     This function can be used with both explicit and implicit systems, and will performs a chain of implicit/explicit regression.
 
@@ -344,23 +373,135 @@ def regression_mixed(
         catalog_repartition (CatalogRepartition): Catalog containing the different parts used in the regression.
         external_force (np.ndarray): Array of external forces. Defaults to None.
         regression_function (Callable, optional): The regression function used to make the retrieval. Defaults to lasso_regression. ( Maybe change to CVxPY in the future)
-        
+        l1_lambda (float, optional): Regularization parameter for the regression. Defaults to 1e-7.
+
     Returns:
         Tuple TODO
     """
+
+    logger.info("Starting mixed regression process...")
 
     num_coordinates = theta_values.shape[1]
 
     catalog = catalog_repartition.expand_catalog()
 
     # Generate the experimental matrix from the catalog
-    experimental_matrix = create_experiment_matrix(
+    experimental_matrix = jax_create_experiment_matrix(
         num_coordinates,
         catalog,
         symbol_matrix,
         theta_values,
         velocity_values,
         acceleration_values,
+        external_force,
     )
+
+    activated_function,activated_coordinate = activated_catalog(
+        experimental_matrix,
+        external_force.T,
+    )
+
+    logger.info(f"activated_function : {activated_function.shape}")
+    logger.info(f"activated_coordinate : {activated_coordinate.shape}")
+
+    logger.info(f"external_forces : {external_force.shape}")
+    logger.info(f"acceleration_values : {acceleration_values.shape}")
+    
+
+    solution = np.zeros((experimental_matrix.shape[1],1))
+
+    logger.info(f" {activated_coordinate.sum()} coordinates activated by the external forces and function interlink : \n {activated_coordinate.flatten()}")
+
+    num_samples = theta_values.shape[0]
+
+    if activated_coordinate.sum() > 0:
+
+        logger.info("Performing explicit regression on the activated coordinates...")
+
+        external_forces_mask = 0 # super bad ## need to automate the finding process
+
+        # Expand activated_coordinate (shape: [num_coordinate, 1]) to match the rows of experimental_matrix
+        # Each coordinate corresponds to (num_samples) consecutive rows in experimental_matrix
+        
+        expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
+
+        explicit_experimental_matrix = experimental_matrix[expanded_mask == 1, :][:, activated_function.flatten() == 1]
+
+        explicite_solution = regression_function(explicit_experimental_matrix,external_forces_mask) # Mask the first one that is the external forces
+        
+        solution[activated_function.flatten() == 1] = explicite_solution
+
+        explicit_system_time_series = experimental_matrix @ solution
+
+        updated_activated_coordinate = np.where( np.abs(explicit_system_time_series).reshape(num_coordinates,-1).sum(axis=1,keepdims=True) > 0 , 1,0)
+
+        logger.info(f" {updated_activated_coordinate.sum()} coordinates activated by the explicit regression this is a {updated_activated_coordinate.sum()-activated_coordinate.sum()} change from the first detection : \n {updated_activated_coordinate.flatten()}")
+
+        activated_coordinate = updated_activated_coordinate
+
+    if activated_coordinate.sum() < num_coordinates:
+
+        logger.info("Performing implicit regression on the remaining coordinates...")
+
+        expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
+
+        implicit_experimental_matrix = experimental_matrix[expanded_mask == 0, :][:, activated_function.flatten() == 0]
+
+        sigma_max = np.linalg.svd(implicit_experimental_matrix, compute_uv=False)[0]
+
+        A = implicit_experimental_matrix / sigma_max
+
+        m, n = A.shape
+
+        X = cp.Variable((n,n))
+
+        obj = cp.Minimize(
+            cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X)
+        )
+
+        prob = cp.Problem(obj, [cp.diag(X) == 0])
+        prob.solve(verbose=True)
+
+        implicit_solution_matrix = X.value
+
+    # Set the diagonal of the solution matrix to zero
+        np.fill_diagonal(implicit_solution_matrix, -1)
+
+        # There is still hole in the _implicit_post_treatment group can overlap on multiple coordinates... which I think is an error ?
+        # The main issue is that we group the column  by closeness (in order to get a solution that is a sum of disjoint space) but we don't inspect these spaces.
+        # Likely they finish by overlapping in the solution (quite absurd) or worst they overlap on multiple coordinates.
+        # In conclusion there is still some work to do on this matter...
+
+        implicit_solutions = _implicit_post_treatment( 
+            implicit_solution_matrix,
+            deg_tol=deg_tol, 
+            weight_distribution_threshold=weight_distribution_threshold
+        )
+
+        if ideal_solution_vector is not None:
+            logger.warning("Falatious code, shouldn't run for paper purpose, Please doesn't provide ideal_solution_vector in mixed regression")
+            implicit_solution_stacked, _  = combine_best_fit(implicit_solutions,ideal_solution_vector[activated_function.flatten() == 0]) # Falatious, need to be fixed
+        else:
+            implicit_solution_stacked = implicit_solutions.sum(axis=1,keepdims=True)
+
+        #logger.info(f"Implicit solutions found: {implicit_solution_stacked}, stacking them into a single solution vector.")
+
+        solution[activated_function.flatten() == 0] = implicit_solution_stacked
+
+    solution[0]= -1.0  # Adding external forces that can't be guessed
+
+    logger.info("Mixed regression process completed successfully.")
+
+    return solution,experimental_matrix
+
+
+
+
+    
+
+
+
+    
+
 
 

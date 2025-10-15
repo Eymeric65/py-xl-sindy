@@ -10,7 +10,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation
 
 python single_test.py \
@@ -25,7 +25,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 20 \
     --initial-condition-randomness 1.5
@@ -43,7 +43,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 60 \
     --initial-condition-randomness 0.4 \
@@ -61,7 +61,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 60 \
     --initial-condition-randomness 1 \
@@ -80,7 +80,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 60 \
     --initial-condition-randomness 1 \
@@ -101,7 +101,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 60 \
     --initial-condition-randomness 1 \
@@ -121,7 +121,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 30 \
     --initial-condition-randomness 1 \
@@ -134,19 +134,19 @@ python single_test.py \
 python single_test.py \
     --random-seed 12 15 \
     --experiment-folder "mujoco_align_data/cart_pole" \
-    --max-time 3 \
+    --max-time 10 \
     --forces-scale-vector 0 0 \
     --initial-position 0.0 0 0.0 0 \
     --forces-period 3 \
     --forces-period-shift 0.5 \
     --sample-number 2000 \
     --optimization-function "hard_threshold_sparse_regression" \
-    --algorithm "xlsindy" \
+    --algorithm "sindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
-    --batch-number 60 \
-    --initial-condition-randomness 1 10 10 10 \
+    --batch-number 20 \
+    --initial-condition-randomness 1 4 4 4 \
     --catalog-restriction -1 \
     --no-implicit-regression-debug \
     --implicit-regression-lamba 1e-7
@@ -161,9 +161,9 @@ python single_test.py \
     --forces-period-shift 0.5 \
     --sample-number 2000 \
     --optimization-function "hard_threshold_sparse_regression" \
-    --algorithm "sindy" \
+    --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 60 \
     --initial-condition-randomness 1 \
@@ -186,7 +186,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 60 \
     --initial-condition-randomness 10 10 1 10 1 10 \
@@ -206,7 +206,7 @@ python single_test.py \
     --optimization-function "hard_threshold_sparse_regression" \
     --algorithm "xlsindy" \
     --noise-level 0.0 \
-    --implicit-regression \
+    --regression-type "implicit" \
     --no-mujoco-generation \
     --batch-number 60 \
     --initial-condition-randomness 10 10 1 10 1 10 \
@@ -215,3 +215,4 @@ python single_test.py \
     --implicit-regression-lamba 1e-7
 
 # enforce minimal catalog
+

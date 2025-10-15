@@ -12,11 +12,12 @@ from typing import List, Callable
 import jax.numpy as jnp
 import sympy
 from typing import Tuple
-
+from .logger import setup_logger
 
 
 from .catalog import CatalogRepartition
 
+logger = setup_logger(__name__)
 
 def generate_acceleration_function(
     regression_solution: np.ndarray,
@@ -267,7 +268,7 @@ def run_rk45_integration(
     first_step_cursed = np.abs(np.sum(dynamics(0, initial_state_flat)))
 
     if np.isnan(first_step_cursed) or np.isinf(first_step_cursed):
-        print("Dynamics function fail on first step")
+        logger.error("Dynamics function fail on first step")
         time_values.append(model.t)
         state_values.append(model.y)
         return np.array(time_values), np.array(state_values)
@@ -286,7 +287,7 @@ def run_rk45_integration(
             print_progress(model.t, time_end)
 
     except RuntimeError:
-        print("RuntimeError in RK45 integration")
+        logger.error("RuntimeError in RK45 integration")
 
     return np.array(time_values), np.array(state_values)
 

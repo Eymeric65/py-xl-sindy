@@ -8,12 +8,18 @@ import xlsindy
 import numpy as np
 import sympy as sp
 from typing import List
+import os
+
+
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from text_utils import replace_placeholders
 
 mujoco_angle_offset = np.pi
 
 
 def xlsindy_component(
-    mode: str = "xlsindy", random_seed: List[int] = [12], sindy_catalog_len: int = 289
+    mode: str = "xlsindy", random_seed: List[int] = [12], sindy_catalog_len: int = 289, damping_coefficients: List[float] = [-1.5, -1.8, -1.2]
 ):  # Name of this function should not be changed
     """
     This function is used to generate backbone of the xl_sindy algorithm
@@ -26,6 +32,24 @@ def xlsindy_component(
         List[sympy.Expr]: List of combined functions.
         Dict: extra_info dictionnary containing extra information about the system
     """
+
+    ## Import the environment xml file and perform the necessary transformations
+
+    xml_file = os.path.join(os.path.dirname(__file__), "environment.xml")
+
+    with open(xml_file, "r") as file:
+        xml_content = file.read()
+    # Replace the damping coefficients in the xml content
+    xml_content = replace_placeholders(
+        xml_content,
+        {
+            "DAMPING_1": str(-damping_coefficients[0]),
+            "DAMPING_2": str(-damping_coefficients[1]),
+            "DAMPING_3": str(-damping_coefficients[2]),
+        },
+    )
+
+
 
     time_sym = sp.symbols("t")
 
@@ -43,13 +67,12 @@ def xlsindy_component(
     mass1 = 0.2
     mass2 = 0.5
 
-    friction_coeff = [-1.5, -1.8, -1.2]
 
     friction_forces = np.array(
         [
-            [friction_coeff[0], 0, 0],
-            [0, friction_coeff[1] + friction_coeff[2], -friction_coeff[2]],
-            [0, -friction_coeff[2], friction_coeff[2]],
+            [damping_coefficients[0], 0, 0],
+            [0, damping_coefficients[1] + damping_coefficients[2], -damping_coefficients[2]],
+            [0, -damping_coefficients[2], damping_coefficients[2]],
         ]
     )
     friction_function = np.array(
@@ -243,6 +266,7 @@ def xlsindy_component(
         time_sym,
         symbols_matrix,
         catalog_repartition,
+        xml_content,
         extra_info,
     )  # extra_info is optionnal and should be set to None if not in use
 

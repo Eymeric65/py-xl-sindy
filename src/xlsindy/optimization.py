@@ -6,8 +6,12 @@ This module include every function in order to run the optimisation step for get
 
 import numpy as np
 from sklearn.linear_model import Lasso, LassoCV
+from sklearn.metrics import make_scorer, r2_score
 from typing import Callable, Tuple
 
+from .logger import setup_logger
+
+logger = setup_logger(__name__)
 
 def condition_value(exp_matrix: np.ndarray, solution: np.ndarray) -> np.ndarray:
     """
@@ -71,22 +75,70 @@ def bipartite_link(exp_matrix,num_coordinate,x_names,b_names):
 def activated_catalog(
     exp_matrix: np.ndarray,
     force_vector: np.ndarray,
-    num_coordinate: int,
 ):
     """
+    [AHHHHHH] I need to transpose the force vector bruh
     Perform a recursive search to find the part ot the catalog that could be activated by the force vector.
     
     Args
-        exp_matrix (np.ndarray): Experimental matrix.
-        force_vector (np.ndarray): Force vector.
-        num_coordinate (int): Number of coordinates.
+        exp_matrix (np.ndarray(num_coordinate*sample_number,catalog_lenght)): Experimental matrix.
+        force_vector (np.ndarray(num_coordinate,sample_number)): Force vector.
         
+    Returns:
+        np.ndarray (num_coordinate,1): Activated catalog.
+        np.ndarray (1,catalog_lenght): Activated coordinate.
+    """
+
+    num_coordinate = force_vector.shape[0]
+
+    binary_compressed_exp_matrix = np.where( np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1) > 0 , 1,0)
+
+    binary_compressed_force_vector =  np.where( np.abs(force_vector).sum(axis=1,keepdims=True) >0 ,1 ,0 )
+
+    activation,activate_function = _recursive_activation(
+        binary_compressed_exp_matrix,
+        binary_compressed_force_vector,
+    )
+
+    return activate_function,activation
+
+
+
+
+def _recursive_activation(
+        binary_compressed_exp_matrix:np.ndarray,
+        activate_vector:np.ndarray,
+):
+    """
+    recursive function to find the activated catalog
+    
+    Args:
+        compressed_exp_matrix (np.ndarray): Compressed experimental matrix.
+        activate_vector (np.ndarray): Activated catalog.
+
     Returns:
         np.ndarray: Activated catalog.
     """
-    compressed_exp_matrix = np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1)
 
-    compressed_force_vector =   None
+    activate_function = np.where( np.where( binary_compressed_exp_matrix+activate_vector > 1 , 1 ,0 ).sum(axis=0,keepdims=True) >0,1 ,0)
+
+    activated_line = binary_compressed_exp_matrix.copy()
+
+    activated_line[ :, activate_function[0] == 0] = 0 
+
+    new_activate_vector = np.where(activated_line.sum(axis=1,keepdims=True) > 0, 1, 0)
+
+    if np.sum(new_activate_vector) <= np.sum(activate_vector):
+
+        return activate_vector,activate_function
+    
+    else:
+
+        activation_vector,activation_function = _recursive_activation(binary_compressed_exp_matrix, new_activate_vector)
+
+        return activation_vector, np.where(activation_function + activate_function > 0, 1, 0)
+
+
 
 
 def normalize_experiment_matrix(
@@ -231,8 +283,6 @@ def hard_threshold_sparse_regression_old(
         exp_matrix, forces_vector, rcond=None
     )
 
-    # print("solution shape",solution.shape)
-
     retained_solution = solution.copy()
     result_solution = np.zeros(solution.shape)
     active_indices = np.arange(len(solution))
@@ -328,7 +378,6 @@ def lasso_regression(
     eps: float = 5e-4,
 ) -> np.ndarray:
     """
-    (DEPRECATED) should use the new formalism for regression function (experiment_matrix, position of b vector (mask))
     Performs Lasso regression to select sparse features.
 
     Parameters:
@@ -346,12 +395,14 @@ def lasso_regression(
 
     y = forces_vector[:, 0]
     model_cv = LassoCV(
-        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance
+        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance,verbose=2
     )
     model_cv.fit(exp_matrix, y)
     best_alpha = model_cv.alpha_
 
-    lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance)
+    logger.info(f"LassoCV complete. Best alpha found: {best_alpha}")
+
+    lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance,)
     lasso_model.fit(exp_matrix, y)
 
     result_solution = np.reshape(lasso_model.coef_, (-1,1)) 
@@ -360,6 +411,89 @@ def lasso_regression(
 
     return result_solution
 
+def sparse_tradeoff_score(estimator, X, y, alpha=0.2):
+    y_pred = estimator.predict(X)
+    r2 = r2_score(y, y_pred)
+    nonzero_ratio = np.mean(estimator.coef_ != 0)
+    # trade-off: accuracy – penalty
+    return r2 - alpha * nonzero_ratio
+
+sparse_soft_scorer = make_scorer(sparse_tradeoff_score, greater_is_better=True)
+
+def lasso_regression_rapids(
+    whole_exp_matrix: np.ndarray,
+    mask: int,
+    max_iterations: int = 10000,
+    tolerance: float = 1e-5,
+) -> np.ndarray:
+    """
+    Performs Lasso regression on the GPU using the correct cuml pattern:
+    Lasso + GridSearchCV.
+    """
+
+    import cupy as cp
+    from cuml.linear_model import Lasso as cuLasso
+    from cuml.model_selection import GridSearchCV
+    # 1. CPU PRE-PROCESSING
+    exp_matrix_np, forces_vector_np = amputate_experiment_matrix(whole_exp_matrix, mask)
+
+    # 2. HOST-TO-DEVICE TRANSFER
+    # exp_matrix_gpu = cp.asarray(exp_matrix_np)
+    # y_gpu = cp.asarray(forces_vector_np[:, 0])
+
+    # logger.info(" shape of element",exp_matrix_gpu.shape,y_gpu.shape)
+    exp_matrix_gpu = exp_matrix_np
+    y_gpu = forces_vector_np[:, 0]
+
+    # exp_matrix_gpu = exp_matrix_np
+    # y_gpu = forces_vector_np.flatten()
+
+    # 3. GPU COMPUTATION with GridSearchCV
+    # Step 3a: Define the parameter grid to search.
+    # A logarithmic space is standard for regularization parameters.
+    param_grid = {
+        'alpha': np.logspace(-3.5, 1, 20).astype(np.float32)
+    }
+
+    # param_grid = {
+    #     'alpha': np.array([0.003742043051845873])
+    # }
+
+    # # Step 3b: Create the base Lasso model instance.
+    lasso_base_model = Lasso(
+        max_iter=max_iterations, tol=tolerance
+    )
+
+    # # Step 3c: Set up and run the GridSearchCV
+    # # This will train multiple models on the GPU in parallel folds.
+    grid_search = GridSearchCV(
+        lasso_base_model,
+        param_grid,
+        cv=5,
+        verbose=3,
+        scoring="r2"
+
+    )
+    grid_search.fit(exp_matrix_gpu, y_gpu)
+    
+    # # The best estimator is a fully trained Lasso model with the optimal alpha
+    # best_lasso_model = grid_search.best_estimator_
+    logger.info(f"GridSearchCV complete. Best alpha found: {grid_search.best_estimator_.alpha}")
+
+    lasso_model = Lasso(
+        alpha=grid_search.best_estimator_.alpha, max_iter=max_iterations, tol=tolerance
+    )
+    lasso_model.fit(exp_matrix_gpu, y_gpu)
+
+    # 4. DEVICE-TO-HOST TRANSFER
+    result_amputated_np = lasso_model.coef_ #.get()
+    # result_amputated_np = lasso_model.coef_.get()
+    result_amputated_np = np.reshape(result_amputated_np, (-1,1))
+
+    # 5. CPU POST-PROCESSING
+    final_solution = populate_solution(result_amputated_np, mask)
+
+    return final_solution
 
 
 def lasso_regression_old(
