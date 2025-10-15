@@ -36,6 +36,8 @@ The following bibtex can be used to cite the library :
 
 Multiple research work are on-going and can be tracked in [research_work](/research_work/)
 
+The main article using `py-xl-sindy` has been used with the version `2.1.0`, data reproducibility can only be guaranteed with this version.
+
 ## Theorical background and DevBlog
 
 The different ressources needed for the creation of this library can be found on the different Report posted on the subject :
