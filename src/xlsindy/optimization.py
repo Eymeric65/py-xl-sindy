@@ -6,11 +6,8 @@ This module include every function in order to run the optimisation step for get
 
 import numpy as np
 from sklearn.linear_model import Lasso, LassoCV
+from sklearn.metrics import make_scorer, r2_score
 from typing import Callable, Tuple
-
-import cupy as cp
-from cuml.linear_model import Lasso as cuLasso
-from cuml.model_selection import GridSearchCV
 
 from .logger import setup_logger
 
@@ -398,12 +395,14 @@ def lasso_regression(
 
     y = forces_vector[:, 0]
     model_cv = LassoCV(
-        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance
+        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance,verbose=2
     )
     model_cv.fit(exp_matrix, y)
     best_alpha = model_cv.alpha_
 
-    lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance)
+    logger.info(f"LassoCV complete. Best alpha found: {best_alpha}")
+
+    lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance,)
     lasso_model.fit(exp_matrix, y)
 
     result_solution = np.reshape(lasso_model.coef_, (-1,1)) 
@@ -411,6 +410,15 @@ def lasso_regression(
     result_solution = populate_solution(result_solution,mask)
 
     return result_solution
+
+def sparse_tradeoff_score(estimator, X, y, alpha=0.2):
+    y_pred = estimator.predict(X)
+    r2 = r2_score(y, y_pred)
+    nonzero_ratio = np.mean(estimator.coef_ != 0)
+    # trade-off: accuracy – penalty
+    return r2 - alpha * nonzero_ratio
+
+sparse_soft_scorer = make_scorer(sparse_tradeoff_score, greater_is_better=True)
 
 def lasso_regression_rapids(
     whole_exp_matrix: np.ndarray,
@@ -422,55 +430,68 @@ def lasso_regression_rapids(
     Performs Lasso regression on the GPU using the correct cuml pattern:
     Lasso + GridSearchCV.
     """
+
+    import cupy as cp
+    from cuml.linear_model import Lasso as cuLasso
+    from cuml.model_selection import GridSearchCV
     # 1. CPU PRE-PROCESSING
     exp_matrix_np, forces_vector_np = amputate_experiment_matrix(whole_exp_matrix, mask)
 
     # 2. HOST-TO-DEVICE TRANSFER
-    exp_matrix_gpu = cp.asarray(exp_matrix_np)
-    y_gpu = cp.asarray(forces_vector_np).flatten()
+    # exp_matrix_gpu = cp.asarray(exp_matrix_np)
+    # y_gpu = cp.asarray(forces_vector_np[:, 0])
+
+    # logger.info(" shape of element",exp_matrix_gpu.shape,y_gpu.shape)
+    exp_matrix_gpu = exp_matrix_np
+    y_gpu = forces_vector_np[:, 0]
+
+    # exp_matrix_gpu = exp_matrix_np
+    # y_gpu = forces_vector_np.flatten()
 
     # 3. GPU COMPUTATION with GridSearchCV
     # Step 3a: Define the parameter grid to search.
     # A logarithmic space is standard for regularization parameters.
     param_grid = {
-        'alpha': np.logspace(-6, 2, 100).astype(np.float32)
+        'alpha': np.logspace(-3.5, 1, 20).astype(np.float32)
     }
 
-    # Step 3b: Create the base Lasso model instance.
+    # param_grid = {
+    #     'alpha': np.array([0.003742043051845873])
+    # }
+
+    # # Step 3b: Create the base Lasso model instance.
     lasso_base_model = Lasso(
-        max_iter=max_iterations, tol=tolerance, fit_intercept=False
+        max_iter=max_iterations, tol=tolerance
     )
 
-    # Step 3c: Set up and run the GridSearchCV
-    # This will train multiple models on the GPU in parallel folds.
+    # # Step 3c: Set up and run the GridSearchCV
+    # # This will train multiple models on the GPU in parallel folds.
     grid_search = GridSearchCV(
         lasso_base_model,
         param_grid,
         cv=5,
-        scoring='neg_mean_squared_error' # Standard scoring for regression
+        verbose=3,
+        scoring="r2"
+
     )
     grid_search.fit(exp_matrix_gpu, y_gpu)
     
-    # The best estimator is a fully trained Lasso model with the optimal alpha
-    best_lasso_model = grid_search.best_estimator_
-    logger.info(f"GridSearchCV complete. Best alpha found: {best_lasso_model.alpha}")
+    # # The best estimator is a fully trained Lasso model with the optimal alpha
+    # best_lasso_model = grid_search.best_estimator_
+    logger.info(f"GridSearchCV complete. Best alpha found: {grid_search.best_estimator_.alpha}")
+
+    lasso_model = Lasso(
+        alpha=grid_search.best_estimator_.alpha, max_iter=max_iterations, tol=tolerance
+    )
+    lasso_model.fit(exp_matrix_gpu, y_gpu)
 
     # 4. DEVICE-TO-HOST TRANSFER
-    result_amputated_np = cp.asnumpy(best_lasso_model.coef_)
+    result_amputated_np = lasso_model.coef_ #.get()
+    # result_amputated_np = lasso_model.coef_.get()
+    result_amputated_np = np.reshape(result_amputated_np, (-1,1))
 
     # 5. CPU POST-PROCESSING
     final_solution = populate_solution(result_amputated_np, mask)
-
-    return final_solution.reshape(-1, 1)
-
-    # 4. DEVICE-TO-HOST TRANSFER (GPU -> CPU)
-    # The result .coef_ is a cupy array. We bring it back to the CPU.
-    result_solution_amputated_np = cp.asnumpy(lasso_model.coef_)
-    result_solution_amputated_np = np.reshape(lasso_model.coef_, (-1,1)) 
-
-    # 5. CPU POST-PROCESSING (using your existing numpy function)
-    # This numpy function can now work with the result.
-    final_solution = populate_solution(result_solution_amputated_np, mask)
 
     return final_solution
 

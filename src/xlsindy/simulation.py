@@ -112,7 +112,7 @@ def regression_implicite(
     debug: bool = False,
     deg_tol: float = 8, # base 10
     weight_distribution_threshold: float = 0.5, # base 0.8
-    #regression_function: Callable = lasso_regression,
+    regression_function: Callable = None,
     #sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
