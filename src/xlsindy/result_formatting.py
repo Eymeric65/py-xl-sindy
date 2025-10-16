@@ -62,13 +62,11 @@ def convert_to_lists(d):
 # Example usage:
 
 if __name__ == "__main__":
-
     sample = 10
 
     res = np.zeros(sample)
 
     for i in range(sample):
-
         data = np.random.rand(10000, 3)  # 100 points in 3D space
         k = 3
         local_volumes = estimate_volumes(data, k)

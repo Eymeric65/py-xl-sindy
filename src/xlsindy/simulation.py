@@ -19,6 +19,7 @@ from .logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 def regression_explicite(
     theta_values: np.ndarray,
     velocity_values: np.ndarray,
@@ -30,7 +31,7 @@ def regression_explicite(
     regression_function: Callable = lasso_regression,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Executes regression for a dynamic system to estimate the system’s parameters. 
+    Executes regression for a dynamic system to estimate the system’s parameters.
     This function can only be used with explicit system, meaning that external forces array need to be populated at maximum
 
     Parameters:
@@ -51,7 +52,7 @@ def regression_explicite(
 
     num_coordinates = theta_values.shape[1]
 
-    external_forces_mask = 0 # super bad ## need to automate the finding process
+    external_forces_mask = 0  # super bad ## need to automate the finding process
 
     catalog = catalog_repartition.expand_catalog()
 
@@ -65,15 +66,16 @@ def regression_explicite(
         external_force,
     )
 
-    whole_solution = regression_function(whole_experimental_matrix,external_forces_mask) # Mask the first one that is the external forces
-    whole_solution = np.reshape(whole_solution,shape=(-1,1))
-    #whole_solution[np.abs(whole_solution) < np.max(np.abs(whole_solution)) * hard_threshold] = 0
+    whole_solution = regression_function(
+        whole_experimental_matrix, external_forces_mask
+    )  # Mask the first one that is the external forces
+    whole_solution = np.reshape(whole_solution, shape=(-1, 1))
+    # whole_solution[np.abs(whole_solution) < np.max(np.abs(whole_solution)) * hard_threshold] = 0
 
-    ## Regression data, residual, covariance matrix,.... everything need to be done on the truncated again matrix 
+    ## Regression data, residual, covariance matrix,.... everything need to be done on the truncated again matrix
 
     # exp_matrix,forces_vector = amputate_experiment_matrix(whole_experimental_matrix,external_forces_mask)
     # solution = np.delete(whole_solution,external_forces_mask,axis=0)
-
 
     # # Estimate covariance matrix based on Ordinary Least Squares (OLS)
 
@@ -87,7 +89,7 @@ def regression_explicite(
     #     covariance_reduced
     # )
 
-    # Deprecated just here as a reminder of the math 
+    # Deprecated just here as a reminder of the math
 
     # residuals = forces_vector - exp_matrix @ solution
 
@@ -101,6 +103,7 @@ def regression_explicite(
 
     return whole_solution, whole_experimental_matrix
 
+
 def regression_implicite(
     theta_values: np.ndarray,
     velocity_values: np.ndarray,
@@ -108,17 +111,17 @@ def regression_implicite(
     time_symbol: sympy.Symbol,
     symbol_matrix: np.ndarray,
     catalog_repartition: CatalogRepartition,
-    l1_lambda = 1e-7,
+    l1_lambda=1e-7,
     debug: bool = False,
-    deg_tol: float = 8, # base 10
-    weight_distribution_threshold: float = 0.5, # base 0.8
+    deg_tol: float = 8,  # base 10
+    weight_distribution_threshold: float = 0.5,  # base 0.8
     regression_function: Callable = None,
-    #sparsity_coefficient: float = 1.5,
+    # sparsity_coefficient: float = 1.5,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Executes regression for a dynamic system to estimate the system’s parameters. 
+    Executes regression for a dynamic system to estimate the system’s parameters.
     This function can only be used with implicit system, meaning that no external forces are provided.
-    Actually, it is an implementation of SYNDy-PI with the general catalog framework 
+    Actually, it is an implementation of SYNDy-PI with the general catalog framework
 
     Parameters:
         theta_values (np.ndarray): Array of angular positions over time.
@@ -157,7 +160,6 @@ def regression_implicite(
     logger.info(f"Experimental matrix norm: {np.linalg.norm(experimental_matrix)}")
     logger.info(f"Experimental matrix variance: {np.var(experimental_matrix)}")
 
-
     # Normalization enable more stable regression over the different experiment
 
     sigma_max = np.linalg.svd(experimental_matrix, compute_uv=False)[0]
@@ -165,24 +167,19 @@ def regression_implicite(
     # Aparently, operator norm is better than frobenius norm for this kind of regression
     # I don't know why, but it was the case on the first test, lol
 
-    #A = experimental_matrix /np.linalg.norm(experimental_matrix)
+    # A = experimental_matrix /np.linalg.norm(experimental_matrix)
 
     m, n = A.shape
 
-    X = cp.Variable((n,n))
+    X = cp.Variable((n, n))
 
     # Since norm of A is 1, norm1(X) is around ~1 l1_lambda constrain the overal precision of the solution
     # Before attain frobenius residual to l1_lambda order the sparsity is not enforced...
     # One should take advantage of this in order to envorce the good behavior
-    obj = cp.Minimize(
-        cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X)
-    )
-
+    obj = cp.Minimize(cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X))
 
     prob = cp.Problem(obj, [cp.diag(X) == 0])
     prob.solve(verbose=True)
-
-    
 
     solution_matrix = X.value
 
@@ -193,27 +190,28 @@ def regression_implicite(
 
     if debug:
         return solution_matrix, experimental_matrix
-    
+
     else:
-        solutions = _implicit_post_treatment( 
+        solutions = _implicit_post_treatment(
             solution_matrix,
-            deg_tol=deg_tol, 
-            weight_distribution_threshold=weight_distribution_threshold
-            )
-        
+            deg_tol=deg_tol,
+            weight_distribution_threshold=weight_distribution_threshold,
+        )
+
         return solutions, experimental_matrix
 
+
 def _implicit_post_treatment(
-        solution: np.ndarray,
-        deg_tol: float = 10,
-        weight_distribution_threshold: float = 0.8,
+    solution: np.ndarray,
+    deg_tol: float = 10,
+    weight_distribution_threshold: float = 0.8,
 ) -> np.ndarray:
     """
     [WARNING] Still need improvement, need to review the evolution of this function on result... more explanation in mixed regression
 
         Second try as post treatment to recuperate the solution in the form of a unique vector.
     Explained in implicit_solution_analysis.ipynb
-    
+
     Parameters:
         solution (np.ndarray): The solution matrix obtained from the regression.
         deg_tol (float): The cone of similarity the vector need to be to form a cluster
@@ -222,30 +220,29 @@ def _implicit_post_treatment(
         np.ndarray: The processed solution vector.
     """
 
-    #Firstly create sparse cluster
+    # Firstly create sparse cluster
     groups = _groups_homothetic_noisy(solution, deg_tol=deg_tol, atol=1e-12)
 
-    filtered_groups=[]
+    filtered_groups = []
     for i, group in enumerate(groups):
         if len(group) > 2:
+            total_group = solution[:, group].sum(axis=1)
+            weight = _weak_sparsity_rank_weighted(total_group)
 
-            total_group = solution[:,group].sum(axis=1)
-            weight= _weak_sparsity_rank_weighted(total_group)
-
-            if weight>weight_distribution_threshold: 
-                filtered_groups+= [group]
+            if weight > weight_distribution_threshold:
+                filtered_groups += [group]
 
             logger.info(f"Group {i}, weight {weight:.2f}: {group}")
 
-    solutions = np.zeros((solution.shape[0],len(filtered_groups)))
+    solutions = np.zeros((solution.shape[0], len(filtered_groups)))
 
-    for i,group in enumerate(filtered_groups) :
-
+    for i, group in enumerate(filtered_groups):
         candidate_solution = solution[:, group]
         U, S, VT = np.linalg.svd(candidate_solution.T)
-        solutions[:,i] += -VT[0].flatten()
+        solutions[:, i] += -VT[0].flatten()
 
     return solutions
+
 
 def _groups_homothetic_noisy(mat, deg_tol=3.0, atol=1e-12):
     """
@@ -262,22 +259,20 @@ def _groups_homothetic_noisy(mat, deg_tol=3.0, atol=1e-12):
     rad_tol = np.deg2rad(deg_tol)
     # 1) normalise columns (keep track of zeros separately)
     lengths = np.linalg.norm(mat, axis=0)
-    keep   = np.where(lengths > atol)[0]
+    keep = np.where(lengths > atol)[0]
     if keep.size == 0:
-        return []                     # nothing but zeros
-    unit   = mat[:, keep] / lengths[keep]
+        return []  # nothing but zeros
+    unit = mat[:, keep] / lengths[keep]
 
     groups, pool = [], list(range(unit.shape[1]))
     while pool:
-        j        = pool.pop(0)
-        ref      = unit[:, j]
-        hits     = [keep[j]]          # column index in the original matrix
-        to_drop  = []
+        j = pool.pop(0)
+        ref = unit[:, j]
+        hits = [keep[j]]  # column index in the original matrix
+        to_drop = []
         # 2) compare with remaining columns
         for pos in pool:
-            ang = np.arccos(
-                np.clip(np.abs(ref @ unit[:, pos]), -1.0, 1.0)
-            )
+            ang = np.arccos(np.clip(np.abs(ref @ unit[:, pos]), -1.0, 1.0))
             if ang <= rad_tol:
                 hits.append(keep[pos])
                 to_drop.append(pos)
@@ -286,6 +281,7 @@ def _groups_homothetic_noisy(mat, deg_tol=3.0, atol=1e-12):
             pool.remove(pos)
         groups.append(hits)
     return groups
+
 
 def _weak_sparsity_rank_weighted(x):
     """
@@ -308,6 +304,7 @@ def _weak_sparsity_rank_weighted(x):
 
     return weighted_sum / weight_total if weight_total != 0 else 0.0
 
+
 def combine_best_fit(solutions, v_ideal):
     """
     [ISSUE] Clearly bugged and falatious, need to be fixed.
@@ -326,9 +323,11 @@ def combine_best_fit(solutions, v_ideal):
     x, _, _, _ = np.linalg.lstsq(solutions, v_ideal, rcond=None)
     v_hat = solutions @ x
     residual = np.linalg.norm(v_hat - v_ideal)
-    return v_hat.reshape(-1,1), residual
+    return v_hat.reshape(-1, 1), residual
 
-## Mixed framework regression 
+
+## Mixed framework regression
+
 
 def regression_mixed(
     theta_values: np.ndarray,
@@ -339,14 +338,14 @@ def regression_mixed(
     catalog_repartition: CatalogRepartition,
     external_force: np.ndarray,
     regression_function: Callable = lasso_regression,
-    l1_lambda = 1e-7,
+    l1_lambda=1e-7,
     ideal_solution_vector: np.ndarray = None,
-    deg_tol: float = 15, # base 10
-    weight_distribution_threshold: float = 0.5, # base 0.8
+    deg_tol: float = 15,  # base 10
+    weight_distribution_threshold: float = 0.5,  # base 0.8
 ):
     """
     [WARNING] when introducing noise in the system, the force detection clearly fail (which lead to incoherent system)
-    
+
     Executes regression for a dynamic system to estimate the system's parameters.
     This function can be used with both explicit and implicit systems, and will performs a chain of implicit/explicit regression.
 
@@ -363,7 +362,7 @@ def regression_mixed(
     4. Search if the solution "activate" another part of the catalog.
     5. Repeat 3 and 4 until no new part of the catalog is activated.
     6. Perform a final implicit regression on the remaining part of the catalog.
-    
+
     Args:
         theta_values (np.ndarray): Array of angular positions over time.
         velocity_values (np.ndarray): Array of velocities (optional).
@@ -396,7 +395,7 @@ def regression_mixed(
         external_force,
     )
 
-    activated_function,activated_coordinate = activated_catalog(
+    activated_function, activated_coordinate = activated_catalog(
         experimental_matrix,
         external_force.T,
     )
@@ -406,46 +405,60 @@ def regression_mixed(
 
     logger.info(f"external_forces : {external_force.shape}")
     logger.info(f"acceleration_values : {acceleration_values.shape}")
-    
 
-    solution = np.zeros((experimental_matrix.shape[1],1))
+    solution = np.zeros((experimental_matrix.shape[1], 1))
 
-    logger.info(f" {activated_coordinate.sum()} coordinates activated by the external forces and function interlink : \n {activated_coordinate.flatten()}")
+    logger.info(
+        f" {activated_coordinate.sum()} coordinates activated by the external forces and function interlink : \n {activated_coordinate.flatten()}"
+    )
 
     num_samples = theta_values.shape[0]
 
     if activated_coordinate.sum() > 0:
-
         logger.info("Performing explicit regression on the activated coordinates...")
 
-        external_forces_mask = 0 # super bad ## need to automate the finding process
+        external_forces_mask = 0  # super bad ## need to automate the finding process
 
         # Expand activated_coordinate (shape: [num_coordinate, 1]) to match the rows of experimental_matrix
         # Each coordinate corresponds to (num_samples) consecutive rows in experimental_matrix
-        
+
         expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
 
-        explicit_experimental_matrix = experimental_matrix[expanded_mask == 1, :][:, activated_function.flatten() == 1]
+        explicit_experimental_matrix = experimental_matrix[expanded_mask == 1, :][
+            :, activated_function.flatten() == 1
+        ]
 
-        explicite_solution = regression_function(explicit_experimental_matrix,external_forces_mask) # Mask the first one that is the external forces
-        
+        explicite_solution = regression_function(
+            explicit_experimental_matrix, external_forces_mask
+        )  # Mask the first one that is the external forces
+
         solution[activated_function.flatten() == 1] = explicite_solution
 
         explicit_system_time_series = experimental_matrix @ solution
 
-        updated_activated_coordinate = np.where( np.abs(explicit_system_time_series).reshape(num_coordinates,-1).sum(axis=1,keepdims=True) > 0 , 1,0)
+        updated_activated_coordinate = np.where(
+            np.abs(explicit_system_time_series)
+            .reshape(num_coordinates, -1)
+            .sum(axis=1, keepdims=True)
+            > 0,
+            1,
+            0,
+        )
 
-        logger.info(f" {updated_activated_coordinate.sum()} coordinates activated by the explicit regression this is a {updated_activated_coordinate.sum()-activated_coordinate.sum()} change from the first detection : \n {updated_activated_coordinate.flatten()}")
+        logger.info(
+            f" {updated_activated_coordinate.sum()} coordinates activated by the explicit regression this is a {updated_activated_coordinate.sum() - activated_coordinate.sum()} change from the first detection : \n {updated_activated_coordinate.flatten()}"
+        )
 
         activated_coordinate = updated_activated_coordinate
 
     if activated_coordinate.sum() < num_coordinates:
-
         logger.info("Performing implicit regression on the remaining coordinates...")
 
         expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
 
-        implicit_experimental_matrix = experimental_matrix[expanded_mask == 0, :][:, activated_function.flatten() == 0]
+        implicit_experimental_matrix = experimental_matrix[expanded_mask == 0, :][
+            :, activated_function.flatten() == 0
+        ]
 
         sigma_max = np.linalg.svd(implicit_experimental_matrix, compute_uv=False)[0]
 
@@ -453,18 +466,16 @@ def regression_mixed(
 
         m, n = A.shape
 
-        X = cp.Variable((n,n))
+        X = cp.Variable((n, n))
 
-        obj = cp.Minimize(
-            cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X)
-        )
+        obj = cp.Minimize(cp.norm(A @ X - A, "fro") + l1_lambda * cp.norm1(X))
 
         prob = cp.Problem(obj, [cp.diag(X) == 0])
         prob.solve(verbose=True)
 
         implicit_solution_matrix = X.value
 
-    # Set the diagonal of the solution matrix to zero
+        # Set the diagonal of the solution matrix to zero
         np.fill_diagonal(implicit_solution_matrix, -1)
 
         # There is still hole in the _implicit_post_treatment group can overlap on multiple coordinates... which I think is an error ?
@@ -472,36 +483,29 @@ def regression_mixed(
         # Likely they finish by overlapping in the solution (quite absurd) or worst they overlap on multiple coordinates.
         # In conclusion there is still some work to do on this matter...
 
-        implicit_solutions = _implicit_post_treatment( 
+        implicit_solutions = _implicit_post_treatment(
             implicit_solution_matrix,
-            deg_tol=deg_tol, 
-            weight_distribution_threshold=weight_distribution_threshold
+            deg_tol=deg_tol,
+            weight_distribution_threshold=weight_distribution_threshold,
         )
 
         if ideal_solution_vector is not None:
-            logger.warning("Falatious code, shouldn't run for paper purpose, Please doesn't provide ideal_solution_vector in mixed regression")
-            implicit_solution_stacked, _  = combine_best_fit(implicit_solutions,ideal_solution_vector[activated_function.flatten() == 0]) # Falatious, need to be fixed
+            logger.warning(
+                "Falatious code, shouldn't run for paper purpose, Please doesn't provide ideal_solution_vector in mixed regression"
+            )
+            implicit_solution_stacked, _ = combine_best_fit(
+                implicit_solutions,
+                ideal_solution_vector[activated_function.flatten() == 0],
+            )  # Falatious, need to be fixed
         else:
-            implicit_solution_stacked = implicit_solutions.sum(axis=1,keepdims=True)
+            implicit_solution_stacked = implicit_solutions.sum(axis=1, keepdims=True)
 
-        #logger.info(f"Implicit solutions found: {implicit_solution_stacked}, stacking them into a single solution vector.")
+        # logger.info(f"Implicit solutions found: {implicit_solution_stacked}, stacking them into a single solution vector.")
 
         solution[activated_function.flatten() == 0] = implicit_solution_stacked
 
-    solution[0]= -1.0  # Adding external forces that can't be guessed
+    solution[0] = -1.0  # Adding external forces that can't be guessed
 
     logger.info("Mixed regression process completed successfully.")
 
-    return solution,experimental_matrix
-
-
-
-
-    
-
-
-
-    
-
-
-
+    return solution, experimental_matrix

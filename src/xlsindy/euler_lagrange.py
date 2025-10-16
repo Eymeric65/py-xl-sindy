@@ -66,7 +66,6 @@ def newton_from_lagrangian(
     res = []
 
     for i in range(n):
-
         res += [
             compute_euler_lagrange_equation(
                 lagrangian_expr, symbol_matrix, time_symbol, i
@@ -74,6 +73,7 @@ def newton_from_lagrangian(
         ]
 
     return res
+
 
 def jax_create_experiment_matrix(
     num_coords: int,
@@ -109,14 +109,13 @@ def jax_create_experiment_matrix(
     experiment_matrix = np.zeros(((sampled_steps) * num_coords, catalog_lenght))
 
     q_matrix = np.zeros((symbol_matrix.shape[0], symbol_matrix.shape[1], sampled_steps))
-    
+
     q_matrix[0, :, :] = np.transpose(forces_values)
     q_matrix[1, :, :] = np.transpose(position_values)
     q_matrix[2, :, :] = np.transpose(velocity_values)
     q_matrix[3, :, :] = np.transpose(acceleration_values)
 
     for i in range(num_coords):
-
         catalog_lambda = list(
             map(
                 lambda x: sympy.lambdify([symbol_matrix], x, modules="numpy"),
@@ -169,7 +168,6 @@ def create_experiment_matrix(
     q_matrix[3, :, :] = np.transpose(acceleration_values)
 
     for i in range(num_coords):
-
         catalog_lambda = list(
             map(
                 lambda x: sympy.lambdify([symbol_matrix], x, modules="numpy"),

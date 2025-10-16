@@ -15,7 +15,7 @@ from .logger import setup_logger
 logger = setup_logger(__name__)
 
 
-# most important function generate the symbolic matrix 
+# most important function generate the symbolic matrix
 def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     """
     Creates a symbolic matrix representing external forces and state variables for a number of coordinates.
@@ -47,6 +47,7 @@ def generate_symbolic_matrix(coord_count: int, t: sympy.Symbol) -> np.ndarray:
     symbolic_matrix[2, :] = [sympy.Function(f"qd_{i}")(t) for i in range(coord_count)]
     symbolic_matrix[3, :] = [sympy.Function(f"qdd_{i}")(t) for i in range(coord_count)]
     return symbolic_matrix
+
 
 def _concatenate_function_symvar(
     function_catalog: List[Callable[[int], sympy.Expr]], q_terms: int
@@ -117,7 +118,8 @@ def _generate_combination_catalog(
             result += [res_elem * catalog[func_idx] for res_elem in res]
         return result
 
-#generate the polynomial combinaison of the function catalog
+
+# generate the polynomial combinaison of the function catalog
 def generate_full_catalog(
     function_catalog: List[sympy.Expr], q_terms: int, degree: int, power: int = None
 ) -> List[sympy.Expr]:
@@ -145,6 +147,7 @@ def generate_full_catalog(
         catalog += _generate_combination_catalog(base_catalog, i + 1, 0, power, power)
     return catalog
 
+
 # generate cross catalog from different list containing the function
 def cross_catalog(catalog1: List[sympy.Expr], catalog2: List[sympy.Expr]):
     """
@@ -158,7 +161,7 @@ def cross_catalog(catalog1: List[sympy.Expr], catalog2: List[sympy.Expr]):
     return np.concatenate((cross_catalog.flatten(), catalog1, catalog2))
 
 
-#used by classical sindy in order to get the additive term from newton equation.
+# used by classical sindy in order to get the additive term from newton equation.
 def get_additive_equation_term(equation: sympy.Expr):
     """
     Extracts all additive terms from a SymPy expression and stores them
@@ -182,7 +185,8 @@ def get_additive_equation_term(equation: sympy.Expr):
 
     return extracted_terms
 
-#convert the additive list into something compatible with the Classical class
+
+# convert the additive list into something compatible with the Classical class
 def sindy_create_coefficient_matrices(lists):
     """
     Given a list of lists, where each inner list contains tuples of (coefficient, expression),
@@ -224,7 +228,8 @@ def sindy_create_coefficient_matrices(lists):
 
     return unique_exprs, coeff_matrix, binary_matrix
 
-#used by classical class in order to add a precise number of function into a already existing catalog
+
+# used by classical class in order to add a precise number of function into a already existing catalog
 def augment_catalog(
     num_coordinates: int,
     sup_catalog: List[sympy.Expr],
@@ -266,16 +271,12 @@ def augment_catalog(
 
     zero_indices = np.argwhere(expand_matrix == 0)
 
-
-
     if requested_lenght == -1:
-
         logger.info(f"picking all the remaining {len(zero_indices)} component")
 
         selected_indices = zero_indices
 
     else:
-
         additional_pick_number = int(requested_lenght - np.sum(expand_matrix))
         logger.info(f"need to pick {additional_pick_number} more component")
         rng = np.random.default_rng(random_seed)
@@ -293,5 +294,3 @@ def augment_catalog(
     base_catalog = base_catalog[nonzero_lines]
 
     return coeff_matrix, expand_matrix, base_catalog
-
-

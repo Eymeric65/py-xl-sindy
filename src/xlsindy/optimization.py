@@ -13,6 +13,7 @@ from .logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 def condition_value(exp_matrix: np.ndarray, solution: np.ndarray) -> np.ndarray:
     """
     Calculate condition values based on the variance of the experimental matrix.
@@ -57,20 +58,24 @@ def optimal_sampling(theta_values: np.ndarray, distance_threshold: float) -> np.
 
     return selected_indices[:count]
 
-def bipartite_link(exp_matrix,num_coordinate,x_names,b_names):
+
+def bipartite_link(exp_matrix, num_coordinate, x_names, b_names):
     """
     This function is used to create the list of edges for the bipartite graph
     """
-    group_sums = np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1)
+    group_sums = (
+        np.abs(exp_matrix).reshape(num_coordinate, -1, exp_matrix.shape[1]).sum(axis=1)
+    )
 
     rooted_links = [
-    (x_names[i_idx], b_names[p_idx])
-    for p_idx in range(group_sums.shape[0])
-    for i_idx in range(group_sums.shape[1])
-    if group_sums[p_idx, i_idx] != 0
+        (x_names[i_idx], b_names[p_idx])
+        for p_idx in range(group_sums.shape[0])
+        for i_idx in range(group_sums.shape[1])
+        if group_sums[p_idx, i_idx] != 0
     ]
 
     return rooted_links
+
 
 def activated_catalog(
     exp_matrix: np.ndarray,
@@ -79,11 +84,11 @@ def activated_catalog(
     """
     [AHHHHHH] I need to transpose the force vector bruh
     Perform a recursive search to find the part ot the catalog that could be activated by the force vector.
-    
+
     Args
         exp_matrix (np.ndarray(num_coordinate*sample_number,catalog_lenght)): Experimental matrix.
         force_vector (np.ndarray(num_coordinate,sample_number)): Force vector.
-        
+
     Returns:
         np.ndarray (num_coordinate,1): Activated catalog.
         np.ndarray (1,catalog_lenght): Activated coordinate.
@@ -91,27 +96,32 @@ def activated_catalog(
 
     num_coordinate = force_vector.shape[0]
 
-    binary_compressed_exp_matrix = np.where( np.abs(exp_matrix).reshape(num_coordinate,-1, exp_matrix.shape[1]).sum(axis=1) > 0 , 1,0)
+    binary_compressed_exp_matrix = np.where(
+        np.abs(exp_matrix).reshape(num_coordinate, -1, exp_matrix.shape[1]).sum(axis=1)
+        > 0,
+        1,
+        0,
+    )
 
-    binary_compressed_force_vector =  np.where( np.abs(force_vector).sum(axis=1,keepdims=True) >0 ,1 ,0 )
+    binary_compressed_force_vector = np.where(
+        np.abs(force_vector).sum(axis=1, keepdims=True) > 0, 1, 0
+    )
 
-    activation,activate_function = _recursive_activation(
+    activation, activate_function = _recursive_activation(
         binary_compressed_exp_matrix,
         binary_compressed_force_vector,
     )
 
-    return activate_function,activation
-
-
+    return activate_function, activation
 
 
 def _recursive_activation(
-        binary_compressed_exp_matrix:np.ndarray,
-        activate_vector:np.ndarray,
+    binary_compressed_exp_matrix: np.ndarray,
+    activate_vector: np.ndarray,
 ):
     """
     recursive function to find the activated catalog
-    
+
     Args:
         compressed_exp_matrix (np.ndarray): Compressed experimental matrix.
         activate_vector (np.ndarray): Activated catalog.
@@ -120,25 +130,32 @@ def _recursive_activation(
         np.ndarray: Activated catalog.
     """
 
-    activate_function = np.where( np.where( binary_compressed_exp_matrix+activate_vector > 1 , 1 ,0 ).sum(axis=0,keepdims=True) >0,1 ,0)
+    activate_function = np.where(
+        np.where(binary_compressed_exp_matrix + activate_vector > 1, 1, 0).sum(
+            axis=0, keepdims=True
+        )
+        > 0,
+        1,
+        0,
+    )
 
     activated_line = binary_compressed_exp_matrix.copy()
 
-    activated_line[ :, activate_function[0] == 0] = 0 
+    activated_line[:, activate_function[0] == 0] = 0
 
-    new_activate_vector = np.where(activated_line.sum(axis=1,keepdims=True) > 0, 1, 0)
+    new_activate_vector = np.where(activated_line.sum(axis=1, keepdims=True) > 0, 1, 0)
 
     if np.sum(new_activate_vector) <= np.sum(activate_vector):
+        return activate_vector, activate_function
 
-        return activate_vector,activate_function
-    
     else:
+        activation_vector, activation_function = _recursive_activation(
+            binary_compressed_exp_matrix, new_activate_vector
+        )
 
-        activation_vector,activation_function = _recursive_activation(binary_compressed_exp_matrix, new_activate_vector)
-
-        return activation_vector, np.where(activation_function + activate_function > 0, 1, 0)
-
-
+        return activation_vector, np.where(
+            activation_function + activate_function > 0, 1, 0
+        )
 
 
 def normalize_experiment_matrix(
@@ -216,12 +233,12 @@ def covariance_vector(
     return summed_covariance
 
 
-## Optimisation function 
+## Optimisation function
 
 
 def amputate_experiment_matrix(
-        experiment_matrix: np.ndarray, 
-        mask: int,
+    experiment_matrix: np.ndarray,
+    mask: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Simple function to split the experiment matrix into an reduced experiment matrix and an external vector.
@@ -232,28 +249,30 @@ def amputate_experiment_matrix(
         exp_matrix (np.ndarray): Experimental matrix.
         mask (int): the column to erase
 
-    Returns:   
+    Returns:
         np.ndarray : Reduced experiment matrix .
         np.ndarray : Left Hand Side vector (forces vector)
     """
 
-    LHS = experiment_matrix[:, mask].reshape(-1,1)
+    LHS = experiment_matrix[:, mask].reshape(-1, 1)
 
     experiment_matrix = np.delete(experiment_matrix, mask, axis=1)
 
-    return experiment_matrix,LHS
+    return experiment_matrix, LHS
+
 
 def populate_solution(
-        solution: np.ndarray,
-        mask:int,
+    solution: np.ndarray,
+    mask: int,
 ) -> np.ndarray:
     """
     Opposite of amputate_experiment_matrix add a -1 in the solution where the mask should have been. (Because Left Hand Side is -1 )
     """
 
-    return np.insert(solution, mask, -1 ,axis=0)
+    return np.insert(solution, mask, -1, axis=0)
 
-## TODO maybe I could turn everything on jax... 
+
+## TODO maybe I could turn everything on jax...
 
 
 def hard_threshold_sparse_regression_old(
@@ -277,7 +296,7 @@ def hard_threshold_sparse_regression_old(
         np.ndarray: solution vector. shape (-1,)
     """
 
-    forces_vector,exp_matrix =np.array(forces_vector),np.array(exp_matrix)
+    forces_vector, exp_matrix = np.array(forces_vector), np.array(exp_matrix)
 
     solution, residuals, rank, _ = np.linalg.lstsq(
         exp_matrix, forces_vector, rcond=None
@@ -313,9 +332,10 @@ def hard_threshold_sparse_regression_old(
 
     return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
 
+
 def hard_threshold_sparse_regression(
     whole_exp_matrix: np.ndarray,
-    mask:int,
+    mask: int,
     condition_func: Callable = condition_value,
     threshold: float = 0.03,
 ) -> np.ndarray:
@@ -332,7 +352,7 @@ def hard_threshold_sparse_regression(
         np.ndarray: solution vector. shape (-1,1)
     """
 
-    exp_matrix,forces_vector =amputate_experiment_matrix(whole_exp_matrix,mask)
+    exp_matrix, forces_vector = amputate_experiment_matrix(whole_exp_matrix, mask)
 
     solution, residuals, rank, _ = np.linalg.lstsq(
         exp_matrix, forces_vector, rcond=None
@@ -364,15 +384,16 @@ def hard_threshold_sparse_regression(
 
     result_solution[active_indices] = retained_solution
 
-    result_solution = np.reshape(result_solution, (-1,1)) 
+    result_solution = np.reshape(result_solution, (-1, 1))
 
-    result_solution = populate_solution(result_solution,mask)
+    result_solution = populate_solution(result_solution, mask)
 
     return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
 
+
 def lasso_regression(
     whole_exp_matrix: np.ndarray,
-    mask:int,
+    mask: int,
     max_iterations: int = 10**4,
     tolerance: float = 1e-5,
     eps: float = 5e-4,
@@ -391,25 +412,30 @@ def lasso_regression(
         np.ndarray: Coefficients of the fitted model. shape (-1,)
     """
 
-    exp_matrix,forces_vector = amputate_experiment_matrix(whole_exp_matrix,mask)
+    exp_matrix, forces_vector = amputate_experiment_matrix(whole_exp_matrix, mask)
 
     y = forces_vector[:, 0]
     model_cv = LassoCV(
-        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance,verbose=2
+        cv=5, random_state=0, max_iter=max_iterations, eps=eps, tol=tolerance, verbose=2
     )
     model_cv.fit(exp_matrix, y)
     best_alpha = model_cv.alpha_
 
     logger.info(f"LassoCV complete. Best alpha found: {best_alpha}")
 
-    lasso_model = Lasso(alpha=best_alpha, max_iter=max_iterations, tol=tolerance,)
+    lasso_model = Lasso(
+        alpha=best_alpha,
+        max_iter=max_iterations,
+        tol=tolerance,
+    )
     lasso_model.fit(exp_matrix, y)
 
-    result_solution = np.reshape(lasso_model.coef_, (-1,1)) 
+    result_solution = np.reshape(lasso_model.coef_, (-1, 1))
 
-    result_solution = populate_solution(result_solution,mask)
+    result_solution = populate_solution(result_solution, mask)
 
     return result_solution
+
 
 def sparse_tradeoff_score(estimator, X, y, alpha=0.2):
     y_pred = estimator.predict(X)
@@ -418,7 +444,9 @@ def sparse_tradeoff_score(estimator, X, y, alpha=0.2):
     # trade-off: accuracy – penalty
     return r2 - alpha * nonzero_ratio
 
+
 sparse_soft_scorer = make_scorer(sparse_tradeoff_score, greater_is_better=True)
+
 
 def lasso_regression_rapids(
     whole_exp_matrix: np.ndarray,
@@ -431,9 +459,8 @@ def lasso_regression_rapids(
     Lasso + GridSearchCV.
     """
 
-    import cupy as cp
-    from cuml.linear_model import Lasso as cuLasso
     from cuml.model_selection import GridSearchCV
+
     # 1. CPU PRE-PROCESSING
     exp_matrix_np, forces_vector_np = amputate_experiment_matrix(whole_exp_matrix, mask)
 
@@ -451,34 +478,27 @@ def lasso_regression_rapids(
     # 3. GPU COMPUTATION with GridSearchCV
     # Step 3a: Define the parameter grid to search.
     # A logarithmic space is standard for regularization parameters.
-    param_grid = {
-        'alpha': np.logspace(-3.5, 1, 20).astype(np.float32)
-    }
+    param_grid = {"alpha": np.logspace(-3.5, 1, 20).astype(np.float32)}
 
     # param_grid = {
     #     'alpha': np.array([0.003742043051845873])
     # }
 
     # # Step 3b: Create the base Lasso model instance.
-    lasso_base_model = Lasso(
-        max_iter=max_iterations, tol=tolerance
-    )
+    lasso_base_model = Lasso(max_iter=max_iterations, tol=tolerance)
 
     # # Step 3c: Set up and run the GridSearchCV
     # # This will train multiple models on the GPU in parallel folds.
     grid_search = GridSearchCV(
-        lasso_base_model,
-        param_grid,
-        cv=5,
-        verbose=3,
-        scoring="r2"
-
+        lasso_base_model, param_grid, cv=5, verbose=3, scoring="r2"
     )
     grid_search.fit(exp_matrix_gpu, y_gpu)
-    
+
     # # The best estimator is a fully trained Lasso model with the optimal alpha
     # best_lasso_model = grid_search.best_estimator_
-    logger.info(f"GridSearchCV complete. Best alpha found: {grid_search.best_estimator_.alpha}")
+    logger.info(
+        f"GridSearchCV complete. Best alpha found: {grid_search.best_estimator_.alpha}"
+    )
 
     lasso_model = Lasso(
         alpha=grid_search.best_estimator_.alpha, max_iter=max_iterations, tol=tolerance
@@ -486,9 +506,9 @@ def lasso_regression_rapids(
     lasso_model.fit(exp_matrix_gpu, y_gpu)
 
     # 4. DEVICE-TO-HOST TRANSFER
-    result_amputated_np = lasso_model.coef_ #.get()
+    result_amputated_np = lasso_model.coef_  # .get()
     # result_amputated_np = lasso_model.coef_.get()
-    result_amputated_np = np.reshape(result_amputated_np, (-1,1))
+    result_amputated_np = np.reshape(result_amputated_np, (-1, 1))
 
     # 5. CPU POST-PROCESSING
     final_solution = populate_solution(result_amputated_np, mask)
@@ -518,7 +538,7 @@ def lasso_regression_old(
         np.ndarray: Coefficients of the fitted model. shape (-1,)
     """
 
-    forces_vector,exp_matrix =np.array(forces_vector),np.array(exp_matrix)
+    forces_vector, exp_matrix = np.array(forces_vector), np.array(exp_matrix)
 
     y = forces_vector[:, 0]
     model_cv = LassoCV(
@@ -531,6 +551,7 @@ def lasso_regression_old(
     lasso_model.fit(exp_matrix, y)
 
     return lasso_model.coef_
+
 
 # Optimisation in Jax Framework
 

@@ -19,6 +19,7 @@ from .catalog import CatalogRepartition
 
 logger = setup_logger(__name__)
 
+
 def generate_acceleration_function(
     regression_solution: np.ndarray,
     catalog_repartition: CatalogRepartition,
@@ -58,8 +59,8 @@ def generate_acceleration_function(
 
     # dynamic_equations -= np.array(
     #     [symbol_matrix[0, i] for i in range(num_coords)], dtype=object
-    # )  # Add external forces 
-    # maybe not necessary now !! (Added when fusing the experiment matrix and forces function through the function catalog) To test 
+    # )  # Add external forces
+    # maybe not necessary now !! (Added when fusing the experiment matrix and forces function through the function catalog) To test
 
     valid = True
 
@@ -68,10 +69,10 @@ def generate_acceleration_function(
             valid = False
 
     if valid:
-
-        system_matrix, force_vector = np.empty(
-            (num_coords, num_coords), dtype=object
-        ), np.empty((num_coords, 1), dtype=object)
+        system_matrix, force_vector = (
+            np.empty((num_coords, num_coords), dtype=object),
+            np.empty((num_coords, 1), dtype=object),
+        )
 
         for i in range(num_coords):
             equation = dynamic_equations[i]
@@ -163,7 +164,6 @@ def dynamics_function_fixed_external(
     """
 
     def ret_func(forces):
-
         def func(t, state):
             state = np.reshape(state, (-1, 2))
             state_transposed = np.transpose(state)
@@ -204,7 +204,6 @@ def dynamics_function_RK4_env(
     """
 
     def ret_func(state, forces):
-
         state = jnp.reshape(state, (-1, 2))
 
         state_transposed = jnp.transpose(state)
@@ -277,7 +276,6 @@ def run_rk45_integration(
         while model.status != "finished":
             for _ in range(200):
                 if model.status != "finished":
-
                     model.step()
                     time_values.append(model.t)
                     state_values.append(model.y)
@@ -413,6 +411,5 @@ def vectorised_acceleration_generation(dynamic_system: Callable, qpos, qvel, for
     base_vectors = base_vectors.reshape(T, 2 * n)  # shape: (1001, 8)
 
     base_vectors = jnp.array(base_vectors)
-
 
     return dynamic_system(base_vectors.T, force.T).T

@@ -1,7 +1,6 @@
 import logging
-import sys
 from tqdm import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
+
 
 class TqdmLoggingHandler(logging.Handler):
     def emit(self, record):
@@ -12,13 +11,14 @@ class TqdmLoggingHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
+
 def setup_logger(name=None, level=logging.INFO):
     logger = logging.getLogger(name)
     if not logger.hasHandlers():
         logger.setLevel(level)
         handler = TqdmLoggingHandler()
-        handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        ))
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
         logger.addHandler(handler)
     return logger

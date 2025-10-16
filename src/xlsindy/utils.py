@@ -28,9 +28,11 @@ def print_progress(
     percentage_complete = format_str.format(100 * (iteration / float(total)))
     filled_length = int(round(bar_length * iteration / float(total)))
     bar = "*" * filled_length + "-" * (bar_length - filled_length)
-    sys.stdout.write(
-        "\r%s |%s| %s%s %s" % (prefix, bar, percentage_complete, "%", suffix)
-    ),
+    (
+        sys.stdout.write(
+            "\r%s |%s| %s%s %s" % (prefix, bar, percentage_complete, "%", suffix)
+        ),
+    )
     sys.stdout.flush()
     if iteration == total:
         sys.stdout.write("\n")
