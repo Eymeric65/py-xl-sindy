@@ -13,7 +13,7 @@ The identified model is then simulated and compared to the original data.
 import numpy as np
 import sympy as sp 
 import xlsindy
-from generate_trajectory import generate_mujoco_trajectory,generate_theorical_trajectory
+from generate_trajectory import generate_mujoco_trajectory,generate_theoretical_trajectory
 from xlsindy.logger import setup_logger
 from xlsindy.optimization import lasso_regression
 import time
@@ -225,7 +225,7 @@ if __name__=="__main__":
          simulation_qvel_vs, 
          simulation_qacc_vs, 
          force_vector_vs,
-         _) = generate_theorical_trajectory(
+         _) = generate_theoretical_trajectory(
              num_coordinates,
              initial_position,
              initial_condition_randomness,
@@ -243,11 +243,11 @@ if __name__=="__main__":
         
         # Create a figure with 4 subplots stacked vertically
         fig, axes = plt.subplots(4, 1, figsize=(12, 18), sharex=True)
-        fig.suptitle('Trajectory Comparison: Mujoco vs. Theorical', fontsize=16)
+        fig.suptitle('Trajectory Comparison: Mujoco vs. Theoretical', fontsize=16)
 
         # --- 1. Plot Position Data ---
         axes[0].plot(simulation_time_v, simulation_qpos_v, label='Mujoco Simulation')
-        axes[0].plot(simulation_time_vs, simulation_qpos_vs, label='Theorical Simulation', linestyle='--')
+        axes[0].plot(simulation_time_vs, simulation_qpos_vs, label='Theoretical Simulation', linestyle='--')
         axes[0].set_title('Position vs. Time')
         axes[0].set_ylabel('Position')
         axes[0].legend()
@@ -255,7 +255,7 @@ if __name__=="__main__":
 
         # --- 2. Plot Velocity Data ---
         axes[1].plot(simulation_time_v, simulation_qvel_v, label='Mujoco Simulation')
-        axes[1].plot(simulation_time_vs, simulation_qvel_vs, label='Theorical Simulation', linestyle='--')
+        axes[1].plot(simulation_time_vs, simulation_qvel_vs, label='Theoretical Simulation', linestyle='--')
         axes[1].set_title('Velocity vs. Time')
         axes[1].set_ylabel('Velocity')
         axes[1].legend()
@@ -263,7 +263,7 @@ if __name__=="__main__":
 
         # --- 3. Plot Acceleration Data ---
         axes[2].plot(simulation_time_v, simulation_qacc_v, label='Mujoco Simulation')
-        axes[2].plot(simulation_time_vs, simulation_qacc_vs, label='Theorical Simulation', linestyle='--')
+        axes[2].plot(simulation_time_vs, simulation_qacc_vs, label='Theoretical Simulation', linestyle='--')
         axes[2].set_title('Acceleration vs. Time')
         axes[2].set_ylabel('Acceleration')
         axes[2].legend()
@@ -271,7 +271,7 @@ if __name__=="__main__":
 
         # --- 4. Plot Force Data ---
         axes[3].plot(simulation_time_v, force_vector_v, label='Mujoco Force')
-        axes[3].plot(simulation_time_vs, force_vector_vs, label='Theorical Force', linestyle='--')
+        axes[3].plot(simulation_time_vs, force_vector_vs, label='Theoretical Force', linestyle='--')
         axes[3].set_title('Force vs. Time')
         axes[3].set_ylabel('Force')
         axes[3].set_xlabel('Time (s)')

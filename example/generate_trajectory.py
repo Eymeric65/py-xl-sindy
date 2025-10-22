@@ -18,7 +18,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-def generate_theorical_trajectory(
+def generate_theoretical_trajectory(
     num_coordinates: int,
     initial_position: np.ndarray,
     initial_condition_randomness: np.ndarray,
@@ -35,7 +35,7 @@ def generate_theorical_trajectory(
 ):
     """
     [INFO] maybe I should but this function inside the main library.
-    Generate a theortical trajectory using theorical background.
+    Generate a theoretical trajectory using theoretical background.
 
     Args:
 
@@ -92,12 +92,12 @@ def generate_theorical_trajectory(
         )
 
         model_dynamics_system = xlsindy.dynamics_modeling.dynamics_function(model_acceleration_func,forces_function) 
-        logger.info("Theorical initialized")
+        logger.info("theoretical initialized")
         try:
             simulation_time_m, phase_values = xlsindy.dynamics_modeling.run_rk45_integration(model_dynamics_system, initial_condition, max_time, max_step=0.005)
         except Exception as e:
             logger.error(f"An error occurred on the RK45 integration: {e}")
-        logger.info("Theorical simulation done")
+        logger.info("theoretical simulation done")
 
         simulation_qpos_m = phase_values[:, ::2]
         simulation_qvel_m = phase_values[:, 1::2]
