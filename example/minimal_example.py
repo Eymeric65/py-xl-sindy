@@ -364,9 +364,6 @@ def visualization(training_trajectory: Trajectory, true_trajectory: Trajectory, 
         
 
 if __name__ == '__main__':
-    SEED = 2
-    NOISE_LEVEL = 25
-    FOLDER_NAME = f"noise_level_{NOISE_LEVEL}_seed_{SEED}"
     sampling_method = "uniform_unshuffled"
 
     print("Begin program")
@@ -374,7 +371,7 @@ if __name__ == '__main__':
     training_trajectory, true_trajectory, predicted_trajecotry = simulation(
         sampling_method,
         num_coordinates = 2,
-        random_seed = SEED,
+        random_seed = 2,
         batch_number = 10,
         max_time = 10.0,
         initial_position = np.array([0.0, 0.0,0.0,0.0]),
@@ -384,7 +381,9 @@ if __name__ == '__main__':
         forces_period_shift = 0.5,
         data_ratio = 2.0,
         validation_time = 30.0,
-        noise_level = NOISE_LEVEL,
+        noise_level = 0.0,
     )
+
+    visualization(training_trajectory, true_trajectory, predicted_trajecotry, "trajectory_comparison.png")
     
     print("End program")
