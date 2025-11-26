@@ -13,7 +13,7 @@ import pandas as pd
 import xlsindy
 from generate_trajectory import generate_mujoco_trajectory,generate_theoretical_trajectory
 from xlsindy.logger import setup_logger
-from xlsindy.optimization import lasso_regression
+from xlsindy.optimization import lasso_regression, proximal_gradient_descent
 import time
 import matplotlib.pyplot as plt
 from jax import vmap
@@ -262,7 +262,7 @@ def simulation(
     start_time = time.perf_counter()
     solution, exp_matrix = training_trajectory.generate_solution(
         catalog=catalog,
-        regression_function=lasso_regression
+        regression_function=proximal_gradient_descent
     )
     end_time = time.perf_counter()
     regressoin_time = end_time - start_time

@@ -391,6 +391,118 @@ def hard_threshold_sparse_regression(
     return result_solution  # model_fit, result_solution, reduction_count, steps # deprecated
 
 
+def soft_threshold(x: np.ndarray, threshold: float) -> np.ndarray:
+    """
+    Soft-thresholding operator (proximal operator for L1 norm).
+    
+    Parameters:
+        x (np.ndarray): Input array.
+        threshold (float): Threshold value.
+    
+    Returns:
+        np.ndarray: Soft-thresholded array.
+    """
+    return np.sign(x) * np.maximum(np.abs(x) - threshold, 0)
+
+
+def proximal_gradient_descent(
+    whole_exp_matrix: np.ndarray,
+    mask: int,
+    sparsity_factor: float = 0.01,
+    learning_rate: float = None,
+    max_iterations: int = 10**4,
+    tolerance: float = 1e-5,
+    adaptive_lr: bool = True,
+) -> np.ndarray:
+    """
+    Performs proximal gradient descent with L1 regularization for sparse feature selection.
+    
+    This implements the iterative soft-thresholding algorithm (ISTA), which is equivalent
+    to Lasso regression but with explicit control over the optimization process.
+    
+    Parameters:
+        whole_exp_matrix (np.ndarray): Experimental matrix including forces column.
+        mask (int): The forces column index.
+        sparsity_factor (float): L1 regularization parameter (lambda). Higher values increase sparsity.
+        learning_rate (float): Step size. If None, uses 1/(largest eigenvalue of X^T X).
+        max_iterations (int): Maximum number of iterations.
+        tolerance (float): Convergence tolerance based on coefficient change.
+        adaptive_lr (bool): Whether to use adaptive learning rate (Lipschitz constant).
+    
+    Returns:
+        np.ndarray: Coefficients of the fitted model. shape (-1, 1)
+    """
+    exp_matrix, forces_vector = amputate_experiment_matrix(whole_exp_matrix, mask)
+    
+    y = forces_vector[:, 0]
+    n_samples, n_features = exp_matrix.shape
+    
+    # Normalize for numerical stability
+    X_mean = np.mean(exp_matrix, axis=0)
+    X_std = np.std(exp_matrix, axis=0) + 1e-10
+    X_normalized = (exp_matrix - X_mean) / X_std
+    
+    y_mean = np.mean(y)
+    y_centered = y - y_mean
+    
+    # Initialize coefficients
+    beta = np.zeros(n_features)
+    
+    # Compute learning rate based on Lipschitz constant if not provided
+    if learning_rate is None:
+        if adaptive_lr:
+            # Lipschitz constant L = largest eigenvalue of X^T X / n
+            XTX = X_normalized.T @ X_normalized / n_samples
+            eigenvalues = np.linalg.eigvalsh(XTX)
+            L = eigenvalues[-1]
+            learning_rate = 1.0 / (L + 1e-10)
+            logger.info(f"Computed adaptive learning rate: {learning_rate:.6f}")
+        else:
+            learning_rate = 0.001
+    
+    logger.info(f"Starting proximal gradient descent with sparsity_factor={sparsity_factor}")
+    
+    # Proximal gradient descent iterations
+    for iteration in range(max_iterations):
+        beta_old = beta.copy()
+        
+        # Compute gradient of squared loss: (1/n) * X^T (X*beta - y)
+        residual = X_normalized @ beta - y_centered
+        gradient = (X_normalized.T @ residual) / n_samples
+        
+        # Gradient descent step
+        beta_temp = beta - learning_rate * gradient
+        
+        # Proximal step (soft-thresholding)
+        beta = soft_threshold(beta_temp, learning_rate * sparsity_factor)
+        
+        # Check convergence
+        coef_change = np.max(np.abs(beta - beta_old))
+        if coef_change < tolerance:
+            logger.info(f"Converged at iteration {iteration + 1} with coefficient change {coef_change:.2e}")
+            break
+        
+        if (iteration + 1) % 1000 == 0:
+            n_nonzero = np.sum(beta != 0)
+            loss = 0.5 * np.mean(residual**2) + sparsity_factor * np.sum(np.abs(beta))
+            logger.info(f"Iteration {iteration + 1}: Loss={loss:.6f}, Non-zero coeffs={n_nonzero}, Change={coef_change:.2e}")
+    else:
+        logger.warning(f"Maximum iterations ({max_iterations}) reached without convergence")
+    
+    # Denormalize coefficients
+    beta_denormalized = beta / X_std
+    
+    # Report sparsity
+    n_nonzero = np.sum(beta_denormalized != 0)
+    logger.info(f"Final solution has {n_nonzero}/{n_features} non-zero coefficients ({100*n_nonzero/n_features:.1f}%)")
+    
+    # Reshape and populate solution
+    result_solution = np.reshape(beta_denormalized, (-1, 1))
+    result_solution = populate_solution(result_solution, mask)
+    
+    return result_solution
+
+
 def lasso_regression(
     whole_exp_matrix: np.ndarray,
     mask: int,

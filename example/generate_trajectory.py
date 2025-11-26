@@ -282,17 +282,4 @@ def generate_mujoco_trajectory(
 
     return simulation_time_g, simulation_qpos_g, simulation_qvel_g, simulation_qacc_g, force_vector_g, batch_starting_times
 
-def convert_to_lists(d):
-    if isinstance(d, dict):
-        return {k: convert_to_lists(v) for k, v in d.items()}
-    elif isinstance(d, list):
-        return [convert_to_lists(i) for i in d]
-    elif isinstance(d, np.ndarray):
-        return convert_to_lists(d.tolist())
-    elif isinstance(d, (np.float32, np.float64)):
-        return convert_to_lists(float(d))
-    elif isinstance(d,float):
-        return float(f"{format(d, '.3e')}")
-    else:
-        return d
     
