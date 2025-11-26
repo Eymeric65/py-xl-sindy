@@ -80,6 +80,7 @@ def bipartite_link(exp_matrix, num_coordinate, x_names, b_names):
 def activated_catalog(
     exp_matrix: np.ndarray,
     force_vector: np.ndarray,
+    noise_level: float = 0.0,
 ):
     """
     [AHHHHHH] I need to transpose the force vector bruh
@@ -98,7 +99,7 @@ def activated_catalog(
 
     binary_compressed_exp_matrix = np.where(
         np.abs(exp_matrix).reshape(num_coordinate, -1, exp_matrix.shape[1]).sum(axis=1)
-        > 0,
+        > noise_level*exp_matrix.shape[0],
         1,
         0,
     )

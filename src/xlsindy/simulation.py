@@ -342,6 +342,7 @@ def regression_mixed(
     ideal_solution_vector: np.ndarray = None,
     deg_tol: float = 15,  # base 10
     weight_distribution_threshold: float = 0.5,  # base 0.8
+    noise_level: float = 0.0,
 ):
     """
     [WARNING] when introducing noise in the system, the force detection clearly fail (which lead to incoherent system)
@@ -398,6 +399,7 @@ def regression_mixed(
     activated_function, activated_coordinate = activated_catalog(
         experimental_matrix,
         external_force.T,
+        noise_level=noise_level
     )
 
     logger.info(f"activated_function : {activated_function.shape}")
