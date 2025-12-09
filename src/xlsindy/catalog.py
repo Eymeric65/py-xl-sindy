@@ -10,7 +10,8 @@ import functools
 
 import numpy as np
 
-from typing import List
+from typing import List,Tuple
+from typing import Self
 
 
 # Trick in order to get concatenated docstring for child of abstract class ! great explanation here :https://stackoverflow.com/questions/100003/what-are-metaclasses-in-python
@@ -140,6 +141,7 @@ class CatalogCategory(ABC, metaclass=_CatalogMetaClass):
     Some variable are required :
         - catalog_length (int) : The total lenght of the output of the expanded catalog (should be infered without hard computation)
         - num_coordinate (int) : The number of coordinate of the system.
+
     """
 
     @abstractmethod
@@ -268,7 +270,7 @@ class CatalogRepartition:
 
         return ret
 
-    def separate_by_mask(self, mask: np.ndarray) -> tuple:
+    def separate_by_mask(self, mask: np.ndarray) -> Tuple[Self, Self]:
         """
         Separate the catalog by a mask. The mask is a boolean array of shape (catalog_length,).
 
@@ -296,7 +298,7 @@ class CatalogRepartition:
             remaining_catalogs
         )
 
-    def seperate_by_type(self, type_mask: List[str]) -> tuple:
+    def seperate_by_type(self, type_mask: List[str]) -> Tuple[Self, Self]:
         """
         Separate the catalog by type. The type is a list of string that match the label of the catalog. the type is the name of the class.
 
@@ -318,6 +320,30 @@ class CatalogRepartition:
         return CatalogRepartition(masked_catalogs), CatalogRepartition(
             remaining_catalogs
         )
+    
+    def starting_index_by_type(self, type_mask: str) -> int:
+        """
+        Return the starting index of each catalog of a given type in the global catalog.
+
+        Args:
+            type_mask (List[str]): a list of string that match the label of the catalog.
+        Returns:
+            List[int]: a list of starting index of each catalog of the given type in the global catalog.
+        """
+        indices = []
+        current_index = 0
+
+        for catalog in self.catalog_repartition:
+            if type(catalog).__name__ == type_mask:
+                indices.append(current_index)
+            current_index += catalog.catalog_length
+
+        if len(indices) >1:
+            raise ValueError(f"More than one catalog of type {type_mask} found in the catalog repartition. Ambiguous starting index.")
+        if len(indices) == 0:
+            raise ValueError(f"No catalog of type {type_mask} found in the catalog repartition.")
+
+        return indices[0]
 
     def separate_solution_by_type(
         self, solution: np.ndarray, type_mask: List[str]

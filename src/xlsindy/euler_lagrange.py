@@ -7,6 +7,9 @@ This module primarly focus on symbolic variable and enable to do the different m
 import numpy as np
 import sympy
 from typing import List
+from xlsindy.logger import setup_logger
+
+logger = setup_logger(__name__,level="DEBUG")
 
 
 def compute_euler_lagrange_equation(
@@ -83,7 +86,7 @@ def jax_create_experiment_matrix(
     velocity_values: np.ndarray,
     acceleration_values: np.ndarray,
     forces_values: np.ndarray,
-) -> List[np.ndarray]:
+) -> np.ndarray:
     """
     Create the SINDy experiment matrix.
 
@@ -94,15 +97,17 @@ def jax_create_experiment_matrix(
         num_coords (int): Number of generalized coordinates.
         catalogs (list): array of catalog function of shape (p,n)
         symbol_matrix (sp.Matrix): Symbolic variable matrix for the system.
-        position_values (np.array(num_coordinate,sampled_step)): Array of positions at each time step.
-        velocity_values (np.array(num_coordinate,sampled_step)): Array of velocities.
-        acceleration_values (np.array(num_coordinate,sampled_step)): Array of accelerations.
-        forces_values (np.ndarray(num_coordinate,sampled_step)): Array of external forces.
+        position_values (np.array(sampled_step,num_coordinate)): Array of positions at each time step.
+        velocity_values (np.array(sampled_step,num_coordinate)): Array of velocities.
+        acceleration_values (np.array(sampled_step,num_coordinate)): Array of accelerations.
+        forces_values (np.ndarray(sampled_step,num_coordinate)): Array of external forces.
 
     Returns:
         np.array (sampled_steps * num_coords, catalog_lenght): Experiment matrix.
     """
     sampled_steps = len(position_values)
+
+    logger.debug(f"Creating experiment matrix with {sampled_steps} sampled steps and {num_coords} coordinates")
 
     catalog_lenght = catalogs.shape[0]
 

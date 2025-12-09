@@ -11,7 +11,7 @@ from typing import Callable, Tuple
 
 from .logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__,level="DEBUG")
 
 
 def condition_value(exp_matrix: np.ndarray, solution: np.ndarray) -> np.ndarray:
@@ -79,38 +79,50 @@ def bipartite_link(exp_matrix, num_coordinate, x_names, b_names):
 
 def activated_catalog(
     exp_matrix: np.ndarray,
-    force_vector: np.ndarray,
-    noise_level: float = 0.0,
+    pre_knowledge_indices: np.ndarray,
+    noise_level: float,
+    num_coordinate: int,
 ):
     """
     [AHHHHHH] I need to transpose the force vector bruh
     Perform a recursive search to find the part ot the catalog that could be activated by the force vector.
 
     Args
-        exp_matrix (np.ndarray(num_coordinate*sample_number,catalog_lenght)): Experimental matrix.
-        force_vector (np.ndarray(num_coordinate,sample_number)): Force vector.
+        exp_matrix (np.ndarray): The experimental matrix.
+        pre_knowledge_indices (np.ndarray): The pre-knowledge indices.
+        noise_level (float): The noise level to consider for activation.
+        sample_number (int): The number of samples in the experimental matrix.
+        num_coordinate (int): The number of generalized coordinates.
+        
 
     Returns:
         np.ndarray (num_coordinate,1): Activated catalog.
         np.ndarray (1,catalog_lenght): Activated coordinate.
     """
 
-    num_coordinate = force_vector.shape[0]
+    logger.info("Starting activated catalog detection")
+    logger.debug(f"Noise level for activation: {noise_level}")
+    logger.debug(f"Experimental matrix shape: {exp_matrix.shape}")
+
+    exp_matrix_compressed = np.abs(exp_matrix).reshape(num_coordinate, -1, exp_matrix.shape[1]).sum(axis=1)
+
+    logger.debug(f"Experimental matrix: {exp_matrix_compressed}")
 
     binary_compressed_exp_matrix = np.where(
         np.abs(exp_matrix).reshape(num_coordinate, -1, exp_matrix.shape[1]).sum(axis=1)
-        > noise_level*exp_matrix.shape[0],
+        > 0,
         1,
         0,
     )
 
-    binary_compressed_force_vector = np.where(
-        np.abs(force_vector).sum(axis=1, keepdims=True) > 0, 1, 0
-    )
+    # Retrieve the pre-knowledge part of the matrix
+    pre_knowledge_matrix = binary_compressed_exp_matrix[:, pre_knowledge_indices].sum(axis=1, keepdims=True)
+
+    logger.debug(f"Compressed force matrix: {pre_knowledge_matrix}")
 
     activation, activate_function = _recursive_activation(
         binary_compressed_exp_matrix,
-        binary_compressed_force_vector,
+        pre_knowledge_matrix,
     )
 
     return activate_function, activation
@@ -239,7 +251,7 @@ def covariance_vector(
 
 def amputate_experiment_matrix(
     experiment_matrix: np.ndarray,
-    mask: int,
+    mask: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Simple function to split the experiment matrix into an reduced experiment matrix and an external vector.
@@ -255,7 +267,7 @@ def amputate_experiment_matrix(
         np.ndarray : Left Hand Side vector (forces vector)
     """
 
-    LHS = experiment_matrix[:, mask].reshape(-1, 1)
+    LHS = experiment_matrix[:, mask].sum(axis=1).reshape(-1, 1)
 
     experiment_matrix = np.delete(experiment_matrix, mask, axis=1)
 
@@ -264,7 +276,7 @@ def amputate_experiment_matrix(
 
 def populate_solution(
     solution: np.ndarray,
-    mask: int,
+    mask: np.ndarray,
 ) -> np.ndarray:
     """
     Opposite of amputate_experiment_matrix add a -1 in the solution where the mask should have been. (Because Left Hand Side is -1 )
@@ -336,7 +348,7 @@ def hard_threshold_sparse_regression_old(
 
 def hard_threshold_sparse_regression(
     whole_exp_matrix: np.ndarray,
-    mask: int,
+    mask: int|np.ndarray,
     condition_func: Callable = condition_value,
     threshold: float = 0.03,
 ) -> np.ndarray:
@@ -408,7 +420,7 @@ def soft_threshold(x: np.ndarray, threshold: float) -> np.ndarray:
 
 def proximal_gradient_descent(
     whole_exp_matrix: np.ndarray,
-    mask: int,
+    mask: np.ndarray,
     sparsity_factor: float = 0.01,
     learning_rate: float = None,
     max_iterations: int = 10**4,
@@ -506,7 +518,7 @@ def proximal_gradient_descent(
 
 def lasso_regression(
     whole_exp_matrix: np.ndarray,
-    mask: int,
+    mask: np.ndarray,
     max_iterations: int = 10**4,
     tolerance: float = 1e-5,
     eps: float = 5e-4,
@@ -563,7 +575,7 @@ sparse_soft_scorer = make_scorer(sparse_tradeoff_score, greater_is_better=True)
 
 def lasso_regression_rapids(
     whole_exp_matrix: np.ndarray,
-    mask: int,
+    mask: np.ndarray,
     max_iterations: int = 10000,
     tolerance: float = 1e-5,
 ) -> np.ndarray:

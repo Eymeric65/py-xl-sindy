@@ -17,7 +17,7 @@ from .catalog import CatalogRepartition
 
 from .logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__,level="DEBUG")
 
 
 def regression_explicite(
@@ -343,6 +343,10 @@ def regression_mixed(
     deg_tol: float = 15,  # base 10
     weight_distribution_threshold: float = 0.5,  # base 0.8
     noise_level: float = 0.0,
+    noise_security: float = 2,
+    ghost_samples: int = 50,
+    pre_knowledge_type: str = "external_forces",
+    pre_knowledge_indices: np.ndarray = None,
 ):
     """
     [WARNING] when introducing noise in the system, the force detection clearly fail (which lead to incoherent system)
@@ -379,6 +383,8 @@ def regression_mixed(
         Tuple TODO
     """
 
+    noise_level = noise_level * noise_security
+
     logger.info("Starting mixed regression process...")
 
     num_coordinates = theta_values.shape[1]
@@ -396,14 +402,58 @@ def regression_mixed(
         external_force,
     )
 
+    if pre_knowledge_type == "external_forces":
+
+        # Experiment matrix to detect which function are dependent on external forces
+        ghost_experiment_matrix = jax_create_experiment_matrix(
+            num_coordinates,
+            catalog,
+            symbol_matrix,
+            np.zeros((ghost_samples,num_coordinates)),
+            np.zeros((ghost_samples,num_coordinates)),
+            np.zeros((ghost_samples,num_coordinates)),
+            np.linspace(-1e3,1e3,ghost_samples).reshape(-1,1) * np.ones((1,num_coordinates)),
+        ).reshape(num_coordinates,-1,catalog_repartition.catalog_length)
+
+        ghost_experiment_matrix = np.std(ghost_experiment_matrix,axis=1)
+
+        pre_knowledge_mask = np.where(
+            ghost_experiment_matrix != 0, 1, 0
+        ).sum(axis=0)
+
+        pre_knowledge_mask = np.where(
+            pre_knowledge_mask > 0, 1, 0
+        )
+
+        pre_knowledge_indices = np.nonzero(pre_knowledge_mask)[0]
+
+    elif pre_knowledge_type == "external_forces_manual":
+
+        if pre_knowledge_indices is None:
+
+            raise ValueError("pre_knowledge_indices must be provided if pre_knowledge_type is external_forces_manual and should be the indices of the external forces in the catalog (locally)")
+        
+        starting_index = catalog_repartition.starting_index_by_type("ExternalForces")
+        pre_knowledge_indices = pre_knowledge_indices + starting_index
+
+
+    elif pre_knowledge_indices is None:
+
+        raise ValueError("pre_knowledge_indices must be provided if pre_knowledge_type is not previously defined")
+
+    logger.debug(f"pre_knowledge_indices : {pre_knowledge_indices}")
+
+    num_samples = theta_values.shape[0]
+
     activated_function, activated_coordinate = activated_catalog(
         experimental_matrix,
-        external_force.T,
-        noise_level=noise_level
+        pre_knowledge_indices,
+        noise_level=noise_level,
+        num_coordinate=num_coordinates,
     )
 
-    logger.info(f"activated_function : {activated_function.shape}")
-    logger.info(f"activated_coordinate : {activated_coordinate.shape}")
+    logger.info(f"activated_function : {activated_function}")
+    logger.info(f"activated_coordinate : {activated_coordinate}")
 
     logger.info(f"external_forces : {external_force.shape}")
     logger.info(f"acceleration_values : {acceleration_values.shape}")
@@ -414,12 +464,8 @@ def regression_mixed(
         f" {activated_coordinate.sum()} coordinates activated by the external forces and function interlink : \n {activated_coordinate.flatten()}"
     )
 
-    num_samples = theta_values.shape[0]
-
     if activated_coordinate.sum() > 0:
         logger.info("Performing explicit regression on the activated coordinates...")
-
-        external_forces_mask = 0  # super bad ## need to automate the finding process
 
         # Expand activated_coordinate (shape: [num_coordinate, 1]) to match the rows of experimental_matrix
         # Each coordinate corresponds to (num_samples) consecutive rows in experimental_matrix
@@ -427,25 +473,28 @@ def regression_mixed(
         expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
 
         explicit_experimental_matrix = experimental_matrix[expanded_mask == 1, :][
-            :, activated_function.flatten() == 1
+            :, (activated_function.flatten() == 1)
         ]
 
         explicite_solution = regression_function(
-            explicit_experimental_matrix, external_forces_mask
+            explicit_experimental_matrix, pre_knowledge_indices
         )  # Mask the first one that is the external forces
 
         solution[activated_function.flatten() == 1] = explicite_solution
 
         explicit_system_time_series = experimental_matrix @ solution
 
+        time_series_sum = np.abs(explicit_system_time_series).reshape(num_coordinates, -1).sum(axis=1, keepdims=True)
+
         updated_activated_coordinate = np.where(
-            np.abs(explicit_system_time_series)
-            .reshape(num_coordinates, -1)
-            .sum(axis=1, keepdims=True)
+            time_series_sum
             > 0,
             1,
             0,
         )
+
+        logger.debug(f"activated function explicit: {activated_function.flatten()}")
+        logger.debug(f"updated_activated_coordinate : {time_series_sum}")
 
         logger.info(
             f" {updated_activated_coordinate.sum()} coordinates activated by the explicit regression this is a {updated_activated_coordinate.sum() - activated_coordinate.sum()} change from the first detection : \n {updated_activated_coordinate.flatten()}"
@@ -506,7 +555,6 @@ def regression_mixed(
 
         solution[activated_function.flatten() == 0] = implicit_solution_stacked
 
-    solution[0] = -1.0  # Adding external forces that can't be guessed
 
     logger.info("Mixed regression process completed successfully.")
 

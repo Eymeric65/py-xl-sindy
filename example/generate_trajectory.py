@@ -18,6 +18,35 @@ import json
 
 logger = logging.getLogger(__name__)
 
+def generate_forces_function(
+    component_count: int,
+    scale_vector: np.ndarray,
+    random_seed: List[int],
+    time_end: float,
+):
+        # First try to generate forces function        
+    # forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
+    #     component_count=num_coordinates,
+    #     scale_vector=forces_scale_vector,
+    #     time_end=max_time,
+    #     period=forces_period,
+    #     period_shift=forces_period_shift,
+    #     augmentations=10, # base is 40
+    #     random_seed=[random_seed,i],
+    # )
+
+    forces_function = xlsindy.dynamics_modeling.sinusoidal_force_generator(
+        component_count=component_count,
+        scale_vector=scale_vector,
+        time_end=time_end,
+        num_frequencies=10,
+        freq_range=(0.01,1.0),
+        random_seed=random_seed,
+    )
+
+    return forces_function
+
+
 def generate_theoretical_trajectory(
     num_coordinates: int,
     initial_position: np.ndarray,
@@ -80,14 +109,10 @@ def generate_theoretical_trajectory(
                 loc=0, scale=np.reshape(initial_condition_randomness,initial_condition.shape)
             )
 
-        # Random controller initialisation. This is the only random place of the code Everything else is deterministic (except if non deterministic solver is used)
-        forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
+        forces_function = generate_forces_function(
             component_count=num_coordinates,
             scale_vector=forces_scale_vector,
             time_end=max_time,
-            period=forces_period,
-            period_shift=forces_period_shift,
-            augmentations=10, # base is 40
             random_seed=[random_seed,i],
         )
 
@@ -235,14 +260,11 @@ def generate_mujoco_trajectory(
         mujoco_data.qpos = initial_qpos
         mujoco_data.qvel = initial_qvel
         mujoco_data.time = 0.0
-        
-        forces_function = xlsindy.dynamics_modeling.optimized_force_generator(
+
+        forces_function = generate_forces_function(
             component_count=num_coordinates,
             scale_vector=forces_scale_vector,
             time_end=max_time,
-            period=forces_period,
-            period_shift=forces_period_shift,
-            augmentations=10, # base is 40
             random_seed=[random_seed,i],
         )
 

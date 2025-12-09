@@ -396,6 +396,91 @@ def optimized_force_generator(
     return force_function
 
 
+def sinusoidal_force_generator(
+    component_count: int,
+    scale_vector: np.ndarray,
+    time_end: float,
+    num_frequencies: int = 5,
+    freq_range: Tuple[float, float] = (0.5, 5.0),
+    random_seed: List[int] = [42],
+) -> Callable[[float], np.ndarray]:
+    """
+    Generates a force function based on stacked sinusoidal signals with varying frequencies and amplitudes.
+
+    The function creates a sum of sinusoids with random frequencies, amplitudes, and phases for each component.
+    Each sinusoidal component has a frequency within the specified range and a random amplitude and phase.
+
+    Parameters:
+        component_count (int): Number of components in the force vector.
+        scale_vector (np.ndarray): Scaling factors for each component.
+        time_end (float): End time for the generated force (used for normalization).
+        num_frequencies (int): Number of sinusoidal components to stack. Defaults to 5.
+        freq_range (Tuple[float, float]): Range of frequencies (min, max) in Hz. Defaults to (0.5, 5.0).
+        random_seed (List[int]): Seed for random number generation. Defaults to [42].
+
+    Returns:
+        Callable[[float], np.ndarray]: A function that returns the sinusoidal force at time `t`.
+    """
+    scale_vector = np.reshape(scale_vector, (component_count, 1))
+    rng = np.random.default_rng(random_seed)
+
+    # Generate random frequencies, amplitudes, and phases for each component
+    frequencies = np.zeros((component_count, num_frequencies))
+    amplitudes = np.zeros((component_count, num_frequencies))
+    phases = np.zeros((component_count, num_frequencies))
+
+    for i in range(component_count):
+        # Random frequencies within the specified range
+        frequencies[i, :] = rng.uniform(
+            freq_range[0], freq_range[1], num_frequencies
+        )
+        # Random amplitudes (uniform distribution)
+        amplitudes[i, :] = rng.uniform(0.5, 1.5, num_frequencies)
+        # Random phases
+        phases[i, :] = rng.uniform(0, 2 * np.pi, num_frequencies)
+
+    # Normalize amplitudes so the sum has unit variance
+    normalization_factors = np.zeros(component_count)
+    sample_times = np.linspace(0, time_end, 1000)
+    for i in range(component_count):
+        sample_signal = np.sum(
+            amplitudes[i, :, np.newaxis]
+            * np.sin(
+                2 * np.pi * frequencies[i, :, np.newaxis] * sample_times
+                + phases[i, :, np.newaxis]
+            ),
+            axis=0,
+        )
+        normalization_factors[i] = np.std(sample_signal)
+
+    def force_function(t: float) -> np.ndarray:
+        if isinstance(t, np.ndarray):
+            # Handle array input
+            force_value = np.zeros((component_count, len(t)))
+            for i in range(component_count):
+                for j in range(num_frequencies):
+                    force_value[i, :] += amplitudes[i, j] * np.sin(
+                        2 * np.pi * frequencies[i, j] * t + phases[i, j]
+                    )
+                force_value[i, :] /= normalization_factors[i]
+        else:
+            # Handle scalar input
+            force_value = np.zeros((component_count,))
+            for i in range(component_count):
+                for j in range(num_frequencies):
+                    force_value[i] += amplitudes[i, j] * np.sin(
+                        2 * np.pi * frequencies[i, j] * t + phases[i, j]
+                    )
+                force_value[i] /= normalization_factors[i]
+
+        # Apply scaling vector to each component
+        if len(force_value.shape) == 1:
+            return force_value * scale_vector.flatten()
+        return force_value * scale_vector
+
+    return force_function
+
+
 def vectorised_acceleration_generation(dynamic_system: Callable, qpos, qvel, force):
     """
     Take a dynamic system function after being vectorised model_dynamics_system = vmap(model_dynamics_system, in_axes=(1,1),out_axes=1) and return a batch of acceleration

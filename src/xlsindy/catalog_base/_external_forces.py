@@ -21,24 +21,25 @@ class ExternalForces(CatalogCategory):
         self.interlink_list = interlink_list
         self.symbolic_matrix = symbol_matrix
         ## Required variable
-        self.catalog_length = 1
         self.num_coordinate = len(self.interlink_list)
+        self.catalog_length = self.num_coordinate
 
     def create_solution_vector(self):
-        return np.array(-1).reshape(1, 1)
+        return np.ones(( self.num_coordinate,1))*-1.0
 
     def expand_catalog(self):
-        res = np.empty((1, self.num_coordinate), dtype=object)
+        res = np.empty((self.num_coordinate, self.num_coordinate), dtype=object)
+        res.fill(0)
 
         for i, additive in enumerate(self.interlink_list):
             for index in additive:
-                if res[0, i] is None:
-                    res[0, i] = (
+                if res[i, i] is None:
+                    res[i, i] = (
                         np.sign(index) * self.symbolic_matrix[0, np.abs(index) - 1]
                     )
 
                 else:
-                    res[0, i] += (
+                    res[i, i] += (
                         np.sign(index) * self.symbolic_matrix[0, np.abs(index) - 1]
                     )
 
