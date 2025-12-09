@@ -28,7 +28,7 @@ build-backend = "hatchling.build"
 packages = ["src/xlsindy"]
 
 
-[project.optional-dependencies]
+[project.optional-dependencies]git 
 gpu = [
     "cucim-cu12>=25.8.0",
     "cudf-cu12>=24.4.1",
