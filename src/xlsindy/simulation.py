@@ -469,15 +469,23 @@ def regression_mixed(
 
         # Expand activated_coordinate (shape: [num_coordinate, 1]) to match the rows of experimental_matrix
         # Each coordinate corresponds to (num_samples) consecutive rows in experimental_matrix
-
         expanded_mask = np.repeat(activated_coordinate.flatten(), num_samples)
 
         explicit_experimental_matrix = experimental_matrix[expanded_mask == 1, :][
             :, (activated_function.flatten() == 1)
         ]
 
+        # Remap pre_knowledge_indices to the filtered activated function space
+        activated_indices = np.nonzero(activated_function.flatten() == 1)[0]
+        # Create a mapping from original indices to new positions
+        index_map = np.full(activated_function.shape[1], -1, dtype=int)
+        index_map[activated_indices] = np.arange(len(activated_indices))
+        # Apply mapping and filter out indices not in activated functions
+        remapped_pre_knowledge_indices = index_map[pre_knowledge_indices]
+        remapped_pre_knowledge_indices = remapped_pre_knowledge_indices[remapped_pre_knowledge_indices >= 0]
+
         explicite_solution = regression_function(
-            explicit_experimental_matrix, pre_knowledge_indices
+            explicit_experimental_matrix, remapped_pre_knowledge_indices
         )  # Mask the first one that is the external forces
 
         solution[activated_function.flatten() == 1] = explicite_solution
@@ -526,7 +534,7 @@ def regression_mixed(
 
         implicit_solution_matrix = X.value
 
-        # Set the diagonal of the solution matrix to zero
+        # Set the diagonal of the solution matrix to -1
         np.fill_diagonal(implicit_solution_matrix, -1)
 
         # There is still hole in the _implicit_post_treatment group can overlap on multiple coordinates... which I think is an error ?

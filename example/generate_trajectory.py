@@ -39,7 +39,7 @@ def generate_forces_function(
         component_count=component_count,
         scale_vector=scale_vector,
         time_end=time_end,
-        num_frequencies=10,
+        num_frequencies=5,
         freq_range=(0.01,1.0),
         random_seed=random_seed,
     )
@@ -59,8 +59,6 @@ def generate_theoretical_trajectory(
     time_symb: sp.Symbol,
     symbols_matrix: np.ndarray,
     forces_scale_vector: np.ndarray,
-    forces_period: np.ndarray,
-    forces_period_shift: np.ndarray,
 ):
     """
     [INFO] maybe I should but this function inside the main library.
@@ -159,8 +157,6 @@ def generate_mujoco_trajectory(
     max_time: float,
     xml_content: str,
     forces_scale_vector: np.ndarray,
-    forces_period: np.ndarray,
-    forces_period_shift: np.ndarray,
     mujoco_transform,
     inverse_mujoco_transform,
 ):

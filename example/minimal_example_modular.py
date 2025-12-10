@@ -26,6 +26,12 @@ import matplotlib.pyplot as plt
 import os
 import sys 
 import importlib
+import tyro
+from pydantic import BaseModel
+from typing import List
+import hashlib
+import json
+from scipy import interpolate
 
 def mujoco_transform(pos, vel, acc):
 
@@ -39,31 +45,42 @@ def inverse_mujoco_transform(pos, vel, acc):
     
 logger = setup_logger(__name__,level="DEBUG")
 
-if __name__=="__main__":
-    
-    num_coordinates = 2
-    random_seed = [0]
-    batch_number = 5
-    max_time = 10.0
-    initial_position = np.array([0.0, 0.0,0.0,0.,0.,0.])
-    initial_condition_randomness = np.array([0.1])
-    forces_scale_vector = np.array([.5, 0.0, 0.0])
-    forces_period = 3.0
-    forces_period_shift = 0.5
-    # ratio of catalog lenght to sample size
-    data_ratio = 10
-    validation_time = 30.0
-    noise_level = 0.01
-    experiment_system = "cart_pole_double"
-    damping_coefficients = np.array([-0, -0,-0])
-    catalog_lenght = 20
-    # Three mode available : "xlsindy", "mixed", "sindy"
-    simulation_mode="sindy"
+class Args(BaseModel):
+
+    random_seed: List[int] = [1]
+    """the random seed for the simulation"""
+    batch_number: int = 2
+    """the number of trajectory to generate"""
+    max_time: float = 10.0
+    """the maximum time of the trajectory"""
+    initial_position: List[float] = [0.0, 0.0,0.0,0.0]
+    """the initial position of the trajectory"""
+    initial_condition_randomness: List[float] = [0.1]
+    """the randomness of the initial condition"""
+    forces_scale_vector: List[float] = [2.0, 2.0]
+    """the scale of the external forces"""
+    data_ratio: float = 2.0
+    """the ratio of data to catalog size"""
+    validation_time: float = 15.0
+    """the time of the validation trajectory"""
+    noise_level: float = 0.0
+    """the noise level of the trajectory"""
+    experiment_system: str = "cart_pole"
+    """the experiment system to use"""
+    damping_coefficients: List[float] = [-1.5, -1.5]
+    """the damping coefficients for each coordinate"""
+    catalog_lenght: int = 20
+    """the length of the catalog to use"""
+    simulation_mode: str = "mixed"  
+
+def main(args: Args):
+
+    exp_uid = hashlib.md5(args.model_dump_json().encode()).hexdigest()[:8]
 
     ## 0. Import the metacode for the chosen experiment system
 
     # Add the experiment system folder to the path
-    folder_path = os.path.join(os.path.dirname(__file__),"mujoco_align_data", experiment_system)
+    folder_path = os.path.join(os.path.dirname(__file__),"mujoco_align_data", args.experiment_system)
     sys.path.append(folder_path)
     # Import the metacode xlsindy_gen from the experiment system folder
     xlsindy_gen = importlib.import_module("xlsindy_gen")
@@ -86,7 +103,7 @@ if __name__=="__main__":
         inverse_mujoco_transform = None
 
     num_coordinates, time_sym, symbols_matrix, catalog, xml_content, extra_info = (
-        xlsindy_component( random_seed=random_seed, damping_coefficients=damping_coefficients,mode=simulation_mode,sindy_catalog_len=catalog_lenght)  # type: ignore
+        xlsindy_component( random_seed=args.random_seed, damping_coefficients=args.damping_coefficients,mode=args.simulation_mode,sindy_catalog_len=args.catalog_lenght)  # type: ignore
     )
 
     ideal_solution_vector = extra_info.get("ideal_solution_vector", None)
@@ -97,7 +114,7 @@ if __name__=="__main__":
 
     ## End import metacode 
 
-    rng = np.random.default_rng(random_seed)
+    rng = np.random.default_rng(args.random_seed)
 
 
     # Create the mujoco trajectory
@@ -108,31 +125,28 @@ if __name__=="__main__":
     force_vector_t,
     _) = generate_mujoco_trajectory(
         num_coordinates,
-        initial_position,
-        initial_condition_randomness,
-        random_seed,
-        batch_number,
-        max_time,
+        args.initial_position,
+        args.initial_condition_randomness,
+        args.random_seed,
+        args.batch_number,
+        args.max_time,
         xml_content,
-        forces_scale_vector,
-        forces_period,
-        forces_period_shift,
+        args.forces_scale_vector,
         mujoco_transform,
         inverse_mujoco_transform
     )
 
     # Add noise
-    simulation_qpos_t += rng.normal(loc=0, scale=noise_level, size=simulation_qpos_t.shape)*np.linalg.norm(simulation_qpos_t)/simulation_qpos_t.shape[0]
-    simulation_qvel_t += rng.normal(loc=0, scale=noise_level, size=simulation_qvel_t.shape)*np.linalg.norm(simulation_qvel_t)/simulation_qvel_t.shape[0]
-    simulation_qacc_t += rng.normal(loc=0, scale=noise_level, size=simulation_qacc_t.shape)*np.linalg.norm(simulation_qacc_t)/simulation_qacc_t.shape[0]
-    force_vector_t += rng.normal(loc=0, scale=noise_level, size=force_vector_t.shape)*np.linalg.norm(force_vector_t)/force_vector_t.shape[0]
+    simulation_qpos_t += rng.normal(loc=0, scale=args.noise_level, size=simulation_qpos_t.shape)*np.linalg.norm(simulation_qpos_t)/simulation_qpos_t.shape[0]
+    simulation_qvel_t += rng.normal(loc=0, scale=args.noise_level, size=simulation_qvel_t.shape)*np.linalg.norm(simulation_qvel_t)/simulation_qvel_t.shape[0]
+    simulation_qacc_t += rng.normal(loc=0, scale=args.noise_level, size=simulation_qacc_t.shape)*np.linalg.norm(simulation_qacc_t)/simulation_qacc_t.shape[0]
+    force_vector_t += rng.normal(loc=0, scale=args.noise_level, size=force_vector_t.shape)*np.linalg.norm(force_vector_t)/force_vector_t.shape[0]
 
     # Use a fixed ratio of the data in respect with catalog size
     catalog_size = catalog.catalog_length
-    data_ratio = data_ratio
     
     # Sample uniformly n samples from the imported arrays
-    n_samples = int(catalog_size * data_ratio)
+    n_samples = int(catalog_size * args.data_ratio)
     total_samples = simulation_qpos_t.shape[0]
 
     if n_samples < total_samples:
@@ -163,8 +177,8 @@ if __name__=="__main__":
         catalog_repartition=catalog,
         external_force=force_vector_t,
         regression_function=lasso_regression,
-        noise_level=noise_level,
-        pre_knowledge_indices=np.nonzero(forces_scale_vector)[0],
+        noise_level=args.noise_level,
+        pre_knowledge_indices=np.nonzero(args.forces_scale_vector)[0],
         pre_knowledge_type="external_forces_manual"
     )
 
@@ -198,15 +212,13 @@ if __name__=="__main__":
     force_vector_v,
     _) = generate_mujoco_trajectory(
         num_coordinates,
-        initial_position,
-        initial_condition_randomness,
-        random_seed+[0], # Ensure same seed as for data generation
+        args.initial_position,
+        args.initial_condition_randomness,
+        args.random_seed+[0], # Ensure same seed as for data generation
         1,
-        validation_time,
+        args.validation_time,
         xml_content,
-        forces_scale_vector,
-        forces_period,
-        forces_period_shift,
+        args.forces_scale_vector,
         mujoco_transform,
         inverse_mujoco_transform
     )
@@ -220,18 +232,16 @@ if __name__=="__main__":
          force_vector_vs,
          _) = generate_theoretical_trajectory(
              num_coordinates,
-             initial_position,
-             initial_condition_randomness,
-             random_seed+[0], # Ensure same seed as for data generation
+             args.initial_position,
+             args.initial_condition_randomness,
+             args.random_seed+[0], # Ensure same seed as for data generation
              1,
-             validation_time,
+             args.validation_time,
              solution,
              catalog,
              time_sym,
              symbols_matrix,
-             forces_scale_vector,
-             forces_period,
-             forces_period_shift
+             args.forces_scale_vector,
          )
     else:
         logger.warning("Model is not valid, skipping validation trajectory generation")
@@ -281,8 +291,60 @@ if __name__=="__main__":
     plt.tight_layout(rect=[0, 0.03, 1, 0.96]) # Adjust layout to make room for the suptitle
 
     # Display the plots
-    plt.savefig("trajectory_comparison.png")
+    plt.savefig(f"test/trajectory_comparison_{exp_uid}.png")
 
+    # Compute error between mujoco and theoretical simulations
+    if valid_model:
+        # Determine the common time range
+        max_validation_end_time = min(simulation_time_v[-1,0], simulation_time_vs[-1,0])
+        
+        # Filter to common time range
+        mask_v = simulation_time_v.flatten() <= max_validation_end_time
+        mask_vs = simulation_time_vs.flatten() <= max_validation_end_time
+        
+        time_v_filtered = simulation_time_v[mask_v,0]
+        qpos_v_filtered = simulation_qpos_v[mask_v,:]
+        
+        time_vs_filtered = simulation_time_vs[mask_vs,0]
+        qpos_vs_filtered = simulation_qpos_vs[mask_vs,:]
+        
+        # Interpolate theoretical data onto mujoco time points
+        qpos_vs_interpolated = np.zeros_like(qpos_v_filtered)
+        for i in range(num_coordinates):
+            interp_func = interpolate.interp1d(
+                time_vs_filtered, 
+                qpos_vs_filtered[:, i], 
+                kind='cubic', 
+                fill_value='extrapolate'
+            )
+            qpos_vs_interpolated[:, i] = interp_func(time_v_filtered)
+        
+        # Compute error (RMSE)
+        error = np.sqrt(np.mean((qpos_v_filtered - qpos_vs_interpolated)**2))
+        
+        logger.info(f"Position RMSE between Mujoco and Theoretical: {error:.6f}")
+    else:
+        error = float('inf')
+        max_validation_end_time = 0.0
+        logger.warning("Model invalid, setting error to infinity")
+    
+    # Save results to JSON
+    result_dict = args.model_dump()
+    result_dict['error'] = error
+    result_dict['max_validation_end_time'] = float(max_validation_end_time)
+    result_dict['regression_time'] = regression_time
+    result_dict['valid_model'] = valid_model
+    
+    os.makedirs("test", exist_ok=True)
+    json_path = f"test/results_{exp_uid}.json"
+    with open(json_path, 'w') as f:
+        json.dump(result_dict, f, indent=2)
+    
+    logger.info(f"Results saved to {json_path}")
 
+if __name__ == "__main__":
+
+    args = tyro.cli(Args)
+    main(args)
         
         
