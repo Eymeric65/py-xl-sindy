@@ -50,7 +50,7 @@ class ExternalForces(CatalogCategory):
         Return a place holder lab for the external forces.
         """
 
-        return ["$$F_{{ext}}$$"]
+        return [f"$$F_{{ext_{{{i}}}}}$$" for i in range(0, self.num_coordinate)]
 
     # externl forces are not separable by mask
     def separate_by_mask(self, mask):

@@ -1,9 +1,9 @@
 [project]
 name = "py-xl-sindy"
-version = "2.1.5"
+version = "2.1.6"
 description = "The repository of the py-xl-sindy python package"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "cvxpy>=1.7.3",
     "jax>=0.5.3",
