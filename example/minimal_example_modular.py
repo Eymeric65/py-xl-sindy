@@ -168,6 +168,10 @@ def main(args: Args):
 
     start_time = time.perf_counter()
 
+    pre_knowledge_indices = np.nonzero(args.forces_scale_vector)[0] + catalog.starting_index_by_type("ExternalForces")
+    pre_knowledge_mask = np.zeros((catalog.catalog_length,))
+    pre_knowledge_mask[pre_knowledge_indices] = 1.0
+
     solution, exp_matrix = xlsindy.simulation.regression_mixed(
         theta_values=simulation_qpos_t,
         velocity_values=simulation_qvel_t,
@@ -177,9 +181,7 @@ def main(args: Args):
         catalog_repartition=catalog,
         external_force=force_vector_t,
         regression_function=lasso_regression,
-        noise_level=args.noise_level,
-        pre_knowledge_indices=np.nonzero(args.forces_scale_vector)[0],
-        pre_knowledge_type="external_forces_manual"
+        pre_knowledge_mask=pre_knowledge_mask,
     )
 
     end_time = time.perf_counter()

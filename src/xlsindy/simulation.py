@@ -29,6 +29,7 @@ def regression_explicite(
     catalog_repartition: CatalogRepartition,
     external_force: np.ndarray,
     regression_function: Callable = lasso_regression,
+    pre_knowledge_mask: np.ndarray = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Executes regression for a dynamic system to estimate the system’s parameters.
@@ -52,7 +53,6 @@ def regression_explicite(
 
     num_coordinates = theta_values.shape[1]
 
-    external_forces_mask = 0  # super bad ## need to automate the finding process
 
     catalog = catalog_repartition.expand_catalog()
 
@@ -67,7 +67,7 @@ def regression_explicite(
     )
 
     whole_solution = regression_function(
-        whole_experimental_matrix, external_forces_mask
+        whole_experimental_matrix, pre_knowledge_mask
     )  # Mask the first one that is the external forces
     whole_solution = np.reshape(whole_solution, shape=(-1, 1))
     # whole_solution[np.abs(whole_solution) < np.max(np.abs(whole_solution)) * hard_threshold] = 0
@@ -342,11 +342,7 @@ def regression_mixed(
     ideal_solution_vector: np.ndarray = None,
     deg_tol: float = 15,  # base 10
     weight_distribution_threshold: float = 0.5,  # base 0.8
-    noise_level: float = 0.0,
-    noise_security: float = 2,
-    ghost_samples: int = 50,
-    pre_knowledge_type: str = "external_forces",
-    pre_knowledge_indices: np.ndarray = None,
+    pre_knowledge_mask: np.ndarray = None,
 ):
     """
     [WARNING] when introducing noise in the system, the force detection clearly fail (which lead to incoherent system)
@@ -382,9 +378,6 @@ def regression_mixed(
     Returns:
         Tuple TODO
     """
-
-    noise_level = noise_level * noise_security
-
     logger.info("Starting mixed regression process...")
 
     num_coordinates = theta_values.shape[1]
@@ -402,53 +395,48 @@ def regression_mixed(
         external_force,
     )
 
-    if pre_knowledge_type == "external_forces":
+    ## Old pre-knowledge detection code, need to be put elsewhere if needed again
+    # if pre_knowledge_type == "external_forces":
 
-        # Experiment matrix to detect which function are dependent on external forces
-        ghost_experiment_matrix = jax_create_experiment_matrix(
-            num_coordinates,
-            catalog,
-            symbol_matrix,
-            np.zeros((ghost_samples,num_coordinates)),
-            np.zeros((ghost_samples,num_coordinates)),
-            np.zeros((ghost_samples,num_coordinates)),
-            np.linspace(-1e3,1e3,ghost_samples).reshape(-1,1) * np.ones((1,num_coordinates)),
-        ).reshape(num_coordinates,-1,catalog_repartition.catalog_length)
+    #     # Experiment matrix to detect which function are dependent on external forces
+    #     ghost_experiment_matrix = jax_create_experiment_matrix(
+    #         num_coordinates,
+    #         catalog,
+    #         symbol_matrix,
+    #         np.zeros((ghost_samples,num_coordinates)),
+    #         np.zeros((ghost_samples,num_coordinates)),
+    #         np.zeros((ghost_samples,num_coordinates)),
+    #         np.linspace(-1e3,1e3,ghost_samples).reshape(-1,1) * np.ones((1,num_coordinates)),
+    #     ).reshape(num_coordinates,-1,catalog_repartition.catalog_length)
 
-        ghost_experiment_matrix = np.std(ghost_experiment_matrix,axis=1)
+    #     ghost_experiment_matrix = np.std(ghost_experiment_matrix,axis=1)
 
-        pre_knowledge_mask = np.where(
-            ghost_experiment_matrix != 0, 1, 0
-        ).sum(axis=0)
+    #     pre_knowledge_mask = np.where(
+    #         ghost_experiment_matrix != 0, 1, 0
+    #     ).sum(axis=0)
 
-        pre_knowledge_mask = np.where(
-            pre_knowledge_mask > 0, 1, 0
-        )
+    #     pre_knowledge_mask = np.where(
+    #         pre_knowledge_mask > 0, 1, 0
+    #     )
 
-        pre_knowledge_indices = np.nonzero(pre_knowledge_mask)[0]
+    #     pre_knowledge_indices = np.nonzero(pre_knowledge_mask)[0]
 
-    elif pre_knowledge_type == "external_forces_manual":
+    # elif pre_knowledge_type == "external_forces_manual":
 
-        if pre_knowledge_indices is None:
+    #     if pre_knowledge_indices is None:
 
-            raise ValueError("pre_knowledge_indices must be provided if pre_knowledge_type is external_forces_manual and should be the indices of the external forces in the catalog (locally)")
+    #         raise ValueError("pre_knowledge_indices must be provided if pre_knowledge_type is external_forces_manual and should be the indices of the external forces in the catalog (locally)")
         
-        starting_index = catalog_repartition.starting_index_by_type("ExternalForces")
-        pre_knowledge_indices = pre_knowledge_indices + starting_index
+    #     np.nonzero(experiment_data.generation_params.forces_scale_vector)[0]
+    #     pre_knowledge_indices = pre_knowledge_indices + starting_index
 
 
-    elif pre_knowledge_indices is None:
-
-        raise ValueError("pre_knowledge_indices must be provided if pre_knowledge_type is not previously defined")
-
-    logger.debug(f"pre_knowledge_indices : {pre_knowledge_indices}")
 
     num_samples = theta_values.shape[0]
 
     activated_function, activated_coordinate = activated_catalog(
         experimental_matrix,
-        pre_knowledge_indices,
-        noise_level=noise_level,
+        pre_knowledge_mask,
         num_coordinate=num_coordinates,
     )
 
@@ -475,20 +463,16 @@ def regression_mixed(
             :, (activated_function.flatten() == 1)
         ]
 
-        # Remap pre_knowledge_indices to the filtered activated function space
-        activated_indices = np.nonzero(activated_function.flatten() == 1)[0]
-        # Create a mapping from original indices to new positions
-        index_map = np.full(activated_function.shape[1], -1, dtype=int)
-        index_map[activated_indices] = np.arange(len(activated_indices))
-        # Apply mapping and filter out indices not in activated functions
-        remapped_pre_knowledge_indices = index_map[pre_knowledge_indices]
-        remapped_pre_knowledge_indices = remapped_pre_knowledge_indices[remapped_pre_knowledge_indices >= 0]
+
+        remapped_pre_knowledge_mask = pre_knowledge_mask[activated_function.flatten() == 1]
 
         explicite_solution = regression_function(
-            explicit_experimental_matrix, remapped_pre_knowledge_indices
+            explicit_experimental_matrix, remapped_pre_knowledge_mask
         )  # Mask the first one that is the external forces
 
         solution[activated_function.flatten() == 1] = explicite_solution
+
+        logger.debug(f"explicite_solution : {explicite_solution.flatten()}")
 
         explicit_system_time_series = experimental_matrix @ solution
 

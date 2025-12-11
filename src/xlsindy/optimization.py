@@ -79,8 +79,7 @@ def bipartite_link(exp_matrix, num_coordinate, x_names, b_names):
 
 def activated_catalog(
     exp_matrix: np.ndarray,
-    pre_knowledge_indices: np.ndarray,
-    noise_level: float,
+    pre_knowledge_mask: np.ndarray,
     num_coordinate: int,
 ):
     """
@@ -89,7 +88,7 @@ def activated_catalog(
 
     Args
         exp_matrix (np.ndarray): The experimental matrix.
-        pre_knowledge_indices (np.ndarray): The pre-knowledge indices.
+        pre_knowledge_mask (np.ndarray): The pre-knowledge mask.
         noise_level (float): The noise level to consider for activation.
         sample_number (int): The number of samples in the experimental matrix.
         num_coordinate (int): The number of generalized coordinates.
@@ -101,7 +100,6 @@ def activated_catalog(
     """
 
     logger.info("Starting activated catalog detection")
-    logger.debug(f"Noise level for activation: {noise_level}")
     logger.debug(f"Experimental matrix shape: {exp_matrix.shape}")
 
     exp_matrix_compressed = np.abs(exp_matrix).reshape(num_coordinate, -1, exp_matrix.shape[1]).sum(axis=1)
@@ -116,7 +114,7 @@ def activated_catalog(
     )
 
     # Retrieve the pre-knowledge part of the matrix
-    pre_knowledge_matrix = binary_compressed_exp_matrix[:, pre_knowledge_indices].sum(axis=1, keepdims=True)
+    pre_knowledge_matrix = binary_compressed_exp_matrix[:, pre_knowledge_mask == 1].sum(axis=1, keepdims=True)
 
     logger.debug(f"Compressed force matrix: {pre_knowledge_matrix}")
 
@@ -259,17 +257,20 @@ def amputate_experiment_matrix(
     Can be used to split experiment matrix in the case of implicit or explicit regression
 
     Parameters:
-        exp_matrix (np.ndarray): Experimental matrix.
-        mask (int): the column to erase
+        exp_matrix (pre_knowledge_mask): Experimental matrix.
+        mask (pre_knowledge_mask): a mask to indicate the position of the pre-knowledge column.
 
     Returns:
         np.ndarray : Reduced experiment matrix .
         np.ndarray : Left Hand Side vector (forces vector)
     """
 
-    LHS = experiment_matrix[:, mask].sum(axis=1).reshape(-1, 1)
+    logger.info("Amputating experiment matrix")
+    logger.debug(f"Mask index: {mask}")
 
-    experiment_matrix = np.delete(experiment_matrix, mask, axis=1)
+    LHS = experiment_matrix[:, mask==1].sum(axis=1).reshape(-1, 1)
+
+    experiment_matrix = experiment_matrix[:,mask==0]
 
     return experiment_matrix, LHS
 
@@ -282,7 +283,16 @@ def populate_solution(
     Opposite of amputate_experiment_matrix add a -1 in the solution where the mask should have been. (Because Left Hand Side is -1 )
     """
 
-    return np.insert(solution, mask, -1, axis=0)
+    logger.info("Populate experiment solution")
+    logger.debug(f"Mask index: {mask}")
+
+    logger.debug(f"Solution before populate: {solution.flatten()}")
+
+    new_solution = np.zeros_like(mask, dtype=solution.dtype)
+    new_solution[mask==0] = solution.flatten()
+    new_solution[mask==1] = -1.0
+
+    return new_solution.reshape(-1,1)
 
 
 ## TODO maybe I could turn everything on jax...
