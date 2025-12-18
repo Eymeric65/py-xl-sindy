@@ -83,7 +83,6 @@ def activated_catalog(
     num_coordinate: int,
 ):
     """
-    [AHHHHHH] I need to transpose the force vector bruh
     Perform a recursive search to find the part ot the catalog that could be activated by the force vector.
 
     Args
@@ -167,6 +166,31 @@ def _recursive_activation(
         return activation_vector, np.where(
             activation_function + activate_function > 0, 1, 0
         )
+
+
+def remaining_catalog(
+    exp_matrix: np.ndarray,
+    activated_coordinates: np.ndarray,
+    num_coordinate: int,
+):
+    """
+    Get the remaining activated function after the explicit solution
+
+    the remaining activated function (0) are the one that doesn't touche an activated coordinate.
+
+    Args
+        exp_matrix (np.ndarray): The experimental matrix.
+        activated_coordinates (np.ndarray): The activated coordinates.
+        num_coordinate (int): The number of generalized coordinates.
+    Returns:
+        np.ndarray (1,catalog_lenght): Remaining explicit activated catalog.
+    """
+
+    exp_matrix_compressed = np.abs(exp_matrix).reshape(num_coordinate, -1, exp_matrix.shape[1]).sum(axis=1)
+
+    function_mask = exp_matrix_compressed[activated_coordinates.flatten() == 1, :].sum(axis=0,keepdims=True)
+
+    return np.where(function_mask > 0, 1, 0)
 
 
 def normalize_experiment_matrix(

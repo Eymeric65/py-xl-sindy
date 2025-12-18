@@ -10,4 +10,5 @@ _build/
 dist/
 results/
 +.github/
-test/
+test_experiment/
+*.png

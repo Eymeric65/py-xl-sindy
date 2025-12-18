@@ -9,7 +9,7 @@ import numpy as np
 import sympy
 
 from .euler_lagrange import create_experiment_matrix, jax_create_experiment_matrix
-from .optimization import lasso_regression, activated_catalog
+from .optimization import lasso_regression, activated_catalog, remaining_catalog
 
 import cvxpy as cp
 
@@ -493,6 +493,12 @@ def regression_mixed(
         )
 
         activated_coordinate = updated_activated_coordinate
+        # The remaining function are the one that are not activated by the explicit regression coordinates.
+        activated_function = remaining_catalog(
+            experimental_matrix,
+            activated_coordinate,
+            num_coordinates=num_coordinates,
+        )
 
     if activated_coordinate.sum() < num_coordinates:
         logger.info("Performing implicit regression on the remaining coordinates...")
