@@ -22,9 +22,7 @@ SYSTEMS = ["cart_pole", "cart_pole_double", "double_pendulum_pm"]
 
 # Damping configurations to test
 DAMPING_CONFIGS = [
-    [-0.5],
     [-1.0],
-    [-2.0],
     [-0.0],
 ]
 
@@ -48,7 +46,7 @@ FORCE_PATTERNS_3D = [
 ]
 
 # Force scale magnitudes to test (will be multiplied by force pattern)
-FORCE_SCALES = [0.5, 1.0, 1.5, 2.0, 2.5]
+FORCE_SCALES = [1.0]
 
 # Fixed parameters
 FIXED_PARAMS = {
@@ -68,17 +66,14 @@ SYSTEM_CONFIG = {
     "cart_pole": {
         "num_coords": 2,
         "force_patterns": FORCE_PATTERNS_2D,
-        "damping_base": 3,
     },
     "cart_pole_double": {
         "num_coords": 3,
         "force_patterns": FORCE_PATTERNS_3D,
-        "damping_base": 3,
     },
     "double_pendulum_pm": {
         "num_coords": 2,
         "force_patterns": FORCE_PATTERNS_2D,
-        "damping_base": 2,
     },
 }
 
